@@ -1,0 +1,38 @@
+# Gezegen CRM — mevcut (paylaşımlı) bir Nginx ters proxy'ye bağlanma modu.
+#
+# Sunucuda halihazırda 80/443'ü yöneten bir Nginx konteyneri varsa
+# (bu projede ana docker-compose.yml'deki gömülü Nginx/Certbot yerine)
+# bu dosya kullanılır: yalnızca uygulamayı çalıştırır ve onu mevcut
+# reverse proxy'nin Docker ağına bağlar. TLS ve 80/443 dinleme mevcut
+# Nginx + Certbot tarafından yönetilir (bkz. nginx-crm.conf).
+#
+# Çalıştırma (proje kök dizininden):
+#   docker compose -f deploy/reverse-proxy/docker-compose.yml up -d --build
+#
+# NOT: Aşağıdaki dış ağ adını (external network name) kendi ortamınıza göre
+# ayarlayın. Mevcut Nginx'in ağını bulmak için:
+#   docker inspect <nginx-konteyner> --format '{{json .NetworkSettings.Networks}}'
+
+services:
+  app:
+    build: ../..
+    image: gezegen-crm:latest
+    container_name: gezegen-crm-app
+    restart: unless-stopped
+    env_file:
+      - ../../deploy.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "file:/app/data/prod.db"
+    volumes:
+      - gezegen-db:/app/data
+    networks:
+      - web
+
+volumes:
+  gezegen-db:
+
+networks:
+  web:
+    external: true
+    name: root_web # ← mevcut reverse proxy'nin Docker ağının adı

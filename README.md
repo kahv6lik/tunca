@@ -136,6 +136,27 @@ rm -rf deploy/certbot/conf/live && ./deploy.sh
 
 ---
 
+## Mevcut bir Nginx reverse proxy'ye bağlanma (çok-siteli sunucu)
+
+Sunucuda zaten 80/443'ü yöneten bir Nginx (+ Certbot) varsa, gömülü
+Nginx/Certbot yerine yalnızca uygulamayı çalıştırıp mevcut proxy'ye bağlayın:
+
+```bash
+# 1) Uygulamayı mevcut proxy ağına bağlı olarak çalıştır
+#    (deploy/reverse-proxy/docker-compose.yml içindeki `name: root_web`'i
+#     kendi proxy ağınızın adıyla güncelleyin)
+docker compose -f deploy/reverse-proxy/docker-compose.yml up -d --build
+
+# 2) deploy/reverse-proxy/nginx-crm.conf içindeki server bloklarını mevcut
+#    Nginx yapılandırmanıza ekleyin, sertifikayı alın ve Nginx'i reload edin
+#    (komutlar dosyanın başındaki yorumlarda).
+```
+
+Detaylar: `deploy/reverse-proxy/` klasörü. Bu mod, uygulamayı `gezegen-crm-app:3000`
+olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yönetilir.
+
+---
+
 ## Komutlar
 
 | Komut | Açıklama |
