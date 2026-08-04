@@ -12,9 +12,11 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
 # Bağımlılıklar (postinstall prisma generate için schema gerekli)
+# NODE_ENV=production olduğundan devDependencies'i (tailwindcss, typescript,
+# prisma, tsx…) açıkça kuruyoruz; bunlar build ve giriş betiği için gerekli.
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --include=dev
 
 # Uygulama kaynak kodu
 COPY . .
