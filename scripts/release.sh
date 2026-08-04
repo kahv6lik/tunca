@@ -75,17 +75,23 @@ git tag -a "$TAG" -m "${TAG} — ${MESSAGE}"
 git push -u origin "$BRANCH"
 
 push_tag_with_token() {
-  local token=""
-  if [[ -n "${GH_TOKEN:-}" ]]; then
-    token="$GH_TOKEN"
-  elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
-    token="$GITHUB_TOKEN"
-  elif [[ -r "$TOKEN_FILE" ]]; then
-    token="$(tr -d '\r\n' < "$TOKEN_FILE")"
-  fi
-  [[ -n "$token" ]] || return 1
-  # Token'lı URL insteadOf yeniden yazımına takılmaz; doğrudan github.com'a gider.
-  git push "https://x-access-token:${token}@github.com/${REPO_SLUG}.git" "refs/tags/${TAG}" >/dev/null 2>&1
+  local candidates=() token
+
+  # Dosya önce gelir: ortamdaki GH_TOKEN/GITHUB_TOKEN, Claude Code oturumunda
+  # git relay'ine ait "proxy-..." yer tutucusu olabiliyor — onlar elenir.
+  [[ -r "$TOKEN_FILE" ]] && candidates+=("$(tr -d '\r\n' < "$TOKEN_FILE")")
+  [[ "${GH_TOKEN:-}" == proxy-* ]]     || candidates+=("${GH_TOKEN:-}")
+  [[ "${GITHUB_TOKEN:-}" == proxy-* ]] || candidates+=("${GITHUB_TOKEN:-}")
+
+  for token in "${candidates[@]}"; do
+    [[ -n "$token" ]] || continue
+    # Token'lı URL insteadOf yeniden yazımına takılmaz; doğrudan github.com'a gider.
+    if git push "https://x-access-token:${token}@github.com/${REPO_SLUG}.git" \
+         "refs/tags/${TAG}" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 if git push origin "refs/tags/${TAG}" 2>/dev/null; then

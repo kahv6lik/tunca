@@ -81,17 +81,20 @@ Geri dönmek için: `git checkout v1.0.1` (veya `git revert` / `git reset --hard
 Claude Code oturumunun git kimliği yalnızca **branch** ref'lerine push edebilir;
 **tag** ref'leri uzak sunucu tarafından `HTTP 403` ile reddedilir. Bu yüzden
 `scripts/release.sh`, `origin`'e tag push'u başarısız olursa bir GitHub token
-ile doğrudan `github.com`'a push dener. Token şu sırayla aranır:
+ile doğrudan `github.com`'a push dener. Token şu sırayla denenir:
 
-1. `GH_TOKEN` ortam değişkeni
-2. `GITHUB_TOKEN` ortam değişkeni
-3. `~/.config/gezegen-crm/token` dosyası (mod 600)
+1. `~/.config/gezegen-crm/token` dosyası (mod 600)
+2. `GH_TOKEN` ortam değişkeni
+3. `GITHUB_TOKEN` ortam değişkeni
 
-Token **asla depoya yazılmaz** — üçü de repo dışındadır.
+Claude Code oturumunda `GH_TOKEN`/`GITHUB_TOKEN` genellikle git relay'ine ait
+`proxy-...` yer tutucusudur; betik bu değerleri eler. Bu yüzden dosya önce gelir.
+
+Token **asla depoya yazılmaz** — üç kaynak da repo dışındadır.
 
 Konteyner geçici olduğu için dosyaya kaydedilen token yalnızca o oturum boyunca
-yaşar. Kalıcı olması için token'ı Claude Code ortam ayarlarında `GH_TOKEN`
-ortam değişkeni olarak tanımlayın; betik onu kendiliğinden bulur.
+yaşar. Kalıcı olması için token'ı Claude Code ortam ayarlarında gerçek bir
+`GH_TOKEN` değeri olarak tanımlayın; betik onu kendiliğinden bulur.
 
 Token için önerilen kapsam: **fine-grained PAT**, yalnızca `kahv6lik/tunca`
 deposu, tek izin **Contents: Read and write**.
