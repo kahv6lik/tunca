@@ -78,10 +78,17 @@ sed "s|\${DOMAIN}|${DOMAIN}|g" deploy/nginx/app.conf.template > deploy/nginx/app
 ok "deploy/nginx/app.conf oluşturuldu."
 
 CERT_PATH="deploy/certbot/conf/live/${DOMAIN}"
+# Gerçek Let's Encrypt sertifikası ancak certbot başarıyla çalışınca bir
+# yenileme (renewal) yapılandırması oluşturur. Geçici (dummy) sertifikada bu
+# dosya olmaz — bu yüzden "gerçek sertifika var mı" kontrolünü buna dayandırırız.
+RENEWAL_CONF="deploy/certbot/conf/renewal/${DOMAIN}.conf"
 
-# ---- İlk kurulum: sertifika henüz yoksa ----
-if [ ! -f "${CERT_PATH}/fullchain.pem" ]; then
-  info "Sertifika bulunamadı — ilk kurulum başlıyor."
+# ---- İlk kurulum: gerçek sertifika henüz yoksa ----
+if [ ! -f "${RENEWAL_CONF}" ]; then
+  info "Gerçek sertifika bulunamadı — ilk kurulum başlıyor."
+
+  # Önceki denemelerden kalan geçici sertifikayı temizle
+  rm -rf "${CERT_PATH}"
 
   # 1) Nginx'in ayağa kalkabilmesi için geçici (dummy) sertifika
   info "Geçici sertifika oluşturuluyor…"
