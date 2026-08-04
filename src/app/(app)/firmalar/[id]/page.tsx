@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { Badge, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/layout/page-header";
+import { StatusBadge } from "@/components/ui/badge";
 import AddPanel from "@/components/AddPanel";
 import DeleteButton from "@/components/DeleteButton";
 import type { Field } from "@/components/RecordForm";
@@ -115,7 +116,7 @@ export default async function FirmaDetayPage({
   return (
     <div>
       <div className="mb-4">
-        <Link href="/firmalar" className="text-sm text-brand-600 hover:underline">
+        <Link href="/firmalar" className="text-sm text-primary hover:underline">
           ← Firmalar
         </Link>
       </div>
@@ -125,7 +126,7 @@ export default async function FirmaDetayPage({
         subtitle={[firma.sektor, firma.il].filter(Boolean).join(" · ") || undefined}
         action={
           <div className="flex items-center gap-2">
-            <Badge durum={firma.durum} />
+            <StatusBadge durum={firma.durum} />
             <Link href={`/firmalar/${firma.id}/duzenle`} className="btn-secondary text-sm">
               Düzenle
             </Link>
@@ -151,9 +152,9 @@ export default async function FirmaDetayPage({
           <Info label="Onaylı Yatırım (TRY)" value={formatPara(toplamOnayliYatirim)} />
         </dl>
         {firma.notlar && (
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-xs font-medium uppercase text-slate-400">Notlar</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{firma.notlar}</p>
+          <div className="mt-4 border-t border-border/50 pt-4">
+            <p className="text-xs font-medium uppercase text-muted-foreground/70">Notlar</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">{firma.notlar}</p>
           </div>
         )}
       </div>
@@ -177,12 +178,12 @@ export default async function FirmaDetayPage({
           <TableWrap
             head={["Başlık", "Tür", "Tutar", "Tarih", "Durum", ""]}
             rows={firma.yatirimlar.map((y) => (
-              <tr key={y.id} className="hover:bg-slate-50">
+              <tr key={y.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{y.baslik}</td>
                 <td className="td">{y.tur ?? "—"}</td>
                 <td className="td">{formatPara(y.tutar, y.paraBirimi)}</td>
                 <td className="td">{formatTarih(y.tarih)}</td>
-                <td className="td"><Badge durum={y.durum} /></td>
+                <td className="td"><StatusBadge durum={y.durum} /></td>
                 <td className="td text-right">
                   <DeleteButton action={deleteYatirim.bind(null, y.id, firma.id)} />
                 </td>
@@ -211,14 +212,14 @@ export default async function FirmaDetayPage({
           <TableWrap
             head={["Başlık", "Konu", "Eğitmen", "Tarih", "Süre", "Katılımcı", "Durum", ""]}
             rows={firma.egitimler.map((e) => (
-              <tr key={e.id} className="hover:bg-slate-50">
+              <tr key={e.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{e.baslik}</td>
                 <td className="td">{e.konu ?? "—"}</td>
                 <td className="td">{e.egitmen ?? "—"}</td>
                 <td className="td">{formatTarih(e.tarih)}</td>
                 <td className="td">{e.sureSaat} s</td>
                 <td className="td">{e.katilimci}</td>
-                <td className="td"><Badge durum={e.durum} /></td>
+                <td className="td"><StatusBadge durum={e.durum} /></td>
                 <td className="td text-right">
                   <DeleteButton action={deleteEgitim.bind(null, e.id, firma.id)} />
                 </td>
@@ -247,11 +248,11 @@ export default async function FirmaDetayPage({
           <TableWrap
             head={["Başlık", "Tür", "Tarih", "Durum", ""]}
             rows={firma.hizmetler.map((h) => (
-              <tr key={h.id} className="hover:bg-slate-50">
+              <tr key={h.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{h.baslik}</td>
                 <td className="td">{h.tur ?? "—"}</td>
                 <td className="td">{formatTarih(h.tarih)}</td>
-                <td className="td"><Badge durum={h.durum} /></td>
+                <td className="td"><StatusBadge durum={h.durum} /></td>
                 <td className="td text-right">
                   <DeleteButton action={deleteHizmet.bind(null, h.id, firma.id)} />
                 </td>
@@ -267,8 +268,8 @@ export default async function FirmaDetayPage({
 function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-sm text-slate-800">{value || "—"}</dd>
+      <dt className="text-xs font-medium uppercase text-muted-foreground/70">{label}</dt>
+      <dd className="mt-0.5 text-sm text-foreground">{value || "—"}</dd>
     </div>
   );
 }
@@ -287,8 +288,8 @@ function Section({
   return (
     <div className="card mb-6 p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold text-slate-800">
-          {title} <span className="text-slate-400">({count})</span>
+        <h2 className="font-semibold text-foreground">
+          {title} <span className="text-muted-foreground/70">({count})</span>
         </h2>
       </div>
       <div className="mb-4">{addPanel}</div>
@@ -300,20 +301,20 @@ function Section({
 function TableWrap({ head, rows }: { head: string[]; rows: React.ReactNode }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
+      <table className="min-w-full divide-y divide-border/60">
+        <thead className="bg-muted/30">
           <tr>
             {head.map((h, i) => (
               <th key={i} className="th">{h}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">{rows}</tbody>
+        <tbody className="divide-y divide-border/50">{rows}</tbody>
       </table>
     </div>
   );
 }
 
 function Empty() {
-  return <p className="py-4 text-center text-sm text-slate-400">Henüz kayıt yok.</p>;
+  return <p className="py-4 text-center text-sm text-muted-foreground/70">Henüz kayıt yok.</p>;
 }

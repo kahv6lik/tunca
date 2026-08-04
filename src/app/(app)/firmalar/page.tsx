@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { PageHeader, Badge, Pagination, EmptyState } from "@/components/ui";
+import { PageHeader } from "@/components/layout/page-header";
+import { StatusBadge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -133,8 +136,8 @@ export default async function FirmalarPage({
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-border/60">
+            <thead className="bg-muted/30">
               <tr>
                 <th className="th">Firma</th>
                 <th className="th">Sektör</th>
@@ -146,17 +149,17 @@ export default async function FirmalarPage({
                 <th className="th">Durum</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/50">
               {firmalar.map((f) => (
-                <tr key={f.id} className="hover:bg-slate-50">
+                <tr key={f.id} className="hover:bg-muted/40">
                   <td className="td">
                     <Link
                       href={`/firmalar/${f.id}`}
-                      className="font-medium text-slate-800 hover:text-brand-600"
+                      className="font-medium text-foreground hover:text-primary"
                     >
                       {f.ad}
                     </Link>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground/70">
                       Eklendi: {formatTarih(f.createdAt)}
                     </p>
                   </td>
@@ -167,7 +170,7 @@ export default async function FirmalarPage({
                   <td className="td text-center">{f._count.egitimler}</td>
                   <td className="td text-center">{f._count.hizmetler}</td>
                   <td className="td">
-                    <Badge durum={f.durum} />
+                    <StatusBadge durum={f.durum} />
                   </td>
                 </tr>
               ))}

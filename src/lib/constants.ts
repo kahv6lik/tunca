@@ -55,22 +55,22 @@ export const HIZMET_TUR = [
 
 export const PARA_BIRIMI = ["TRY", "USD", "EUR"] as const;
 
-// Durum → Türkçe etiket + renk (Tailwind sınıfları)
+// Durum → Türkçe etiket + renk (dark uyumlu translucent ring rozetleri)
 export const DURUM_ETIKET: Record<string, { label: string; className: string }> = {
   // firma
-  aktif: { label: "Aktif", className: "bg-green-100 text-green-800" },
-  pasif: { label: "Pasif", className: "bg-gray-100 text-gray-700" },
+  aktif: { label: "Aktif", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  pasif: { label: "Pasif", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
   // yatırım
-  basvuruldu: { label: "Başvuruldu", className: "bg-blue-100 text-blue-800" },
-  onaylandi: { label: "Onaylandı", className: "bg-green-100 text-green-800" },
-  reddedildi: { label: "Reddedildi", className: "bg-red-100 text-red-800" },
+  basvuruldu: { label: "Başvuruldu", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  onaylandi: { label: "Onaylandı", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  reddedildi: { label: "Reddedildi", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
   // ortak
-  tamamlandi: { label: "Tamamlandı", className: "bg-emerald-100 text-emerald-800" },
+  tamamlandi: { label: "Tamamlandı", className: "bg-teal-500/15 text-teal-400 ring-teal-500/25" },
   // eğitim
-  planlandi: { label: "Planlandı", className: "bg-amber-100 text-amber-800" },
-  iptal: { label: "İptal", className: "bg-red-100 text-red-800" },
+  planlandi: { label: "Planlandı", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  iptal: { label: "İptal", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
   // hizmet
-  devam: { label: "Devam Ediyor", className: "bg-indigo-100 text-indigo-800" },
+  devam: { label: "Devam Ediyor", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
 };
 
 export function durumBadge(durum: string) {

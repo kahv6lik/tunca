@@ -31,12 +31,12 @@ export default function AddPanel({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-slate-700">{buttonLabel}</h4>
+        <h4 className="text-sm font-semibold text-foreground/90">{buttonLabel}</h4>
         <button
           onClick={() => setOpen(false)}
-          className="text-sm text-slate-500 hover:text-slate-700"
+          className="text-sm text-muted-foreground hover:text-foreground/90"
         >
           Kapat ✕
         </button>

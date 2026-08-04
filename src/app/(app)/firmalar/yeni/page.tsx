@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/layout/page-header";
 import FirmaForm from "@/components/FirmaForm";
 import { createFirma } from "../actions";
 

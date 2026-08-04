@@ -2,44 +2,185 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 214 32% 94%;
+    --accent-foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --primary: 239 84% 60%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 239 84% 60%;
+    --success: 152 69% 40%;
+    --warning: 32 95% 44%;
+    --danger: 0 72% 51%;
+    --radius: 0.9rem;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 44% 8%;
+    --card-foreground: 213 31% 91%;
+    --muted: 223 47% 13%;
+    --muted-foreground: 217 15% 62%;
+    --secondary: 222 47% 12%;
+    --secondary-foreground: 213 31% 91%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 213 31% 91%;
+    --border: 216 34% 18%;
+    --input: 216 34% 20%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 239 84% 67%;
+    --success: 152 76% 47%;
+    --warning: 38 92% 58%;
+    --danger: 0 84% 63%;
+    --radius: 0.9rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    min-height: 100vh;
+  }
+
+  /* Premium arka plan: yumuşak aurora ışıkları + ince grid */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(600px circle at 12% 8%, hsl(var(--primary) / 0.14), transparent 45%),
+      radial-gradient(700px circle at 92% 0%, hsl(280 90% 60% / 0.12), transparent 42%),
+      radial-gradient(600px circle at 78% 92%, hsl(190 90% 55% / 0.08), transparent 45%);
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+  }
+
+  /* İnce, modern kaydırma çubuğu */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: padding-box;
+  }
 }
 
-body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-}
-
-/* Yeniden kullanılabilir bileşen sınıfları */
 @layer components {
+  /* ---- Yüzeyler ---- */
+  .card {
+    @apply rounded-2xl border border-border/70 bg-card/70 shadow-soft backdrop-blur-xl;
+  }
+  .glass {
+    @apply border border-white/10 bg-white/5 backdrop-blur-xl dark:bg-white/[0.03];
+  }
+  /* Gradient kenarlıklı vurgu kartı */
+  .card-glow {
+    @apply relative rounded-2xl border border-border/60 bg-card/70 shadow-soft backdrop-blur-xl;
+  }
+  .card-glow::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 rounded-2xl opacity-60;
+    padding: 1px;
+    background: linear-gradient(130deg, hsl(var(--primary) / 0.5), transparent 40%, transparent 60%, hsl(280 90% 60% / 0.4));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* ---- Butonlar ---- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98];
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn text-primary-foreground shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.7)];
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(263 80% 62%));
+  }
+  .btn-primary:hover {
+    @apply brightness-110;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply btn border border-border/80 bg-secondary/60 text-secondary-foreground hover:bg-secondary;
+  }
+  .btn-ghost {
+    @apply btn text-muted-foreground hover:bg-accent hover:text-accent-foreground;
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
+    @apply btn bg-danger text-white hover:brightness-110;
   }
+
+  /* ---- Form ---- */
   .input {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+    @apply w-full rounded-xl border border-input bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60 focus:ring-2 focus:ring-ring/40;
   }
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-muted-foreground;
   }
-  .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
-  }
+
+  /* ---- Rozet ---- */
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset;
   }
+
+  /* ---- Tablo ---- */
   .th {
-    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
   }
   .td {
-    @apply px-4 py-3 text-sm text-slate-700;
+    @apply px-4 py-3.5 text-sm text-foreground/90;
+  }
+
+  /* İnce ayırıcı gradient çizgi */
+  .hr-gradient {
+    @apply h-px w-full border-0;
+    background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-fuchsia-400 bg-clip-text text-transparent;
+  }
+  .bg-grid {
+    background-image: var(--tw-gradient-grid, none);
+  }
+  /* Skeleton parıltısı */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted/60;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent);
+    animation: shimmer 1.6s infinite;
   }
 }

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { PageHeader, Badge, Pagination, EmptyState } from "@/components/ui";
+import { PageHeader } from "@/components/layout/page-header";
+import { StatusBadge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 import { HIZMET_DURUM } from "@/lib/constants";
 
@@ -69,8 +72,8 @@ export default async function HizmetlerPage({
         <EmptyState title="Kayıt bulunamadı" description="Hizmetler firma detay sayfasından eklenir." />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-border/60">
+            <thead className="bg-muted/30">
               <tr>
                 <th className="th">Firma</th>
                 <th className="th">Başlık</th>
@@ -79,18 +82,18 @@ export default async function HizmetlerPage({
                 <th className="th">Durum</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/50">
               {kayitlar.map((h) => (
-                <tr key={h.id} className="hover:bg-slate-50">
+                <tr key={h.id} className="hover:bg-muted/40">
                   <td className="td">
-                    <Link href={`/firmalar/${h.firma.id}`} className="font-medium text-slate-800 hover:text-brand-600">
+                    <Link href={`/firmalar/${h.firma.id}`} className="font-medium text-foreground hover:text-primary">
                       {h.firma.ad}
                     </Link>
                   </td>
                   <td className="td">{h.baslik}</td>
                   <td className="td">{h.tur ?? "—"}</td>
                   <td className="td">{formatTarih(h.tarih)}</td>
-                  <td className="td"><Badge durum={h.durum} /></td>
+                  <td className="td"><StatusBadge durum={h.durum} /></td>
                 </tr>
               ))}
             </tbody>
