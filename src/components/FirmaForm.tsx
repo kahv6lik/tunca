@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import type { FormState } from "@/app/(app)/firmalar/actions";
-import { FIRMA_DURUM } from "@/lib/constants";
+import { FIRMA_DURUM, SEKTORLER, DIGER_SEKTOR } from "@/lib/constants";
+import { ILLER, ilceler } from "@/lib/tr-iller";
 
 type FirmaValues = {
   ad?: string;
@@ -42,6 +44,20 @@ export default function FirmaForm({
   const [state, formAction] = useFormState<FormState, FormData>(action, {});
   const v = initial ?? {};
 
+  // Sektör: hazır listede varsa seç, yoksa "Diğer" + elle değer
+  const sektorBilinen = !!v.sektor && (SEKTORLER as readonly string[]).includes(v.sektor);
+  const [sektorSecim, setSektorSecim] = useState(
+    v.sektor ? (sektorBilinen ? (v.sektor as string) : DIGER_SEKTOR) : ""
+  );
+  const [sektorDiger, setSektorDiger] = useState(
+    v.sektor && !sektorBilinen ? (v.sektor as string) : ""
+  );
+
+  // İl / İlçe: bağımlı açılır menüler
+  const ilBilinen = !!v.il && ILLER.includes(v.il);
+  const [il, setIl] = useState(ilBilinen ? (v.il as string) : "");
+  const [ilce, setIlce] = useState(v.ilce ?? "");
+
   return (
     <form action={formAction} className="card p-6">
       <div className="grid gap-5 md:grid-cols-2">
@@ -57,17 +73,71 @@ export default function FirmaForm({
           <input id="vergiNo" name="vergiNo" className="input" defaultValue={v.vergiNo ?? ""} />
         </div>
         <div>
-          <label className="label" htmlFor="sektor">Sektör</label>
-          <input id="sektor" name="sektor" className="input" defaultValue={v.sektor ?? ""} />
+          <label className="label" htmlFor="sektor-secim">Sektör</label>
+          <select
+            id="sektor-secim"
+            className="input"
+            value={sektorSecim}
+            onChange={(e) => setSektorSecim(e.target.value)}
+          >
+            <option value="">Seçiniz…</option>
+            {SEKTORLER.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+            <option value={DIGER_SEKTOR}>{DIGER_SEKTOR}</option>
+          </select>
+          {sektorSecim === DIGER_SEKTOR ? (
+            <input
+              name="sektor"
+              className="input mt-2"
+              placeholder="Sektörü yazın"
+              value={sektorDiger}
+              onChange={(e) => setSektorDiger(e.target.value)}
+            />
+          ) : (
+            <input type="hidden" name="sektor" value={sektorSecim} />
+          )}
         </div>
 
         <div>
           <label className="label" htmlFor="il">İl</label>
-          <input id="il" name="il" className="input" defaultValue={v.il ?? ""} />
+          <select
+            id="il"
+            name="il"
+            className="input"
+            value={il}
+            onChange={(e) => {
+              setIl(e.target.value);
+              setIlce(""); // il değişince ilçe sıfırlanır
+            }}
+          >
+            <option value="">Seçiniz…</option>
+            {ILLER.map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="label" htmlFor="ilce">İlçe</label>
-          <input id="ilce" name="ilce" className="input" defaultValue={v.ilce ?? ""} />
+          <select
+            id="ilce"
+            name="ilce"
+            className="input"
+            value={ilce}
+            onChange={(e) => setIlce(e.target.value)}
+            disabled={!il}
+          >
+            <option value="">{il ? "Seçiniz…" : "Önce il seçin"}</option>
+            {ilceler(il).map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

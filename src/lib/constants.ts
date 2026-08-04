@@ -2,6 +2,36 @@
 
 export const FIRMA_DURUM = ["aktif", "pasif"] as const;
 
+// Firma formunda hazır gelen sektörler ("Diğer" seçilirse elle yazılır)
+export const SEKTORLER = [
+  "Tekstil",
+  "Gıda",
+  "Otomotiv",
+  "Otomotiv Yan Sanayi",
+  "Makine",
+  "İnşaat",
+  "Kimya",
+  "Elektronik",
+  "Mobilya",
+  "Lojistik ve Taşımacılık",
+  "Turizm",
+  "Tarım ve Hayvancılık",
+  "Enerji",
+  "Sağlık",
+  "Yazılım ve Bilişim",
+  "Metal ve Metalurji",
+  "Plastik ve Kauçuk",
+  "Ambalaj",
+  "Kozmetik",
+  "Savunma Sanayi",
+  "Eğitim",
+  "Perakende",
+  "Madencilik",
+  "Tekstil ve Konfeksiyon",
+] as const;
+
+export const DIGER_SEKTOR = "Diğer";
+
 export const YATIRIM_DURUM = [
   "basvuruldu",
   "onaylandi",
