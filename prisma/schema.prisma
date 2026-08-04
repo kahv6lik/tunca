@@ -1,0 +1,100 @@
+// Tunca CRM — veri modeli
+// SQLite kullanıldığı için enum yerine String alanlar + uygulama sabitleri kullanılır.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Sisteme giriş yapan kullanıcılar (ekip üyeleri)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String // bcrypt hash
+  role      String   @default("user") // "admin" | "user"
+  createdAt DateTime @default(now())
+}
+
+// Müşteriye bağlı firmalar
+model Firma {
+  id           String   @id @default(cuid())
+  ad           String // firma unvanı
+  vergiNo      String? // vergi numarası
+  sektor       String? // sektör
+  il           String? // il / şehir
+  ilce         String?
+  yetkiliAd    String? // yetkili kişi
+  telefon      String?
+  email        String?
+  adres        String?
+  durum        String   @default("aktif") // "aktif" | "pasif"
+  notlar       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  yatirimlar   YatirimDestegi[]
+  egitimler    Egitim[]
+  hizmetler    Hizmet[]
+
+  @@index([ad])
+  @@index([il])
+  @@index([sektor])
+}
+
+// Firmalara verilen yatırım destekleri
+model YatirimDestegi {
+  id          String   @id @default(cuid())
+  firmaId     String
+  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik      String
+  tur         String? // hibe, kredi, teşvik vb.
+  tutar       Float    @default(0)
+  paraBirimi  String   @default("TRY")
+  tarih       DateTime @default(now())
+  durum       String   @default("basvuruldu") // basvuruldu | onaylandi | reddedildi | tamamlandi
+  aciklama    String?
+  createdAt   DateTime @default(now())
+
+  @@index([firmaId])
+  @@index([durum])
+}
+
+// Firmalara verilen eğitimler
+model Egitim {
+  id          String   @id @default(cuid())
+  firmaId     String
+  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik      String
+  konu        String?
+  egitmen     String?
+  tarih       DateTime @default(now())
+  sureSaat    Float    @default(0)
+  katilimci   Int      @default(0)
+  durum       String   @default("planlandi") // planlandi | tamamlandi | iptal
+  notlar      String?
+  createdAt   DateTime @default(now())
+
+  @@index([firmaId])
+  @@index([durum])
+}
+
+// Firmalara sunulan hizmetler
+model Hizmet {
+  id          String   @id @default(cuid())
+  firmaId     String
+  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik      String
+  tur         String? // danışmanlık, denetim, raporlama vb.
+  tarih       DateTime @default(now())
+  durum       String   @default("devam") // devam | tamamlandi | iptal
+  aciklama    String?
+  createdAt   DateTime @default(now())
+
+  @@index([firmaId])
+  @@index([durum])
+}
