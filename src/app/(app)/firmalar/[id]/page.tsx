@@ -41,6 +41,7 @@ export default async function FirmaDetayPage({
       name: "tur",
       label: "Tür",
       type: "select",
+      allowOther: true,
       options: ["Hibe", "Teşvik", "Kredi", "Diğer"].map((x) => ({ value: x, label: x })),
     },
     { name: "tutar", label: "Tutar", type: "number", step: "0.01", defaultValue: 0 },
@@ -91,6 +92,7 @@ export default async function FirmaDetayPage({
       name: "tur",
       label: "Tür",
       type: "select",
+      allowOther: true,
       options: ["Danışmanlık", "Denetim", "Raporlama", "Eğitim", "Diğer"].map((x) => ({
         value: x,
         label: x,

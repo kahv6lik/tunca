@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 export type FieldType = "text" | "number" | "date" | "select" | "textarea";
@@ -15,9 +15,27 @@ export type Field = {
   step?: string;
   colSpan?: 1 | 2;
   placeholder?: string;
+  // select alanında "Diğer" seçilince elle metin girişi açılır
+  allowOther?: boolean;
 };
 
 type ActionState = { error?: string; ok?: boolean };
+
+const OTHER_VALUE = "Diğer";
+
+function initialSelected(f: Field): string {
+  const opts = f.options ?? [];
+  const dv = f.defaultValue != null ? String(f.defaultValue) : "";
+  if (dv && opts.some((o) => o.value === dv)) return dv;
+  if (dv && f.allowOther) return OTHER_VALUE;
+  return opts[0]?.value ?? "";
+}
+
+function initialOtherText(f: Field): string {
+  const opts = f.options ?? [];
+  const dv = f.defaultValue != null ? String(f.defaultValue) : "";
+  return dv && f.allowOther && !opts.some((o) => o.value === dv) ? dv : "";
+}
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -46,9 +64,20 @@ export default function RecordForm({
   const [state, formAction] = useFormState<ActionState, FormData>(action, {});
   const formRef = useRef<HTMLFormElement>(null);
 
+  const otherFields = fields.filter((f) => f.type === "select" && f.allowOther);
+  const [sel, setSel] = useState<Record<string, string>>(() =>
+    Object.fromEntries(otherFields.map((f) => [f.name, initialSelected(f)]))
+  );
+  const [txt, setTxt] = useState<Record<string, string>>(() =>
+    Object.fromEntries(otherFields.map((f) => [f.name, initialOtherText(f)]))
+  );
+
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
+      // "Diğer" alanlarının kontrollü durumunu da başa döndür
+      setSel(Object.fromEntries(otherFields.map((f) => [f.name, initialSelected(f)])));
+      setTxt(Object.fromEntries(otherFields.map((f) => [f.name, initialOtherText(f)])));
       onSuccess?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,7 +100,38 @@ export default function RecordForm({
                 {f.label}
                 {f.required ? " *" : ""}
               </label>
-              {f.type === "select" ? (
+              {f.type === "select" && f.allowOther ? (
+                <>
+                  <select
+                    id={f.name}
+                    className="input"
+                    required={f.required}
+                    value={sel[f.name] ?? ""}
+                    onChange={(e) =>
+                      setSel((s) => ({ ...s, [f.name]: e.target.value }))
+                    }
+                  >
+                    {f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  {sel[f.name] === OTHER_VALUE ? (
+                    <input
+                      name={f.name}
+                      className="input mt-2"
+                      placeholder="Değeri yazın"
+                      value={txt[f.name] ?? ""}
+                      onChange={(e) =>
+                        setTxt((t) => ({ ...t, [f.name]: e.target.value }))
+                      }
+                    />
+                  ) : (
+                    <input type="hidden" name={f.name} value={sel[f.name] ?? ""} />
+                  )}
+                </>
+              ) : f.type === "select" ? (
                 <select
                   id={f.name}
                   name={f.name}
