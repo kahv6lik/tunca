@@ -3,8 +3,12 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import {
+  getTenantDb,
+  tenantOlustur,
+  tenantGuncelle,
+  tenantSil,
+} from "@/lib/tenant-db";
 
 const firmaSchema = z.object({
   ad: z.string().trim().min(1, "Firma adı zorunludur."),
@@ -31,12 +35,13 @@ export async function createFirma(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  await requireSession();
+  const db = await getTenantDb();
   const parsed = parse(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
-  const firma = await prisma.firma.create({ data: parsed.data });
+  // tenantId, kiracı katmanı tarafından otomatik eklenir.
+  const firma = await tenantOlustur(db, "firma", parsed.data);
   revalidatePath("/firmalar");
   redirect(`/firmalar/${firma.id}`);
 }
@@ -46,20 +51,23 @@ export async function updateFirma(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  await requireSession();
+  const db = await getTenantDb();
   const parsed = parse(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
-  await prisma.firma.update({ where: { id }, data: parsed.data });
+  // Kayıt bu kiracıya ait değilse 404 üretir (A3).
+  await tenantGuncelle(db, "firma", id, parsed.data);
   revalidatePath("/firmalar");
   revalidatePath(`/firmalar/${id}`);
   redirect(`/firmalar/${id}`);
 }
 
 export async function deleteFirma(id: string): Promise<void> {
-  await requireSession();
-  await prisma.firma.delete({ where: { id } });
+  const db = await getTenantDb();
+  await tenantSil(db, "firma", id);
   revalidatePath("/firmalar");
+  revalidatePath("/");
+  revalidatePath("/raporlar");
   redirect("/firmalar");
 }

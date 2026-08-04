@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -10,6 +10,7 @@ import { DURUM_RENK } from "@/lib/chart-theme";
 export const dynamic = "force-dynamic";
 
 export default async function RaporlarPage() {
+  const db = await getTenantDb();
   const [
     firmaSayisi,
     yatirimByDurum,
@@ -22,23 +23,23 @@ export default async function RaporlarPage() {
     yatirimTryAgg,
     topFirmalarRaw,
   ] = await Promise.all([
-    prisma.firma.count(),
-    prisma.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
-    prisma.yatirimDestegi.groupBy({
+    db.firma.count(),
+    db.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
+    db.yatirimDestegi.groupBy({
       by: ["tur"],
       where: { paraBirimi: "TRY" },
       _sum: { tutar: true },
     }),
-    prisma.egitim.groupBy({ by: ["durum"], _count: { _all: true } }),
-    prisma.hizmet.groupBy({ by: ["durum"], _count: { _all: true } }),
-    prisma.firma.groupBy({ by: ["il"], _count: { _all: true } }),
-    prisma.firma.groupBy({ by: ["sektor"], _count: { _all: true } }),
-    prisma.egitim.aggregate({ _sum: { sureSaat: true, katilimci: true } }),
-    prisma.yatirimDestegi.aggregate({
+    db.egitim.groupBy({ by: ["durum"], _count: { _all: true } }),
+    db.hizmet.groupBy({ by: ["durum"], _count: { _all: true } }),
+    db.firma.groupBy({ by: ["il"], _count: { _all: true } }),
+    db.firma.groupBy({ by: ["sektor"], _count: { _all: true } }),
+    db.egitim.aggregate({ _sum: { sureSaat: true, katilimci: true } }),
+    db.yatirimDestegi.aggregate({
       where: { paraBirimi: "TRY", durum: { in: ["onaylandi", "tamamlandi"] } },
       _sum: { tutar: true },
     }),
-    prisma.yatirimDestegi.groupBy({
+    db.yatirimDestegi.groupBy({
       by: ["firmaId"],
       where: { paraBirimi: "TRY" },
       _sum: { tutar: true },
@@ -48,7 +49,7 @@ export default async function RaporlarPage() {
   ]);
 
   const topFirmaIdler = topFirmalarRaw.map((t) => t.firmaId);
-  const topFirmaKayit = await prisma.firma.findMany({
+  const topFirmaKayit = await db.firma.findMany({
     where: { id: { in: topFirmaIdler } },
     select: { id: true, ad: true },
   });

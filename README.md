@@ -5,6 +5,8 @@ hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
 
 ## Özellikler
 
+- 🏛️ **Çok kiracılı (multi-tenant)** — her müşteri yalnızca kendi kiracısındaki
+  veriyi görür; kiracılar birbirinin verisini ve varlığını göremez
 - 🔐 **Kullanıcı girişi** (e-posta + şifre, JWT tabanlı oturum)
 - 🏢 **Firma Yönetimi** — kayıt, arama, il/durum filtresi, sayfalama (800+ firma)
 - 💰 **Yatırım Destekleri** — tutar, tür, tarih ve durum takibi
@@ -35,10 +37,22 @@ npm run dev                   # http://localhost:3000
 
 ### Demo Giriş Bilgileri
 
-| Rol | E-posta | Şifre |
-|-----|---------|-------|
-| Yönetici | `admin@gezegen.com` | `admin123` |
-| Kullanıcı | `kullanici@gezegen.com` | `user123` |
+`db:seed` **iki ayrı kiracı** üretir; böylece izolasyon elle doğrulanabilir.
+
+| Kiracı | Rol | E-posta | Şifre |
+|--------|-----|---------|-------|
+| Gezegen Danışmanlık (800 firma) | Yönetici | `admin@gezegen.com` | `admin123` |
+| Gezegen Danışmanlık | Kullanıcı | `kullanici@gezegen.com` | `user123` |
+| Anadolu Yatırım (120 firma) | Yönetici | `admin@anadolu.com` | `anadolu123` |
+
+İki hesapla ayrı ayrı giriş yapıp listelerin tamamen ayrı olduğunu görebilirsiniz.
+
+### İzolasyon Doğrulama
+
+```bash
+npm run kontrol:izolasyon    # veri katmanı kontrolleri
+npm run kontrol:e2e          # gerçek HTTP üzerinden (sunucu çalışırken)
+```
 
 > `db:seed` sahte demo verisi üretir; üretimde kullanılmaz (aşağıya bakın).
 

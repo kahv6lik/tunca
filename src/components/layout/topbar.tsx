@@ -8,10 +8,12 @@ import { UserMenu } from "./user-menu";
 export function Topbar({
   name,
   email,
+  tenantAd,
   logout,
 }: {
   name: string;
   email: string;
+  tenantAd: string;
   logout: () => Promise<void>;
 }) {
   return (
@@ -27,6 +29,13 @@ export function Topbar({
       </div>
 
       <div className="ml-auto flex items-center gap-2.5">
+        {/* Aktif kiracı — kullanıcı hangi kuruluşun verisine baktığını her an görür */}
+        <span
+          title="Aktif kuruluş"
+          className="hidden max-w-[200px] truncate rounded-lg border border-border/60 bg-secondary/40 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:block"
+        >
+          {tenantAd}
+        </span>
         <ThemeToggle />
         <div className="hidden h-6 w-px bg-border/70 sm:block" />
         <UserMenu name={name} email={email} logout={logout} />

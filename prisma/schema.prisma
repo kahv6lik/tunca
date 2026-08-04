@@ -1,5 +1,10 @@
 // Gezegen CRM — veri modeli
 // SQLite kullanıldığı için enum yerine String alanlar + uygulama sabitleri kullanılır.
+//
+// ÇOK KİRACILILIK (Faz 1):
+// Tenant dışındaki her model `tenantId` taşır ve tüm indekslerde `tenantId`
+// ilk sütundur. Sorgular `src/lib/tenant-db.ts` üzerinden yapılır; o katman
+// `tenantId` filtresini kendiliğinden uygular.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,91 +15,129 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Sisteme giriş yapan kullanıcılar (ekip üyeleri)
-model User {
+// Kiracı = hizmet verilen müşteri şirketi.
+// Kiracılar birbirlerinin verisini ve varlığını göremez.
+model Tenant {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String // bcrypt hash
-  role      String   @default("user") // "admin" | "user"
+  ad        String // müşteri şirketinin adı
+  slug      String   @unique // giriş ekranındaki kiracı kodu / ileride alt alan adı
+  durum     String   @default("aktif") // "aktif" | "askida" | "pasif"
   createdAt DateTime @default(now())
-}
+  updatedAt DateTime @updatedAt
 
-// Müşteriye bağlı firmalar
-model Firma {
-  id           String   @id @default(cuid())
-  ad           String // firma unvanı
-  vergiNo      String? // vergi numarası
-  sektor       String? // sektör
-  il           String? // il / şehir
-  ilce         String?
-  yetkiliAd    String? // yetkili kişi
-  telefon      String?
-  email        String?
-  adres        String?
-  durum        String   @default("aktif") // "aktif" | "pasif"
-  notlar       String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  kullanicilar User[]
+  firmalar     Firma[]
   yatirimlar   YatirimDestegi[]
   egitimler    Egitim[]
   hizmetler    Hizmet[]
 
-  @@index([ad])
-  @@index([il])
-  @@index([sektor])
+  @@index([durum])
+}
+
+// Sisteme giriş yapan kullanıcılar (ekip üyeleri)
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email     String
+  name      String
+  password  String // bcrypt hash
+  role      String   @default("user") // "admin" | "user"
+  createdAt DateTime @default(now())
+
+  // E-posta yalnızca kiracı içinde benzersiz; farklı kiracılarda aynı e-posta olabilir.
+  @@unique([tenantId, email])
+  @@index([email])
+}
+
+// Müşteriye bağlı firmalar
+model Firma {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ad        String // firma unvanı
+  vergiNo   String? // vergi numarası
+  sektor    String? // sektör
+  il        String? // il / şehir
+  ilce      String?
+  yetkiliAd String? // yetkili kişi
+  telefon   String?
+  email     String?
+  adres     String?
+  durum     String   @default("aktif") // "aktif" | "pasif"
+  notlar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  yatirimlar YatirimDestegi[]
+  egitimler  Egitim[]
+  hizmetler  Hizmet[]
+
+  @@index([tenantId, ad])
+  @@index([tenantId, il])
+  @@index([tenantId, sektor])
+  @@index([tenantId, durum])
+  @@index([tenantId, createdAt])
 }
 
 // Firmalara verilen yatırım destekleri
 model YatirimDestegi {
-  id          String   @id @default(cuid())
-  firmaId     String
-  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
-  baslik      String
-  tur         String? // hibe, kredi, teşvik vb.
-  tutar       Float    @default(0)
-  paraBirimi  String   @default("TRY")
-  tarih       DateTime @default(now())
-  durum       String   @default("basvuruldu") // basvuruldu | onaylandi | reddedildi | tamamlandi
-  aciklama    String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId    String
+  firma      Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik     String
+  tur        String? // hibe, kredi, teşvik vb.
+  tutar      Float    @default(0)
+  paraBirimi String   @default("TRY")
+  tarih      DateTime @default(now())
+  durum      String   @default("basvuruldu") // basvuruldu | onaylandi | reddedildi | tamamlandi
+  aciklama   String?
+  createdAt  DateTime @default(now())
 
-  @@index([firmaId])
-  @@index([durum])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, durum])
+  @@index([tenantId, tarih])
 }
 
 // Firmalara verilen eğitimler
 model Egitim {
-  id          String   @id @default(cuid())
-  firmaId     String
-  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
-  baslik      String
-  konu        String?
-  egitmen     String?
-  tarih       DateTime @default(now())
-  sureSaat    Float    @default(0)
-  katilimci   Int      @default(0)
-  durum       String   @default("planlandi") // planlandi | tamamlandi | iptal
-  notlar      String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId   String
+  firma     Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik    String
+  konu      String?
+  egitmen   String?
+  tarih     DateTime @default(now())
+  sureSaat  Float    @default(0)
+  katilimci Int      @default(0)
+  durum     String   @default("planlandi") // planlandi | tamamlandi | iptal
+  notlar    String?
+  createdAt DateTime @default(now())
 
-  @@index([firmaId])
-  @@index([durum])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, durum])
+  @@index([tenantId, tarih])
 }
 
 // Firmalara sunulan hizmetler
 model Hizmet {
-  id          String   @id @default(cuid())
-  firmaId     String
-  firma       Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
-  baslik      String
-  tur         String? // danışmanlık, denetim, raporlama vb.
-  tarih       DateTime @default(now())
-  durum       String   @default("devam") // devam | tamamlandi | iptal
-  aciklama    String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId   String
+  firma     Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  baslik    String
+  tur       String? // danışmanlık, denetim, raporlama vb.
+  tarih     DateTime @default(now())
+  durum     String   @default("devam") // devam | tamamlandi | iptal
+  aciklama  String?
+  createdAt DateTime @default(now())
 
-  @@index([firmaId])
-  @@index([durum])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, durum])
+  @@index([tenantId, tarih])
 }

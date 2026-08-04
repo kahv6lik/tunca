@@ -132,6 +132,22 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Kiracı kodu yalnızca aynı e-posta birden fazla kuruluşta
+                bulunduğunda sorulur; normal kullanıcı bu alanı hiç görmez. */}
+            {state.kiraciSor && (
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                <label className="label" htmlFor="kiraci">Kiracı Kodu</label>
+                <input
+                  id="kiraci"
+                  name="kiraci"
+                  type="text"
+                  autoComplete="organization"
+                  className="input h-11"
+                  placeholder="kurulus-kodu"
+                />
+              </motion.div>
+            )}
+
             {state.error && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }}

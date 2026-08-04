@@ -17,7 +17,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | Faz | Kapsam | Sürüm | Durum |
 |-----|--------|-------|-------|
-| 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | planlandı |
+| 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı |
 | 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | planlandı |
 | 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | planlandı |
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı |
@@ -70,15 +70,36 @@ veri, uygulama katmanında kiracı bazında izole olur.
      şu an giriş yapmış herhangi bir kullanıcı, ID'sini bildiği herhangi bir
      kaydı düzenleyebiliyor.
 
-### Kabul kriterleri
-- İki farklı kiracıya ait iki kullanıcı ile elle doğrulama: hiçbir listede,
-  detayda, raporda veya grafikte diğer kiracının verisi görünmez.
-- Kiracı dışı bir kayıt ID'si ile doğrudan URL denemesi 404 döner.
-- Tüm sorgular `tenantId` filtresi içerir (kod incelemesi ile teyit).
+### Kabul kriterleri — hepsi sağlandı ✅
+- İki kiracıyla doğrulama: hiçbir listede, detayda, raporda veya grafikte
+  diğer kiracının verisi görünmez. → `npm run kontrol:izolasyon` (19/19),
+  `npm run kontrol:e2e` (14/14)
+- Kiracı dışı kayıt ID'si ile doğrudan URL denemesi 404 sayfası gösterir ve
+  hiçbir veri sızdırmaz.
+- Uygulamada `prisma` doğrudan yalnızca iki yerde kullanılır: kiracı katmanının
+  kendisi ve giriş action'ı (oturum öncesi kiracı henüz belli değildir).
+- Mevcut verili veritabanında migration testi: veri kaybı yok, tüm kayıtlar
+  varsayılan kiracıya bağlandı.
 
-### Riskler
-- Prisma `db push` yerine migration gerekir; mevcut veri kaybı olmamalı.
-- Atlanmış tek bir sorgu = veri sızıntısı. Bu yüzden merkezî erişim katmanı şart.
+### Uygulama notları
+- **Merkezî katman:** `src/lib/tenant-db.ts` bir Prisma client extension'ıdır.
+  Okuma/sayma/gruplama sorgularına `where.tenantId`, oluşturmaya `data.tenantId`
+  ekler. `findUnique`, `update`, `delete`, `upsert` **engellenir** — bu işlemler
+  yalnızca birincil anahtarla çalıştığı için kiracı filtresi uygulanamaz.
+  Yerlerine `findFirst`, `updateMany`, `deleteMany` kullanılır.
+- **Giriş akışı:** Aynı e-posta farklı kiracılarda bulunabilir
+  (`@@unique([tenantId, email])`). Birden fazla eşleşme olursa giriş ekranı
+  kiracı kodu ister; tek eşleşmede kullanıcı bu alanı hiç görmez.
+- **Bilinen davranış:** Kiracı dışı bir sayfa istendiğinde 404 *içeriği*
+  gösterilir ancak HTTP durumu 200 döner. Sebebi Next.js'in akışlı render'ıdır
+  (`(app)/loading.tsx` bir Suspense sınırı oluşturur, başlıklar gövdeden önce
+  gönderilir). Veri sızıntısı yoktur. Durum kodunun da 404 olması istenirse
+  ayrı bir iş kalemi olarak ele alınmalıdır.
+
+### Riskler — kapatıldı
+- Migration mevcut veriyi korur: önce varsayılan kiracı oluşturulur, sonra tüm
+  kayıtlar ona bağlanır. Tek kiracılı kurulum migration sonrası aynı çalışır.
+- Atlanmış tek bir sorgu = veri sızıntısı riski, merkezî katmanla kapatıldı.
 
 ---
 

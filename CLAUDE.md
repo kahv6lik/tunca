@@ -61,9 +61,34 @@ src/
 
 ### Veri Modeli
 
-`Firma` merkezdedir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya
-`firmaId` ile bağlıdır (`onDelete: Cascade`). SQLite kullanıldığı için enum
-yerine `String` alan + `src/lib/constants.ts` içindeki sabitler kullanılır.
+`Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. `Firma` iş verisinin
+merkezidir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya `firmaId`
+ile bağlıdır (`onDelete: Cascade`). SQLite kullanıldığı için enum yerine
+`String` alan + `src/lib/constants.ts` içindeki sabitler kullanılır.
+
+### Kiracı Katmanı (Faz 1'den itibaren ZORUNLU)
+
+Veri erişimi **yalnızca `src/lib/tenant-db.ts` üzerinden** yapılır:
+
+```ts
+const db = await getTenantDb();           // oturumdaki kiracıya bağlı
+const firmalar = await db.firma.findMany(); // tenantId otomatik eklenir
+```
+
+- `findUnique`, `update`, `delete`, `upsert` **engellidir** — kiracı filtresi
+  uygulanamayan işlemlerdir. Yerlerine `findFirst`, `tenantGuncelle`,
+  `tenantSil`, `tenantOlustur` yardımcıları kullanılır.
+- Alt kayıt oluşturulurken `firmaSahipligiDogrula` ile firmanın kiracıya ait
+  olduğu doğrulanır.
+- `prisma`'nın doğrudan kullanıldığı tek yer giriş action'ıdır
+  (`src/app/login/actions.ts`) — oturum öncesi kiracı henüz belli değildir.
+
+Doğrulama betikleri:
+
+```bash
+npm run kontrol:izolasyon   # veri katmanı (19 kontrol)
+npm run kontrol:e2e         # gerçek HTTP üzerinden (14 kontrol, sunucu açıkken)
+```
 
 ---
 
@@ -121,7 +146,7 @@ Her faz **bir major sürümle** kapanır (`npm run release:major`).
 
 | Faz | Kapsam | Sürüm | Durum |
 |-----|--------|-------|-------|
-| 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | planlandı |
+| 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | ✅ tamamlandı |
 | 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | planlandı |
 | 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | planlandı |
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | planlandı |
@@ -141,3 +166,10 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 
 - **v1.0.1** — Mevcut CRM (firma, yatırım desteği, eğitim, hizmet, raporlar,
   dark-mode arayüz) için ilk versiyon etiketi; versiyonlama akışının başlangıcı.
+- **v1.0.2** — Sürüm çıkarma otomasyonu (`scripts/release.sh`).
+- **v1.0.3** — Sürüm betiğinde token seçimi düzeltmesi.
+- **v1.0.4** — 13 fazlık geliştirme yol haritası (`docs/ROADMAP.md`).
+- **v1.1.0** — **Faz 1:** Çok kiracılılık temeli. `Tenant` modeli, tüm
+  modellerde `tenantId`, oturumda kiracı bağlamı, merkezî kiracı katmanı,
+  sahiplik doğrulaması. Giriş yapmış bir kullanıcının ID'sini bildiği her kaydı
+  düzenleyebildiği açık kapatıldı.

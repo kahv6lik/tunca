@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 const AY_KISA = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 export default async function DashboardPage() {
+  const db = await getTenantDb();
   const now = new Date();
   const oniki = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
@@ -30,25 +31,25 @@ export default async function DashboardPage() {
     sonFirmalar,
     yaklasanEgitimler,
   ] = await Promise.all([
-    prisma.firma.count(),
-    prisma.firma.count({ where: { durum: "aktif" } }),
-    prisma.yatirimDestegi.aggregate({
+    db.firma.count(),
+    db.firma.count({ where: { durum: "aktif" } }),
+    db.yatirimDestegi.aggregate({
       _sum: { tutar: true },
       where: { durum: { in: ["onaylandi", "tamamlandi"] }, paraBirimi: "TRY" },
     }),
-    prisma.egitim.count(),
-    prisma.hizmet.count(),
-    prisma.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
-    prisma.yatirimDestegi.findMany({
+    db.egitim.count(),
+    db.hizmet.count(),
+    db.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
+    db.yatirimDestegi.findMany({
       where: { tarih: { gte: oniki }, paraBirimi: "TRY" },
       select: { tarih: true, tutar: true },
     }),
-    prisma.firma.findMany({
+    db.firma.findMany({
       orderBy: { createdAt: "desc" },
       take: 6,
       select: { id: true, ad: true, il: true, durum: true, createdAt: true, sektor: true },
     }),
-    prisma.egitim.findMany({
+    db.egitim.findMany({
       where: { durum: "planlandi" },
       orderBy: { tarih: "asc" },
       take: 6,

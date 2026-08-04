@@ -2,8 +2,13 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import {
+  getTenantDb,
+  firmaSahipligiDogrula,
+  tenantOlustur,
+  tenantGuncelle,
+  tenantSil,
+} from "@/lib/tenant-db";
 
 const schema = z.object({
   firmaId: z.string().min(1),
@@ -30,12 +35,14 @@ export async function createEgitim(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  await requireSession();
+  const db = await getTenantDb();
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
-  await prisma.egitim.create({ data: parsed.data });
+  // Kaydın bağlanacağı firma bu kiracıya ait olmalı (A3).
+  await firmaSahipligiDogrula(db, parsed.data.firmaId);
+  await tenantOlustur(db, "egitim", parsed.data);
   revalidate(parsed.data.firmaId);
   return { ok: true };
 }
@@ -45,18 +52,19 @@ export async function updateEgitim(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  await requireSession();
+  const db = await getTenantDb();
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
-  await prisma.egitim.update({ where: { id }, data: parsed.data });
+  await firmaSahipligiDogrula(db, parsed.data.firmaId);
+  await tenantGuncelle(db, "egitim", id, parsed.data);
   revalidate(parsed.data.firmaId);
   return { ok: true };
 }
 
 export async function deleteEgitim(id: string, firmaId: string): Promise<void> {
-  await requireSession();
-  await prisma.egitim.delete({ where: { id } });
+  const db = await getTenantDb();
+  await tenantSil(db, "egitim", id);
   revalidate(firmaId);
 }

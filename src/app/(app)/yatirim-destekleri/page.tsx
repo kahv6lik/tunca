@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -16,6 +16,7 @@ export default async function YatirimlarPage({
 }: {
   searchParams: { ara?: string; durum?: string; sayfa?: string };
 }) {
+  const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
   const sayfa = Math.max(1, parseInt(searchParams.sayfa ?? "1", 10) || 1);
@@ -35,15 +36,15 @@ export default async function YatirimlarPage({
   };
 
   const [toplam, kayitlar, agg] = await Promise.all([
-    prisma.yatirimDestegi.count({ where }),
-    prisma.yatirimDestegi.findMany({
+    db.yatirimDestegi.count({ where }),
+    db.yatirimDestegi.findMany({
       where,
       orderBy: { tarih: "desc" },
       skip: (sayfa - 1) * SAYFA_BOYUTU,
       take: SAYFA_BOYUTU,
       include: { firma: { select: { id: true, ad: true } } },
     }),
-    prisma.yatirimDestegi.aggregate({
+    db.yatirimDestegi.aggregate({
       where: { ...where, paraBirimi: "TRY" },
       _sum: { tutar: true },
     }),

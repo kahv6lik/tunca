@@ -11,8 +11,9 @@ function getSecret(): Uint8Array {
 async function isValid(token: string | undefined): Promise<boolean> {
   if (!token) return false;
   try {
-    await jwtVerify(token, getSecret());
-    return true;
+    const { payload } = await jwtVerify(token, getSecret());
+    // Kiracı bağlamı taşımayan oturum geçersiz sayılır (Faz 1 öncesi çerezler).
+    return Boolean(payload.tenantId);
   } catch {
     return false;
   }

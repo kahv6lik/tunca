@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import FirmaForm from "@/components/FirmaForm";
 import { updateFirma } from "../../actions";
@@ -11,7 +11,8 @@ export default async function FirmaDuzenlePage({
 }: {
   params: { id: string };
 }) {
-  const firma = await prisma.firma.findUnique({ where: { id: params.id } });
+  const db = await getTenantDb();
+  const firma = await db.firma.findFirst({ where: { id: params.id } });
   if (!firma) notFound();
 
   const action = updateFirma.bind(null, firma.id);

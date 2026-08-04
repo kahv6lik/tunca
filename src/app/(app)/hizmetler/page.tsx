@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -16,6 +16,7 @@ export default async function HizmetlerPage({
 }: {
   searchParams: { ara?: string; durum?: string; sayfa?: string };
 }) {
+  const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
   const sayfa = Math.max(1, parseInt(searchParams.sayfa ?? "1", 10) || 1);
@@ -30,8 +31,8 @@ export default async function HizmetlerPage({
   };
 
   const [toplam, kayitlar] = await Promise.all([
-    prisma.hizmet.count({ where }),
-    prisma.hizmet.findMany({
+    db.hizmet.count({ where }),
+    db.hizmet.findMany({
       where,
       orderBy: { tarih: "desc" },
       skip: (sayfa - 1) * SAYFA_BOYUTU,

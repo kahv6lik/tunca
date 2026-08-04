@@ -10,6 +10,10 @@ export type SessionPayload = {
   email: string;
   name: string;
   role: string;
+  // Çok kiracılılık bağlamı (Faz 1 / A2) — her sorgu bu kiracıyla sınırlanır.
+  tenantId: string;
+  tenantSlug: string;
+  tenantAd: string;
 };
 
 function getSecret(): Uint8Array {
@@ -41,11 +45,19 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret());
+
+    // Kiracı bağlamı olmayan oturum geçersizdir (ör. Faz 1 öncesinden kalan
+    // eski çerezler). Aksi halde tenantId'siz sorgu çalıştırma riski doğar.
+    if (!payload.tenantId) return null;
+
     return {
       userId: payload.userId as string,
       email: payload.email as string,
       name: payload.name as string,
       role: payload.role as string,
+      tenantId: payload.tenantId as string,
+      tenantSlug: payload.tenantSlug as string,
+      tenantAd: payload.tenantAd as string,
     };
   } catch {
     return null;

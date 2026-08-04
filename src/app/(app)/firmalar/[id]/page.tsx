@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import AddPanel from "@/components/AddPanel";
@@ -20,7 +20,11 @@ export default async function FirmaDetayPage({
 }: {
   params: { id: string };
 }) {
-  const firma = await prisma.firma.findUnique({
+  const db = await getTenantDb();
+
+  // findFirst kullanılır: kiracı katmanı where'e tenantId ekler, böylece
+  // başka kiracının firma ID'si ile gelen istek kayıt bulamaz (A3).
+  const firma = await db.firma.findFirst({
     where: { id: params.id },
     include: {
       yatirimlar: { orderBy: { tarih: "desc" } },

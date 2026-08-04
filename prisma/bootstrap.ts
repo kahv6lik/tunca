@@ -1,9 +1,11 @@
 /**
  * Üretim ilk kurulum betiği.
- * Sahte firma verisi ÜRETMEZ — yalnızca ortam değişkenlerinden
+ * Sahte firma verisi ÜRETMEZ — yalnızca bir kiracı ve o kiracıya bağlı
  * bir yönetici kullanıcısı oluşturur (yoksa).
  *
  * Kullanılan ortam değişkenleri:
+ *   TENANT_NAME     (varsayılan: Gezegen Danışmanlık)
+ *   TENANT_SLUG     (varsayılan: gezegen)  — giriş ekranındaki kiracı kodu
  *   ADMIN_EMAIL     (varsayılan: admin@gezegen.com)
  *   ADMIN_PASSWORD  (varsayılan: admin123 — MUTLAKA değiştirin)
  *   ADMIN_NAME      (varsayılan: Sistem Yöneticisi)
@@ -14,11 +16,25 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  const tenantAd = process.env.TENANT_NAME || "Gezegen Danışmanlık";
+  const tenantSlug = (process.env.TENANT_SLUG || "gezegen").toLowerCase();
   const email = (process.env.ADMIN_EMAIL || "admin@gezegen.com").toLowerCase();
   const password = process.env.ADMIN_PASSWORD || "admin123";
   const name = process.env.ADMIN_NAME || "Sistem Yöneticisi";
 
-  const mevcut = await prisma.user.findUnique({ where: { email } });
+  let tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: { ad: tenantAd, slug: tenantSlug },
+    });
+    console.log(`✅ Kiracı oluşturuldu: ${tenantAd} (${tenantSlug})`);
+  } else {
+    console.log(`ℹ️  Kiracı zaten var: ${tenant.ad} (${tenant.slug})`);
+  }
+
+  const mevcut = await prisma.user.findUnique({
+    where: { tenantId_email: { tenantId: tenant.id, email } },
+  });
   if (mevcut) {
     console.log(`ℹ️  Yönetici kullanıcısı zaten var: ${email}`);
     return;
@@ -26,7 +42,7 @@ async function main() {
 
   const hash = await bcrypt.hash(password, 10);
   await prisma.user.create({
-    data: { email, name, password: hash, role: "admin" },
+    data: { tenantId: tenant.id, email, name, password: hash, role: "admin" },
   });
   console.log(`✅ Yönetici kullanıcısı oluşturuldu: ${email}`);
 }

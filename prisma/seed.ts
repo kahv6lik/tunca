@@ -1,3 +1,11 @@
+/**
+ * Demo veri üretici — ÜRETİMDE KULLANILMAZ.
+ *
+ * Faz 1'den itibaren İKİ kiracı üretir. Bunun sebebi kolaylık değil:
+ * çok kiracılı izolasyonun elle doğrulanabilmesi için farklı kiracılara ait
+ * en az iki veri kümesi gerekir. İki kullanıcıyla giriş yapıp listelerin
+ * birbirinden tamamen ayrı olduğu görülebilir.
+ */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -31,6 +39,8 @@ const EGITIM_DURUMLARI = ["planlandi", "tamamlandi", "iptal"];
 const HIZMET_TURLERI = ["Danışmanlık", "Denetim", "Raporlama", "Eğitim", "Diğer"];
 const HIZMET_DURUMLARI = ["devam", "tamamlandi", "iptal"];
 
+const BATCH = 200;
+
 function rnd<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -43,49 +53,40 @@ function rndTarih(gunOnce: number): Date {
   return d;
 }
 
-async function main() {
-  console.log("🌱 Seed başlıyor…");
+async function kiraciOlustur(ad: string, slug: string) {
+  const mevcut = await prisma.tenant.findUnique({ where: { slug } });
+  if (mevcut) return mevcut;
+  return prisma.tenant.create({ data: { ad, slug } });
+}
 
-  // --- Kullanıcılar ---
-  const adminHash = await bcrypt.hash("admin123", 10);
-  const userHash = await bcrypt.hash("user123", 10);
-
+async function kullaniciOlustur(
+  tenantId: string,
+  email: string,
+  name: string,
+  sifre: string,
+  role: string
+) {
+  const hash = await bcrypt.hash(sifre, 10);
   await prisma.user.upsert({
-    where: { email: "admin@gezegen.com" },
+    where: { tenantId_email: { tenantId, email } },
     update: {},
-    create: {
-      email: "admin@gezegen.com",
-      name: "Sistem Yöneticisi",
-      password: adminHash,
-      role: "admin",
-    },
+    create: { tenantId, email, name, password: hash, role },
   });
-  await prisma.user.upsert({
-    where: { email: "kullanici@gezegen.com" },
-    update: {},
-    create: {
-      email: "kullanici@gezegen.com",
-      name: "Örnek Kullanıcı",
-      password: userHash,
-      role: "user",
-    },
-  });
-  console.log("✅ Kullanıcılar oluşturuldu (admin@gezegen.com / admin123)");
+}
 
-  // --- Firmalar ---
-  const mevcut = await prisma.firma.count();
+async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
+  const mevcut = await prisma.firma.count({ where: { tenantId } });
   if (mevcut > 0) {
-    console.log(`ℹ️  Zaten ${mevcut} firma var, örnek firma üretimi atlanıyor.`);
+    console.log(`ℹ️  ${etiket}: zaten ${mevcut} firma var, üretim atlanıyor.`);
     return;
   }
 
-  const HEDEF = 800;
-  const firmaData = Array.from({ length: HEDEF }).map((_, i) => {
+  const firmaData = Array.from({ length: firmaSayisi }).map((_, i) => {
     const sektor = rnd(SEKTORLER);
-    const ad = `${rnd(FIRMA_EKLERI)} ${sektor} ${rnd(["A.Ş.", "Ltd. Şti.", "San. Tic."])} ${i + 1}`;
     const il = rnd(ILLER);
     return {
-      ad,
+      tenantId,
+      ad: `${rnd(FIRMA_EKLERI)} ${sektor} ${rnd(["A.Ş.", "Ltd. Şti.", "San. Tic."])} ${i + 1}`,
       vergiNo: String(rndInt(1000000000, 9999999999)),
       sektor,
       il,
@@ -99,26 +100,24 @@ async function main() {
     };
   });
 
-  // SQLite'ta createMany parça parça daha güvenli
-  const BATCH = 200;
   for (let i = 0; i < firmaData.length; i += BATCH) {
     await prisma.firma.createMany({ data: firmaData.slice(i, i + BATCH) });
   }
-  console.log(`✅ ${HEDEF} firma oluşturuldu.`);
 
-  const firmalar = await prisma.firma.findMany({ select: { id: true } });
+  const firmalar = await prisma.firma.findMany({
+    where: { tenantId },
+    select: { id: true },
+  });
 
-  // --- Alt kayıtlar ---
   const yatirimlar: any[] = [];
   const egitimler: any[] = [];
   const hizmetler: any[] = [];
 
   for (const f of firmalar) {
-    // yatırımlar (~%60 firmada)
     if (Math.random() < 0.6) {
-      const adet = rndInt(1, 3);
-      for (let k = 0; k < adet; k++) {
+      for (let k = 0; k < rndInt(1, 3); k++) {
         yatirimlar.push({
+          tenantId,
           firmaId: f.id,
           baslik: `${rnd(["KOSGEB", "TÜBİTAK", "Kalkınma Ajansı", "Yatırım Teşvik"])} Desteği`,
           tur: rnd(YATIRIM_TURLERI),
@@ -129,11 +128,10 @@ async function main() {
         });
       }
     }
-    // eğitimler (~%50 firmada)
     if (Math.random() < 0.5) {
-      const adet = rndInt(1, 2);
-      for (let k = 0; k < adet; k++) {
+      for (let k = 0; k < rndInt(1, 2); k++) {
         egitimler.push({
+          tenantId,
           firmaId: f.id,
           baslik: rnd(EGITIM_KONULARI) + " Eğitimi",
           konu: rnd(EGITIM_KONULARI),
@@ -145,9 +143,9 @@ async function main() {
         });
       }
     }
-    // hizmetler (~%40 firmada)
     if (Math.random() < 0.4) {
       hizmetler.push({
+        tenantId,
         firmaId: f.id,
         baslik: rnd(["Süreç Danışmanlığı", "Mali Denetim", "Raporlama Hizmeti", "Kalite Belgelendirme"]),
         tur: rnd(HIZMET_TURLERI),
@@ -165,9 +163,32 @@ async function main() {
     await prisma.hizmet.createMany({ data: hizmetler.slice(i, i + BATCH) });
 
   console.log(
-    `✅ ${yatirimlar.length} yatırım, ${egitimler.length} eğitim, ${hizmetler.length} hizmet oluşturuldu.`
+    `✅ ${etiket}: ${firmaSayisi} firma, ${yatirimlar.length} yatırım, ` +
+      `${egitimler.length} eğitim, ${hizmetler.length} hizmet.`
   );
-  console.log("🎉 Seed tamamlandı.");
+}
+
+async function main() {
+  console.log("🌱 Seed başlıyor…");
+
+  // --- Kiracı 1 ---
+  const gezegen = await kiraciOlustur("Gezegen Danışmanlık", "gezegen");
+  await kullaniciOlustur(gezegen.id, "admin@gezegen.com", "Sistem Yöneticisi", "admin123", "admin");
+  await kullaniciOlustur(gezegen.id, "kullanici@gezegen.com", "Örnek Kullanıcı", "user123", "user");
+
+  // --- Kiracı 2 (izolasyon doğrulaması için) ---
+  const anadolu = await kiraciOlustur("Anadolu Yatırım", "anadolu");
+  await kullaniciOlustur(anadolu.id, "admin@anadolu.com", "Anadolu Yöneticisi", "anadolu123", "admin");
+
+  console.log("✅ Kiracılar ve kullanıcılar hazır.");
+
+  await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
+  await veriUret(anadolu.id, 120, "Anadolu Yatırım");
+
+  console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");
+  console.log("   Gezegen Danışmanlık → admin@gezegen.com / admin123");
+  console.log("   Anadolu Yatırım     → admin@anadolu.com / anadolu123");
+  console.log("   İki hesapla ayrı ayrı girip listelerin farklı olduğunu doğrulayın.");
 }
 
 main()

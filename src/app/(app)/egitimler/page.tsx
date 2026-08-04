@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -16,6 +16,7 @@ export default async function EgitimlerPage({
 }: {
   searchParams: { ara?: string; durum?: string; sayfa?: string };
 }) {
+  const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
   const sayfa = Math.max(1, parseInt(searchParams.sayfa ?? "1", 10) || 1);
@@ -30,15 +31,15 @@ export default async function EgitimlerPage({
   };
 
   const [toplam, kayitlar, agg] = await Promise.all([
-    prisma.egitim.count({ where }),
-    prisma.egitim.findMany({
+    db.egitim.count({ where }),
+    db.egitim.findMany({
       where,
       orderBy: { tarih: "desc" },
       skip: (sayfa - 1) * SAYFA_BOYUTU,
       take: SAYFA_BOYUTU,
       include: { firma: { select: { id: true, ad: true } } },
     }),
-    prisma.egitim.aggregate({ where, _sum: { sureSaat: true, katilimci: true } }),
+    db.egitim.aggregate({ where, _sum: { sureSaat: true, katilimci: true } }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(toplam / SAYFA_BOYUTU));

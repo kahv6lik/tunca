@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getTenantDb } from "@/lib/tenant-db";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -23,6 +23,7 @@ export default async function FirmalarPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
   const il = (searchParams.il ?? "").trim();
@@ -46,8 +47,8 @@ export default async function FirmalarPage({
   };
 
   const [toplam, firmalar, iller] = await Promise.all([
-    prisma.firma.count({ where }),
-    prisma.firma.findMany({
+    db.firma.count({ where }),
+    db.firma.findMany({
       where,
       orderBy: { ad: "asc" },
       skip: (sayfa - 1) * SAYFA_BOYUTU,
@@ -56,7 +57,7 @@ export default async function FirmalarPage({
         _count: { select: { yatirimlar: true, egitimler: true, hizmetler: true } },
       },
     }),
-    prisma.firma.findMany({
+    db.firma.findMany({
       where: { il: { not: null } },
       distinct: ["il"],
       select: { il: true },

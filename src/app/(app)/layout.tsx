@@ -17,6 +17,7 @@ export default async function AppLayout({
         <Topbar
           name={session.name}
           email={session.email}
+          tenantAd={session.tenantAd}
           logout={logoutAction}
         />
         <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
