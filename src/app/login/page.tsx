@@ -20,9 +20,9 @@ export default function LoginPage() {
       <div className="card w-full max-w-md p-8">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-600 text-2xl font-bold text-white">
-            T
+            🪐
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Tunca CRM</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Gezegen CRM</h1>
           <p className="mt-1 text-sm text-slate-500">
             Firma, yatırım, eğitim ve hizmet takip sistemi
           </p>
@@ -68,7 +68,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          Demo giriş: admin@tunca.com / admin123
+          Demo giriş: admin@gezegen.com / admin123
         </p>
       </div>
     </div>

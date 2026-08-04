@@ -23,10 +23,10 @@ export default function Sidebar() {
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
       <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">
-          T
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-lg font-bold text-white">
+          🪐
         </div>
-        <span className="text-lg font-bold text-slate-900">Tunca CRM</span>
+        <span className="text-lg font-bold text-slate-900">Gezegen CRM</span>
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {NAV.map((item) => (

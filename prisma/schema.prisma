@@ -1,4 +1,4 @@
-// Tunca CRM — veri modeli
+// Gezegen CRM — veri modeli
 // SQLite kullanıldığı için enum yerine String alanlar + uygulama sabitleri kullanılır.
 
 generator client {

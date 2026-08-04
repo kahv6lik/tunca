@@ -51,26 +51,26 @@ async function main() {
   const userHash = await bcrypt.hash("user123", 10);
 
   await prisma.user.upsert({
-    where: { email: "admin@tunca.com" },
+    where: { email: "admin@gezegen.com" },
     update: {},
     create: {
-      email: "admin@tunca.com",
+      email: "admin@gezegen.com",
       name: "Sistem Yöneticisi",
       password: adminHash,
       role: "admin",
     },
   });
   await prisma.user.upsert({
-    where: { email: "kullanici@tunca.com" },
+    where: { email: "kullanici@gezegen.com" },
     update: {},
     create: {
-      email: "kullanici@tunca.com",
+      email: "kullanici@gezegen.com",
       name: "Örnek Kullanıcı",
       password: userHash,
       role: "user",
     },
   });
-  console.log("✅ Kullanıcılar oluşturuldu (admin@tunca.com / admin123)");
+  console.log("✅ Kullanıcılar oluşturuldu (admin@gezegen.com / admin123)");
 
   // --- Firmalar ---
   const mevcut = await prisma.firma.count();

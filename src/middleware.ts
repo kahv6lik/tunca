@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const COOKIE_NAME = "tunca_session";
+const COOKIE_NAME = "gezegen_session";
 const PUBLIC_PATHS = ["/login"];
 
 function getSecret(): Uint8Array {

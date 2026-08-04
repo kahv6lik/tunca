@@ -2,7 +2,7 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const COOKIE_NAME = "tunca_session";
+const COOKIE_NAME = "gezegen_session";
 const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 gün (saniye)
 
 export type SessionPayload = {

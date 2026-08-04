@@ -1,4 +1,4 @@
-# Tunca CRM
+# Gezegen CRM
 
 Müşteriye bağlı firmalara verilen **yatırım desteklerini, eğitimleri ve
 hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
@@ -19,38 +19,122 @@ hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
 - [Prisma ORM](https://www.prisma.io/) + **SQLite** (kolay kurulum; Postgres'e taşınabilir)
 - [Tailwind CSS](https://tailwindcss.com/)
 - Kimlik doğrulama: `jose` (JWT) + `bcryptjs`
+- Dağıtım: **Docker + Nginx + Let's Encrypt** (otomatik HTTPS)
 
-## Kurulum
+## Yerel Geliştirme
 
 Gereksinim: Node.js 18+ (önerilen 20/22)
 
 ```bash
-# 1) Bağımlılıkları kur
 npm install
-
-# 2) Ortam değişkenlerini ayarla
-cp .env.example .env
-#   .env içindeki AUTH_SECRET değerini üretimde mutlaka değiştirin:
-#   openssl rand -base64 32
-
-# 3) Veritabanını oluştur ve örnek verilerle doldur
-npm run db:push
-npm run db:seed
-
-# 4) Geliştirme sunucusunu başlat
-npm run dev
+cp .env.example .env          # AUTH_SECRET değerini değiştirin
+npm run db:migrate            # şemayı uygula (prisma migrate deploy)
+npm run db:seed               # örnek verileri yükle (800 firma)
+npm run dev                   # http://localhost:3000
 ```
-
-Uygulama: http://localhost:3000
 
 ### Demo Giriş Bilgileri
 
 | Rol | E-posta | Şifre |
 |-----|---------|-------|
-| Yönetici | `admin@tunca.com` | `admin123` |
-| Kullanıcı | `kullanici@tunca.com` | `user123` |
+| Yönetici | `admin@gezegen.com` | `admin123` |
+| Kullanıcı | `kullanici@gezegen.com` | `user123` |
 
-> Üretime almadan önce bu kullanıcıları ve `AUTH_SECRET` değerini mutlaka değiştirin.
+> `db:seed` sahte demo verisi üretir; üretimde kullanılmaz (aşağıya bakın).
+
+---
+
+## 🚀 Sunucuya Dağıtım (Hetzner / Docker + Nginx + HTTPS)
+
+Uygulama, tek komutla Docker üzerinde yayına alınır. Nginx ters proxy görevi
+görür ve Let's Encrypt ile otomatik SSL sertifikası kurulur.
+
+### Ön Koşullar
+
+1. **Bir sunucu** (Hetzner Cloud vb.) — Ubuntu 22.04/24.04 önerilir.
+2. Sunucuda **Docker** kurulu olmalı:
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+3. Bir **alan adı** ve DNS **A kaydının** sunucunuzun IP'sine yönlenmiş olması
+   (ör. `crm.sirketiniz.com → 1.2.3.4`).
+4. Sunucu güvenlik duvarında **80** ve **443** portları açık olmalı.
+
+### Adımlar
+
+```bash
+# 1) Projeyi sunucuya klonlayın
+git clone <repo-url> gezegen-crm
+cd gezegen-crm
+
+# 2) Dağıtım ayarlarını oluşturun
+cp deploy/deploy.env.example deploy.env
+nano deploy.env        # DOMAIN ve LETSENCRYPT_EMAIL değerlerini girin
+
+# 3) Tek komutla dağıtın
+./deploy.sh
+```
+
+`deploy.sh` şunları otomatik yapar:
+
+- `AUTH_SECRET` yoksa güçlü bir anahtar üretir ve `deploy.env`'e kaydeder
+- Nginx yapılandırmasını alan adınıza göre oluşturur
+- Docker imajını derler, uygulamayı + Nginx'i + Certbot'u başlatır
+- Let's Encrypt'ten gerçek SSL sertifikasını alır ve Nginx'i yeniler
+- Veritabanı migrasyonlarını uygular ve ilk **yönetici kullanıcısını** oluşturur
+
+Tamamlandığında: **https://crm.sirketiniz.com** üzerinden erişilir.
+
+### İlk Yönetici Kullanıcısı
+
+İlk kurulumda `deploy.env` içindeki değerlerle bir yönetici oluşturulur:
+
+```
+ADMIN_EMAIL=admin@gezegen.com
+ADMIN_PASSWORD=admin123        # ← MUTLAKA değiştirin
+ADMIN_NAME=Sistem Yöneticisi
+```
+
+> ⚠️ Üretimde **sahte firma verisi yüklenmez.** Kendi 800 firmanızı uygulama
+> arayüzünden ekleyebilir veya toplu içe aktarma için bize bildirebilirsiniz.
+
+### Güncelleme (yeni sürüm dağıtımı)
+
+```bash
+git pull
+./deploy.sh        # sertifika korunur, sadece imaj yeniden derlenir
+```
+
+### Faydalı Komutlar
+
+```bash
+docker compose ps                     # servis durumu
+docker compose logs -f app            # uygulama logları
+docker compose down                   # durdur
+docker compose up -d                  # başlat
+```
+
+### Veri Yedekleme
+
+Tüm veriler `gezegen-db` adlı Docker volume'ünde (SQLite) tutulur:
+
+```bash
+# Yedek al
+docker run --rm -v gezegen-crm_gezegen-db:/data -v $(pwd):/backup alpine \
+  cp /data/prod.db /backup/yedek-$(date +%F).db
+```
+
+### Sertifika Testi (isteğe bağlı)
+
+Kuruluma başlamadan önce Let's Encrypt rate-limit'ine takılmamak için
+`deploy.env` içinde `STAGING=1` yaparak test sertifikasıyla deneyebilir,
+başarılı olunca `STAGING=0` yapıp sertifika klasörünü sıfırlayabilirsiniz:
+
+```bash
+rm -rf deploy/certbot/conf/live && ./deploy.sh
+```
+
+---
 
 ## Komutlar
 
@@ -58,10 +142,11 @@ Uygulama: http://localhost:3000
 |-------|----------|
 | `npm run dev` | Geliştirme sunucusu |
 | `npm run build` | Üretim derlemesi |
-| `npm run start` | Üretim sunucusu |
-| `npm run db:push` | Şemayı veritabanına uygula |
-| `npm run db:seed` | Örnek verileri yükle |
-| `npm run db:reset` | Veritabanını sıfırla + yeniden doldur |
+| `npm run start` | Üretim sunucusu (Node) |
+| `npm run db:migrate` | Migrasyonları uygula (prisma migrate deploy) |
+| `npm run db:seed` | Örnek demo verilerini yükle |
+| `npm run db:bootstrap` | Sadece yönetici kullanıcısı oluştur (üretim) |
+| `./deploy.sh` | Docker + Nginx + HTTPS ile sunucuya dağıt |
 
 ## Veri Modeli
 
@@ -78,7 +163,9 @@ Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet kayıtları da s
 ```
 prisma/
   schema.prisma        # Veri modeli
-  seed.ts              # Örnek veri üreteci (800 firma)
+  migrations/          # Prisma migrasyonları (üretim için)
+  seed.ts              # Demo veri üreteci (800 firma) — geliştirme
+  bootstrap.ts         # Üretim: yalnızca yönetici kullanıcısı
 src/
   middleware.ts        # Oturum kontrolü / sayfa koruması
   lib/                 # db, session, auth, format, sabitler
@@ -86,12 +173,13 @@ src/
   app/
     login/             # Giriş sayfası
     (app)/             # Korumalı panel (sidebar düzeni)
-      page.tsx         # Genel bakış
-      firmalar/        # Firma listesi, detay, yeni, düzenle
-      yatirim-destekleri/
-      egitimler/
-      hizmetler/
-      raporlar/
+Dockerfile             # Üretim imajı
+docker-compose.yml     # app + nginx + certbot
+docker-entrypoint.sh   # migrate + bootstrap + start
+deploy.sh              # Otomatik dağıtım script'i
+deploy/
+  nginx/app.conf.template
+  deploy.env.example
 ```
 
 ## Üretime Alma Notları
@@ -99,4 +187,4 @@ src/
 - SQLite tek sunucu için idealdir. Çok kullanıcılı yoğun kullanımda
   `prisma/schema.prisma` içindeki `provider` değerini `postgresql` yapıp
   `DATABASE_URL`'i güncelleyin.
-- `AUTH_SECRET`'i güçlü ve gizli bir değere ayarlayın.
+- `AUTH_SECRET`'i güçlü ve gizli bir değere ayarlayın (deploy.sh otomatik üretir).

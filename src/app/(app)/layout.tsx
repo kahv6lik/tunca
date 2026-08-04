@@ -26,9 +26,9 @@ export default async function AppLayout({
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-              T
+              🪐
             </div>
-            <span className="font-bold">Tunca CRM</span>
+            <span className="font-bold">Gezegen CRM</span>
           </div>
           <div className="ml-auto flex items-center gap-4">
             <div className="text-right">

@@ -1,0 +1,57 @@
+# Gezegen CRM — Docker + Nginx + Certbot (Let's Encrypt HTTPS)
+# Değişkenler deploy.env dosyasından gelir (deploy.sh tarafından yüklenir).
+
+services:
+  app:
+    build: .
+    image: gezegen-crm:latest
+    container_name: gezegen-crm-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # SQLite veritabanı kalıcı volume içinde
+      DATABASE_URL: "file:/app/data/prod.db"
+      AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET tanımlı olmalı (deploy.env)}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@gezegen.com}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
+      ADMIN_NAME: "${ADMIN_NAME:-Sistem Yöneticisi}"
+    volumes:
+      - gezegen-db:/app/data
+    expose:
+      - "3000"
+    networks:
+      - gezegen
+
+  nginx:
+    image: nginx:alpine
+    container_name: gezegen-crm-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/app.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt:ro
+      - ./deploy/certbot/www:/var/www/certbot:ro
+    networks:
+      - gezegen
+
+  certbot:
+    image: certbot/certbot
+    container_name: gezegen-crm-certbot
+    restart: unless-stopped
+    volumes:
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+    # Sertifikaları 12 saatte bir yenilemeyi dener
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    networks:
+      - gezegen
+
+volumes:
+  gezegen-db:
+
+networks:
+  gezegen:
