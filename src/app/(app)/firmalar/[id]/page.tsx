@@ -5,12 +5,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import AddPanel from "@/components/AddPanel";
 import DeleteButton from "@/components/DeleteButton";
+import EditRecordDialog from "@/components/edit-record-dialog";
 import type { Field } from "@/components/RecordForm";
 import { formatPara, formatTarih, toDateInput } from "@/lib/format";
 import { deleteFirma } from "../actions";
-import { createYatirim, deleteYatirim } from "../../yatirim-destekleri/actions";
-import { createEgitim, deleteEgitim } from "../../egitimler/actions";
-import { createHizmet, deleteHizmet } from "../../hizmetler/actions";
+import { createYatirim, updateYatirim, deleteYatirim } from "../../yatirim-destekleri/actions";
+import { createEgitim, updateEgitim, deleteEgitim } from "../../egitimler/actions";
+import { createHizmet, updateHizmet, deleteHizmet } from "../../hizmetler/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -176,7 +177,7 @@ export default async function FirmaDetayPage({
           <Empty />
         ) : (
           <TableWrap
-            head={["Başlık", "Tür", "Tutar", "Tarih", "Durum", ""]}
+            head={["Başlık", "Tür", "Tutar", "Tarih", "Durum", "İşlem"]}
             rows={firma.yatirimlar.map((y) => (
               <tr key={y.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{y.baslik}</td>
@@ -185,7 +186,24 @@ export default async function FirmaDetayPage({
                 <td className="td">{formatTarih(y.tarih)}</td>
                 <td className="td"><StatusBadge durum={y.durum} /></td>
                 <td className="td text-right">
-                  <DeleteButton action={deleteYatirim.bind(null, y.id, firma.id)} />
+                  <div className="flex items-center justify-end gap-1">
+                    <EditRecordDialog
+                      title="Yatırım Desteğini Düzenle"
+                      fields={yatirimFields}
+                      hidden={{ firmaId: firma.id }}
+                      action={updateYatirim.bind(null, y.id)}
+                      values={{
+                        baslik: y.baslik,
+                        tur: y.tur ?? "",
+                        tutar: y.tutar,
+                        paraBirimi: y.paraBirimi,
+                        tarih: toDateInput(y.tarih),
+                        durum: y.durum,
+                        aciklama: y.aciklama ?? "",
+                      }}
+                    />
+                    <DeleteButton action={deleteYatirim.bind(null, y.id, firma.id)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -210,7 +228,7 @@ export default async function FirmaDetayPage({
           <Empty />
         ) : (
           <TableWrap
-            head={["Başlık", "Konu", "Eğitmen", "Tarih", "Süre", "Katılımcı", "Durum", ""]}
+            head={["Başlık", "Konu", "Eğitmen", "Tarih", "Süre", "Katılımcı", "Durum", "İşlem"]}
             rows={firma.egitimler.map((e) => (
               <tr key={e.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{e.baslik}</td>
@@ -221,7 +239,25 @@ export default async function FirmaDetayPage({
                 <td className="td">{e.katilimci}</td>
                 <td className="td"><StatusBadge durum={e.durum} /></td>
                 <td className="td text-right">
-                  <DeleteButton action={deleteEgitim.bind(null, e.id, firma.id)} />
+                  <div className="flex items-center justify-end gap-1">
+                    <EditRecordDialog
+                      title="Eğitimi Düzenle"
+                      fields={egitimFields}
+                      hidden={{ firmaId: firma.id }}
+                      action={updateEgitim.bind(null, e.id)}
+                      values={{
+                        baslik: e.baslik,
+                        konu: e.konu ?? "",
+                        egitmen: e.egitmen ?? "",
+                        tarih: toDateInput(e.tarih),
+                        sureSaat: e.sureSaat,
+                        katilimci: e.katilimci,
+                        durum: e.durum,
+                        notlar: e.notlar ?? "",
+                      }}
+                    />
+                    <DeleteButton action={deleteEgitim.bind(null, e.id, firma.id)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -246,7 +282,7 @@ export default async function FirmaDetayPage({
           <Empty />
         ) : (
           <TableWrap
-            head={["Başlık", "Tür", "Tarih", "Durum", ""]}
+            head={["Başlık", "Tür", "Tarih", "Durum", "İşlem"]}
             rows={firma.hizmetler.map((h) => (
               <tr key={h.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{h.baslik}</td>
@@ -254,7 +290,22 @@ export default async function FirmaDetayPage({
                 <td className="td">{formatTarih(h.tarih)}</td>
                 <td className="td"><StatusBadge durum={h.durum} /></td>
                 <td className="td text-right">
-                  <DeleteButton action={deleteHizmet.bind(null, h.id, firma.id)} />
+                  <div className="flex items-center justify-end gap-1">
+                    <EditRecordDialog
+                      title="Hizmeti Düzenle"
+                      fields={hizmetFields}
+                      hidden={{ firmaId: firma.id }}
+                      action={updateHizmet.bind(null, h.id)}
+                      values={{
+                        baslik: h.baslik,
+                        tur: h.tur ?? "",
+                        tarih: toDateInput(h.tarih),
+                        durum: h.durum,
+                        aciklama: h.aciklama ?? "",
+                      }}
+                    />
+                    <DeleteButton action={deleteHizmet.bind(null, h.id, firma.id)} />
+                  </div>
                 </td>
               </tr>
             ))}
