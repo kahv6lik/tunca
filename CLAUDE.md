@@ -64,16 +64,37 @@ versiyona geri dönmek mümkün olur.
 - **Minor değişiklik** → üçüncü hane artar: `v1.0.0` → `v1.0.1`
   (hata düzeltmesi, arayüz rötuşu, metin/etiket değişikliği, küçük iyileştirme)
 
-Uygulanacak akış:
+Uygulanacak akış — **`scripts/release.sh` ile otomatik**:
 
-1. Değişikliği yap ve commit'le.
-2. `package.json` içindeki `version` alanını yeni versiyona güncelle.
-3. Anlamlı bir mesajla annotated tag oluştur:
-   `git tag -a v1.0.2 -m "v1.0.2 — kısa açıklama"`
-4. Branch'i ve tag'i gönder:
-   `git push -u origin <branch>` ve `git push origin v1.0.2`
+```bash
+npm run release:minor -- "rozet rengi düzeltildi"     # v1.0.1 -> v1.0.2
+npm run release:major -- "teklif modülü eklendi"      # v1.0.1 -> v1.1.0
+```
+
+Betik sırasıyla: `package.json` sürümünü yükseltir → bekleyen değişiklikleri
+commit'ler → annotated tag oluşturur → branch'i ve tag'i push eder.
 
 Geri dönmek için: `git checkout v1.0.1` (veya `git revert` / `git reset --hard v1.0.1`).
+
+### Tag push yetkisi ve token
+
+Claude Code oturumunun git kimliği yalnızca **branch** ref'lerine push edebilir;
+**tag** ref'leri uzak sunucu tarafından `HTTP 403` ile reddedilir. Bu yüzden
+`scripts/release.sh`, `origin`'e tag push'u başarısız olursa bir GitHub token
+ile doğrudan `github.com`'a push dener. Token şu sırayla aranır:
+
+1. `GH_TOKEN` ortam değişkeni
+2. `GITHUB_TOKEN` ortam değişkeni
+3. `~/.config/gezegen-crm/token` dosyası (mod 600)
+
+Token **asla depoya yazılmaz** — üçü de repo dışındadır.
+
+Konteyner geçici olduğu için dosyaya kaydedilen token yalnızca o oturum boyunca
+yaşar. Kalıcı olması için token'ı Claude Code ortam ayarlarında `GH_TOKEN`
+ortam değişkeni olarak tanımlayın; betik onu kendiliğinden bulur.
+
+Token için önerilen kapsam: **fine-grained PAT**, yalnızca `kahv6lik/tunca`
+deposu, tek izin **Contents: Read and write**.
 
 ### Versiyon Geçmişi
 

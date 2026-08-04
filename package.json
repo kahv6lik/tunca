@@ -1,6 +1,6 @@
 {
   "name": "gezegen-crm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,8 @@
     "db:bootstrap": "tsx prisma/bootstrap.ts",
     "db:migrate": "prisma migrate deploy",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "release:minor": "bash scripts/release.sh minor",
+    "release:major": "bash scripts/release.sh major",
     "postinstall": "prisma generate"
   },
   "prisma": {
