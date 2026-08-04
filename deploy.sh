@@ -38,10 +38,20 @@ if [ ! -f deploy.env ]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1091
-source deploy.env
-set +a
+# deploy.env'i güvenli şekilde yükle (tırnaksız/boşluklu değerlere dayanıklı)
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in
+    ''|\#*) continue ;;   # boş satır / yorum
+    *=*) : ;;             # KEY=VALUE
+    *) continue ;;
+  esac
+  key="${line%%=*}"
+  val="${line#*=}"
+  # baştaki/sondaki tırnakları kaldır
+  val="${val%\"}"; val="${val#\"}"
+  val="${val%\'}"; val="${val#\'}"
+  export "$key=$val"
+done < deploy.env
 
 : "${DOMAIN:?deploy.env içinde DOMAIN tanımlı olmalı}"
 : "${LETSENCRYPT_EMAIL:?deploy.env içinde LETSENCRYPT_EMAIL tanımlı olmalı}"
