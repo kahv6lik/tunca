@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,8 @@ import { Brand } from "./brand";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const pathname = usePathname();
 
   function isActive(href: string) {
@@ -28,9 +31,11 @@ export function MobileNav() {
         <Menu className="h-5 w-5" />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-50 lg:hidden">
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <div className="fixed inset-0 z-50 lg:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -77,9 +82,11 @@ export function MobileNav() {
                 })}
               </nav>
             </motion.aside>
-          </div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </>
   );
 }

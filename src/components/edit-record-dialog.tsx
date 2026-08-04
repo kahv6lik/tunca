@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Pencil, X } from "lucide-react";
 import RecordForm, { type Field } from "./RecordForm";
@@ -21,6 +22,9 @@ export default function EditRecordDialog({
   hidden?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -52,8 +56,10 @@ export default function EditRecordDialog({
         <Pencil className="h-4 w-4" />
       </button>
 
-      <AnimatePresence>
-        {open && (
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
             <motion.div
               initial={{ opacity: 0 }}
@@ -88,8 +94,10 @@ export default function EditRecordDialog({
               />
             </motion.div>
           </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </>
   );
 }
