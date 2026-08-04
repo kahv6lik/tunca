@@ -5,6 +5,19 @@
 Müşteriye bağlı **firmalara** verilen **yatırım desteklerini, eğitimleri ve
 hizmetleri** takip eden web tabanlı bir CRM. Arayüz tamamen Türkçe.
 
+### Hedef Ürün (ÖNEMLİ)
+
+Uzak sunucuda çalışan, **çok kiracılı (multi-tenant) SaaS CRM**. Tek uygulama
+üzerinden birden çok müşteriye hizmet verilir:
+
+- Her müşteri yalnızca **kendi tenant'ındaki** veriyi görür, düzenler, yönetir.
+- **Farklı müşteriler asla birbirini göremez ve birbirinden haberdar olmaz.**
+- Platform sahibi ayrı bir **admin panel** üzerinden müşterileri şirketlerine
+  göre ekler, kullanıcıları tek tek veya gruplar halinde yetkilendirir.
+
+Bu hedef, tüm geliştirmelerin çerçevesidir. **Faz 1'den itibaren hiçbir yeni
+sorgu `tenantId` filtresi olmadan yazılmaz.**
+
 ## Teknoloji Yığını
 
 - **Next.js 14** (App Router + Server Actions, `src/app`)
@@ -98,6 +111,31 @@ yaşar. Kalıcı olması için token'ı Claude Code ortam ayarlarında gerçek b
 
 Token için önerilen kapsam: **fine-grained PAT**, yalnızca `kahv6lik/tunca`
 deposu, tek izin **Contents: Read and write**.
+
+---
+
+## Geliştirme Yol Haritası (ONAYLANDI)
+
+Detaylı çalışma paketleri, kabul kriterleri ve riskler: **`docs/ROADMAP.md`**.
+Her faz **bir major sürümle** kapanır (`npm run release:major`).
+
+| Faz | Kapsam | Sürüm | Durum |
+|-----|--------|-------|-------|
+| 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | planlandı |
+| 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | planlandı |
+| 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | planlandı |
+| 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | planlandı |
+| 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | planlandı |
+| 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | planlandı |
+| 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | planlandı |
+| 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | planlandı |
+| 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | planlandı |
+| 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | planlandı |
+| 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | planlandı |
+| 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | planlandı |
+| 13 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.13.0` | planlandı |
+
+Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 
 ### Versiyon Geçmişi
 
