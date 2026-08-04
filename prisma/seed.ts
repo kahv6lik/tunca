@@ -28,7 +28,7 @@ const EGITIM_KONULARI = [
   "İnsan Kaynakları", "Sürdürülebilirlik", "Siber Güvenlik",
 ];
 const EGITIM_DURUMLARI = ["planlandi", "tamamlandi", "iptal"];
-const HIZMET_TURLERI = ["danışmanlık", "denetim", "raporlama", "eğitim", "diğer"];
+const HIZMET_TURLERI = ["Danışmanlık", "Denetim", "Raporlama", "Eğitim", "Diğer"];
 const HIZMET_DURUMLARI = ["devam", "tamamlandi", "iptal"];
 
 function rnd<T>(arr: T[]): T {

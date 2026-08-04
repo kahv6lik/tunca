@@ -46,11 +46,11 @@ export const EGITIM_DURUM = ["planlandi", "tamamlandi", "iptal"] as const;
 export const HIZMET_DURUM = ["devam", "tamamlandi", "iptal"] as const;
 
 export const HIZMET_TUR = [
-  "danışmanlık",
-  "denetim",
-  "raporlama",
-  "eğitim",
-  "diğer",
+  "Danışmanlık",
+  "Denetim",
+  "Raporlama",
+  "Eğitim",
+  "Diğer",
 ] as const;
 
 export const PARA_BIRIMI = ["TRY", "USD", "EUR"] as const;
