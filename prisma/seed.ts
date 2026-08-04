@@ -20,7 +20,7 @@ const FIRMA_EKLERI = [
   "Global", "Anadolu", "Ege", "Marmara", "Yıldız", "Öncü", "Star", "Mega",
 ];
 
-const YATIRIM_TURLERI = ["hibe", "kredi", "teşvik", "diğer"];
+const YATIRIM_TURLERI = ["Hibe", "Teşvik", "Kredi", "Diğer"];
 const YATIRIM_DURUMLARI = ["basvuruldu", "onaylandi", "reddedildi", "tamamlandi"];
 const EGITIM_KONULARI = [
   "İş Sağlığı ve Güvenliği", "Kalite Yönetimi", "Dijital Dönüşüm",

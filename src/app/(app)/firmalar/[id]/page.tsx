@@ -41,7 +41,7 @@ export default async function FirmaDetayPage({
       name: "tur",
       label: "Tür",
       type: "select",
-      options: ["hibe", "kredi", "teşvik", "diğer"].map((x) => ({ value: x, label: x })),
+      options: ["Hibe", "Teşvik", "Kredi", "Diğer"].map((x) => ({ value: x, label: x })),
     },
     { name: "tutar", label: "Tutar", type: "number", step: "0.01", defaultValue: 0 },
     {

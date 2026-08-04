@@ -39,7 +39,7 @@ export const YATIRIM_DURUM = [
   "tamamlandi",
 ] as const;
 
-export const YATIRIM_TUR = ["hibe", "kredi", "teşvik", "diğer"] as const;
+export const YATIRIM_TUR = ["Hibe", "Teşvik", "Kredi", "Diğer"] as const;
 
 export const EGITIM_DURUM = ["planlandi", "tamamlandi", "iptal"] as const;
 
