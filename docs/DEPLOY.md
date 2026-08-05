@@ -40,8 +40,12 @@ git log --oneline -1            # doğru sürümde miyiz?
 Sunucunuzda hangi compose dosyasını kullanıyorsanız onunla:
 
 ```bash
-docker compose -f docker-compose.server.yml up -d --build
+docker compose --env-file deploy.env -f docker-compose.server.yml up -d --build
 ```
+
+> **`--env-file deploy.env` şart.** Compose dosyasının içindeki `${...}`
+> ifadeleri `env_file:` satırından okunmaz; bu bayrak olmadan parola boş kalır
+> ve veritabanı bağlantısı başarısız olur. Kalıcı çözüm: `ln -sf deploy.env .env`
 
 > Depodaki hazır seçenekler: gömülü Nginx + Certbot için `docker-compose.yml`,
 > mevcut bir ters proxy'ye bağlanmak için `deploy/reverse-proxy/docker-compose.yml`.
@@ -99,6 +103,135 @@ git checkout main
 ```
 
 ---
+
+## Sık Karşılaşılan Sorunlar
+
+Bunların hepsi gerçek bir dağıtımda yaşandı; sırayla kontrol edin.
+
+### `502 Bad Gateway`
+
+Uygulama konteyneri **çalışıyor** ama nginx ona ulaşamıyor. Sebep neredeyse her
+zaman aynı: nginx, upstream adresini başlangıçta bir kez çözer. Konteyner
+yeniden oluşturulunca yeni bir IP alır, nginx eski IP'ye gitmeye devam eder.
+
+```bash
+docker ps --format '{{.Names}}\t{{.Image}}' | grep -i nginx   # KONTEYNER adını bulun
+docker exec <NGINX_KONTEYNER_ADI> nginx -t
+docker exec <NGINX_KONTEYNER_ADI> nginx -s reload
+```
+
+> `docker exec` **konteyner adı** ister, imaj adı değil. `nginx:alpine` yazarsanız
+> "No such container" hatası alırsınız.
+
+Düzelmezse ağ bağlantısını test edin:
+
+```bash
+docker exec <NGINX> wget -qO- http://gezegen-crm-app:3000/login | head -c 200
+docker inspect <NGINX> --format '{{json .NetworkSettings.Networks}}'
+```
+
+HTML dönmüyorsa nginx ile uygulama aynı Docker ağında değildir.
+
+### `Authentication failed ... credentials for 'gezegen' are not valid`
+
+Çıktının başında şu uyarı vardır:
+
+```
+WARN[0000] The "POSTGRES_PASSWORD" variable is not set. Defaulting to a blank string.
+```
+
+Compose dosyasının içindeki `${POSTGRES_PASSWORD}` ifadeleri **`env_file:`'dan
+okunmaz**. `env_file` değişkenleri yalnızca konteynerin içine geçirir; compose
+dosyasının kendi metnindeki değişkenler kabuktan veya `.env`'den gelir. Çözüm:
+her komuta `--env-file deploy.env` ekleyin.
+
+```bash
+docker compose --env-file deploy.env -f docker-compose.server.yml up -d
+```
+
+Kalıcı kolaylık için: `ln -sf deploy.env .env`
+
+**Başlatmadan önce mutlaka doğrulayın:**
+
+```bash
+docker compose --env-file deploy.env -f docker-compose.server.yml config \
+  | grep -E "POSTGRES_PASSWORD|DATABASE_URL"
+```
+
+> `config` çıktısında `POSTGRES_PASSWORD` **iki kez** görünür — biri `app`, biri
+> `db` servisi için. Değerler aynıysa sorun yoktur, bu normaldir.
+
+### Parolayı düzelttim ama hâlâ giremiyor
+
+PostgreSQL parolayı **yalnızca veri dizinini ilk oluştururken** ayarlar. Yanlış
+(veya boş) parolayla bir kez başladıysa, doğru parolayı sonradan vermek işe
+yaramaz. Volume'ü silip baştan kurmak gerekir:
+
+```bash
+docker compose --env-file deploy.env -f docker-compose.server.yml down
+docker volume ls | grep pgdata
+docker volume rm <cikan-volume-adi>
+```
+
+Bu yalnızca Postgres verisini siler; eski SQLite volume'ü ve yedekleriniz durur.
+
+### `deploy.env` içinde tekrarlı satırlar
+
+`echo ... >> deploy.env` komutunu birden çok kez çalıştırdıysanız aynı değişken
+birkaç kez birikir. Compose sonuncuyu alır, yani çalışır — ama karışıklık
+yaratır. Temizlemek için:
+
+```bash
+cp deploy.env deploy.env.yedek
+grep -v '^POSTGRES_' deploy.env > deploy.env.tmp && mv deploy.env.tmp deploy.env
+{
+  echo "POSTGRES_USER=gezegen"
+  echo "POSTGRES_DB=gezegen"
+  echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')"
+} >> deploy.env
+grep -c '^POSTGRES_' deploy.env      # 3 olmalı
+rm deploy.env.yedek                  # işiniz bitince (içinde eski parolalar var)
+```
+
+### Uygulama bir türlü ayağa kalkmıyor
+
+`docker compose run --rm ...` **geçici** bir konteyner açıp kapatır; kalıcı
+uygulamayı başlatmaz. Migration ve veri taşıma adımları `run --rm` kullanır,
+sonunda mutlaka şunu çalıştırın:
+
+```bash
+docker compose --env-file deploy.env -f docker-compose.server.yml up -d
+```
+
+### Veri taşıma "hedef veritabanı boş değil" diyor
+
+Uygulama bir kez başladıysa `bootstrap.ts` yeni bir kiracı oluşturmuştur.
+Loglarda `✅ Kiracı oluşturuldu` görüyorsanız durum budur. Şemayı sıfırlayıp
+taşımayı tekrarlayın:
+
+```bash
+docker compose --env-file deploy.env -f docker-compose.server.yml stop app
+docker exec gezegen-crm-db psql -U gezegen -d gezegen -c \
+  'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+docker compose --env-file deploy.env -f docker-compose.server.yml run --rm \
+  --entrypoint sh app -c "npx prisma migrate deploy"
+# ardından taşıma adımı, en son: up -d
+```
+
+### Yedek almayı unuttum, eski verim gitti mi?
+
+Muhtemelen hayır. Eski SQLite verisi kendi Docker volume'ünde durur; yeni
+Postgres volume'ünü silmek ona dokunmaz.
+
+```bash
+docker volume ls | grep gezegen
+docker run --rm -v <ESKI_VOLUME_ADI>:/data alpine ls -lh /data
+docker run --rm -v <ESKI_VOLUME_ADI>:/data -v /root:/out alpine \
+  cp /data/prod.db /out/prod-yedek-$(date +%F-%H%M).db
+```
+
+> `-v` parametresinde volume adı ile yol arasında **iki nokta** olmalı:
+> `ad:/data` — `ad/data` değil.
 
 ## Sürüme özel notlar
 
