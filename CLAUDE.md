@@ -144,6 +144,10 @@ deposu, tek izin **Contents: Read and write**.
 Detaylı çalışma paketleri, kabul kriterleri ve riskler: **`docs/ROADMAP.md`**.
 Her faz **bir major sürümle** kapanır (`npm run release:major`).
 
+**`docs/ROADMAP.md` projenin tek doğru kaynağıdır.** Projede iki kişi
+çalışıyor; işe başlamadan önce oradaki "Şu An Neredeyiz" ve "Nasıl Çalışıyoruz"
+bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
+
 | Faz | Kapsam | Sürüm | Durum |
 |-----|--------|-------|-------|
 | 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | ✅ tamamlandı |

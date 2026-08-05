@@ -6,30 +6,124 @@ kendi kiracısındaki (tenant) veriyi görür, düzenler ve yönetir. Müşteril
 birbirlerinin varlığından dahi haberdar olmaz. Platform sahibi, ayrı bir admin
 paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
+> **Bu dosya projenin tek doğru kaynağıdır.** İki kişi çalıştığımız için
+> geliştirmeye başlamadan önce buraya bakılır, iş bitince buradaki durum
+> güncellenir. Kod ile bu dosya çeliştiğinde, kod düzeltilir değil — önce
+> konuşulur, sonra ikisi birden güncellenir.
+
+## Şu An Neredeyiz
+
+| | |
+|---|---|
+| **Son çıkan sürüm** | `v1.1.0` — Faz 1 tamamlandı |
+| **Sıradaki faz** | **Faz 2** — PostgreSQL + Row-Level Security (`v1.2.0`) |
+| **Devam eden iş** | yok |
+
 ## Genel Kurallar
 
 - Her faz **ayrı bir sürüm etiketiyle** kapanır (major → ikinci hane artar).
 - Faz kapanışı `npm run release:major -- "Faz N — <özet>"` ile yapılır.
 - Bir faz, kabul kriterleri sağlanmadan kapanmış sayılmaz.
 - Faz 1'den itibaren **hiçbir yeni sorgu `tenantId` filtresi olmadan yazılmaz.**
+  Veri erişimi yalnızca `src/lib/tenant-db.ts` üzerinden yapılır.
+- Her birleştirme öncesi `npm run kontrol:izolasyon` çalıştırılır ve geçmelidir.
+
+## Nasıl Çalışıyoruz (2 kişilik ekip)
+
+### İş alma
+
+1. Aşağıdaki faz tablosundan **"planlandı"** durumundaki bir çalışma paketini seç.
+2. Tabloda o fazın **Sorumlu** hücresine adını yaz, durumu **🔨 devam ediyor**
+   yap ve bu değişikliği tek başına commit'le
+   (`docs: Faz N sorumlusu <ad>`). Böylece diğer kişi aynı işe girmez.
+3. Faz bölümündeki çalışma paketi kutucuklarını (`- [ ]`) iş ilerledikçe işaretle.
+
+### Dal (branch) düzeni
+
+```
+main                       # kararlı; yalnızca tamamlanmış fazlar
+faz-2-postgres-rls         # faz dalı — tek bir fazın tüm işi
+faz-2/rls-politikalari     # istenirse alt dal
+```
+
+- Faz dalı adı: `faz-<numara>-<kısa-ad>`.
+- Faz bitince faz dalı `main`'e birleştirilir ve **sürüm etiketi `main` üzerinde
+  atılır**.
+- İki kişi aynı fazda çalışacaksa alt dal açın; aynı dosyada eşzamanlı
+  çalışmaktan kaçının (özellikle `prisma/schema.prisma` ve `src/lib/tenant-db.ts`).
+
+### Veri modeli değişiklikleri — dikkat
+
+`prisma/schema.prisma` iki kişinin en kolay çakıştığı dosya. Kural:
+
+- Şemaya dokunacak kişi önce diğerine haber verir.
+- Migration **her zaman** yeni bir dosya olarak eklenir, mevcut migration
+  düzenlenmez (uygulanmış migration'ı değiştirmek diğer geliştiricinin
+  veritabanını bozar).
+- Migration ürettikten sonra karşı taraf `npm run db:migrate` çalıştırır.
+
+### Sürüm çıkarma
+
+```bash
+npm run release:minor -- "kısa açıklama"    # hata düzeltmesi, rötuş
+npm run release:major -- "Faz N — özet"     # bir faz tamamlandığında
+```
+
+Betik sürümü yükseltir, commit'ler, tag atar ve push eder. Tag push'u yetki
+hatası verirse (Claude Code oturumlarında olabiliyor) tag'i elle atın:
+
+```bash
+git tag -a v1.2.0 <commit> -m "v1.2.0 — Faz 2: PostgreSQL + RLS"
+git push origin v1.2.0
+```
+
+### Faz kapanış kontrol listesi
+
+Bir fazı kapatmadan önce hepsi sağlanmalı:
+
+- [ ] Faz bölümündeki tüm çalışma paketleri işaretli
+- [ ] Kabul kriterleri tek tek doğrulandı
+- [ ] `npm run kontrol:izolasyon` geçiyor
+- [ ] `npx tsc --noEmit` ve `npm run build` temiz
+- [ ] Bu dosyada faz durumu ✅, "Şu An Neredeyiz" tablosu güncel
+- [ ] `CLAUDE.md` içindeki faz tablosu ve sürüm geçmişi güncel
+- [ ] `npm run release:major` ile sürüm çıkarıldı
 
 ## Faz Özeti
 
-| Faz | Kapsam | Sürüm | Durum |
-|-----|--------|-------|-------|
-| 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı |
-| 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | planlandı |
-| 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | planlandı |
-| 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı |
-| 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı |
-| 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı |
-| 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı |
-| 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı |
-| 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı |
-| 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı |
-| 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı |
-| 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı |
-| 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı |
+Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `✅ tamamlandı`
+
+| Faz | Kapsam | Sürüm | Durum | Sorumlu |
+|-----|--------|-------|-------|---------|
+| 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı | — |
+| 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | planlandı | |
+| 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | planlandı | |
+| 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı | |
+| 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı | |
+| 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı | |
+| 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı | |
+| 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı | |
+| 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı | |
+| 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı | |
+| 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı | |
+| 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı | |
+| 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
+
+## Yeni Katılan İçin Hızlı Başlangıç
+
+```bash
+npm install
+cp .env.example .env            # AUTH_SECRET'i değiştirin
+npm run db:migrate              # şemayı uygula
+npm run db:seed                 # iki kiracılı demo veri
+npm run dev                     # http://localhost:3000
+```
+
+Giriş: `admin@gezegen.com` / `admin123` (800 firma) ve
+`admin@anadolu.com` / `anadolu123` (120 firma). İki hesapla ayrı ayrı girip
+listelerin tamamen ayrı olduğunu görün — projenin temel güvenlik sözü budur.
+
+Mimari ve kiracı katmanı kuralları: **`CLAUDE.md`**.
 
 ---
 
@@ -40,7 +134,7 @@ veri, uygulama katmanında kiracı bazında izole olur.
 
 ### Çalışma paketleri
 
-1. **A1 — Tenant veri modeli**
+- [x] **A1 — Tenant veri modeli**
    - `Tenant` modeli: `id`, `ad`, `slug` (benzersiz), `durum` (aktif/askida/pasif),
      `createdAt`, `updatedAt`.
    - `User`, `Firma`, `YatirimDestegi`, `Egitim`, `Hizmet` modellerine
@@ -52,7 +146,7 @@ veri, uygulama katmanında kiracı bazında izole olur.
    - Migration + mevcut verinin tek bir varsayılan kiracıya taşınması.
    - `prisma/seed.ts` ve `prisma/bootstrap.ts` kiracı üretecek şekilde güncellenir.
 
-2. **A2 — Oturumda kiracı bağlamı**
+- [x] **A2 — Oturumda kiracı bağlamı**
    - `SessionPayload`'a `tenantId` ve `tenantSlug` eklenir (`src/lib/session.ts`).
    - Giriş akışı kiracıyı çözer (`src/app/login/actions.ts`).
    - **Merkezî kiracı kapsamlı veri erişimi:** `src/lib/tenant-db.ts` —
@@ -60,7 +154,7 @@ veri, uygulama katmanında kiracı bazında izole olur.
      action'lar `prisma`'yı doğrudan çağırmayı bırakır.
    - Kiracısı askıya alınmış kullanıcı girişte reddedilir.
 
-3. **A3 — Sahiplik doğrulaması**
+- [x] **A3 — Sahiplik doğrulaması**
    - Her `update` / `delete` işlemi, kaydın oturumun kiracısına ait olduğunu
      doğrular; aksi halde 404 döner (403 değil — kaydın varlığını sızdırmamak için).
    - Kapsanan dosyalar: `firmalar/actions.ts`, `yatirim-destekleri/actions.ts`,
@@ -110,13 +204,13 @@ katmanında bir hata olsa bile veritabanı yanlış satırı döndürmez
 (savunma derinliği).
 
 ### Çalışma paketleri
-1. **Postgres'e geçiş**
+- [ ] **Postgres'e geçiş**
    - `datasource` provider → `postgresql`; SQLite'a özgü kalıpların gözden geçirilmesi.
    - `docker-compose.yml`'e Postgres servisi + kalıcı volume.
    - Migration'ların Postgres için yeniden üretilmesi.
    - Mevcut SQLite verisinin taşınması için tek seferlik betik.
    - `deploy.sh` ve `.env.example` güncellemesi; yedekleme (`pg_dump`) notu.
-2. **Row-Level Security**
+- [ ] **Row-Level Security**
    - Tenant içeren her tabloda `ENABLE ROW LEVEL SECURITY`.
    - `USING (tenant_id = current_setting('app.tenant_id')::text)` politikaları.
    - Bağlantı başına `SET LOCAL app.tenant_id` uygulayan Prisma sarmalayıcısı.
@@ -139,15 +233,15 @@ varken yapılması durumunda kesinti planı ve veri göçü penceresi gerekir.
 **Amaç:** İzolasyonun bir daha bozulamayacağını otomatik olarak kanıtlamak.
 
 ### Çalışma paketleri
-1. **Test altyapısı** (seçilen listede yoktu ama A5 için zorunlu; bu faza dahil edildi)
+- [ ] **Test altyapısı** (seçilen listede yoktu ama A5 için zorunlu; bu faza dahil edildi)
    - Vitest + test veritabanı (izole Postgres şeması), fixture'lar, CI betiği.
-2. **İzolasyon test paketi**
+- [ ] **İzolasyon test paketi**
    - İki kiracı + kullanıcıları üreten fixture.
    - Her modül için: liste, detay, oluştur, güncelle, sil → kiracı dışı erişim 404.
    - Rapor ve dashboard toplamlarının kiracı dışı veriyi saymadığı testi.
    - RLS testi: uygulama katmanı atlanarak yapılan sorgu boş döner.
    - Oturum kurcalama testi: JWT'deki `tenantId` değiştirilirse erişim reddedilir.
-3. **Regresyon koruması**
+- [ ] **Regresyon koruması**
    - Yeni sorguların tenant filtresi olmadan eklenmesini yakalayan kontrol.
 
 ### Kabul kriterleri
@@ -158,16 +252,16 @@ varken yapılması durumunda kesinti planı ve veri göçü penceresi gerekir.
 
 ## Faz 4 — Yetkilendirme ve Denetim (A6, A7, A8) → `v1.4.0`
 
-1. **A6 — RBAC**
+- [ ] **A6 — RBAC**
    - Roller: `platform_admin` (kiracılar üstü), `tenant_admin`, `uye`, `salt_okunur`.
    - `Role` / `Permission` modelleri; modül × işlem (görüntüle/oluştur/düzenle/sil) matrisi.
    - Sunucu tarafı zorlama (`requirePermission`) + arayüzde yetkisiz öğelerin gizlenmesi.
    - **Yetki kontrolü her zaman sunucuda; arayüzdeki gizleme yalnızca kolaylık.**
-2. **A7 — Kullanıcı grupları**
+- [ ] **A7 — Kullanıcı grupları**
    - `Group` modeli, grup↔izin ve kullanıcı↔grup ilişkileri.
    - Etkin izin = rol izinleri ∪ grup izinleri.
    - Toplu atama arayüzü.
-3. **A8 — Denetim günlüğü**
+- [ ] **A8 — Denetim günlüğü**
    - `AuditLog` modeli: kiracı, kullanıcı, işlem, varlık türü/ID, eski→yeni değer, IP, zaman.
    - Merkezî veri katmanına bağlanır (her yazma otomatik loglanır).
    - Kiracı yöneticisi için filtrelenebilir görüntüleme ekranı.
@@ -183,13 +277,13 @@ varken yapılması durumunda kesinti planı ve veri göçü penceresi gerekir.
 
 Yalnızca `platform_admin` erişimli `/admin` alanı.
 
-1. **B1 — Müşteri yönetimi:** tenant ekle/düzenle/askıya al/sil, durum, iletişim bilgileri.
-2. **B2 — Kullanıcı yönetimi:** tenant içi kullanıcı ekle, rol/grup ata, pasifleştir, şifre sıfırla.
-3. **B3 — Davet akışı:** e-posta daveti, süreli tek kullanımlık token, kullanıcı kendi şifresini belirler.
-4. **B4 — Paket ve limitler:** `Plan` modeli; kullanıcı/kayıt limiti, modül açma-kapama; limit aşımında engelleme.
-5. **B5 — Impersonation:** "kiracı olarak görüntüle"; oturumda `impersonatedBy` taşınır, tüm oturum denetim günlüğüne yazılır, arayüzde kalıcı uyarı bandı, tek tıkla çıkış.
-6. **B6 — Platform metrikleri:** tenant sayısı, aktif kullanıcı, kayıt hacmi, son girişler.
-7. **B7 — Tenant markalama:** logo, ana renk, alt alan adı (`musteri.crm.com`) çözümlemesi.
+- [ ] **B1 — Müşteri yönetimi:** tenant ekle/düzenle/askıya al/sil, durum, iletişim bilgileri.
+- [ ] **B2 — Kullanıcı yönetimi:** tenant içi kullanıcı ekle, rol/grup ata, pasifleştir, şifre sıfırla.
+- [ ] **B3 — Davet akışı:** e-posta daveti, süreli tek kullanımlık token, kullanıcı kendi şifresini belirler.
+- [ ] **B4 — Paket ve limitler:** `Plan` modeli; kullanıcı/kayıt limiti, modül açma-kapama; limit aşımında engelleme.
+- [ ] **B5 — Impersonation:** "kiracı olarak görüntüle"; oturumda `impersonatedBy` taşınır, tüm oturum denetim günlüğüne yazılır, arayüzde kalıcı uyarı bandı, tek tıkla çıkış.
+- [ ] **B6 — Platform metrikleri:** tenant sayısı, aktif kullanıcı, kayıt hacmi, son girişler.
+- [ ] **B7 — Tenant markalama:** logo, ana renk, alt alan adı (`musteri.crm.com`) çözümlemesi.
 
 ### Kabul kriterleri
 - `platform_admin` olmayan bir kullanıcı `/admin` altındaki hiçbir yola erişemez (sunucu tarafı).
@@ -199,44 +293,44 @@ Yalnızca `platform_admin` erişimli `/admin` alanı.
 
 ## Faz 6 — Satış Çekirdeği (C1, C2, C3) → `v1.6.0`
 
-1. **C1 — Kişi (Contact):** firma başına çok kişi; ad, unvan, telefon, e-posta, birincil kişi işareti. Mevcut `Firma.yetkiliAd` verisi kişi kaydına taşınır.
-2. **C2 — Fırsat/Anlaşma (Deal):** başlık, firma, kişi, tutar, para birimi, aşama, kapanış tarihi, olasılık, sorumlu kullanıcı, kazanıldı/kaybedildi + sebep. Aşamalar kiracı bazında özelleştirilebilir.
-3. **C3 — Kanban satış hattı:** sürükle-bırak aşama değiştirme, aşama bazlı toplam tutar, filtre.
+- [ ] **C1 — Kişi (Contact):** firma başına çok kişi; ad, unvan, telefon, e-posta, birincil kişi işareti. Mevcut `Firma.yetkiliAd` verisi kişi kaydına taşınır.
+- [ ] **C2 — Fırsat/Anlaşma (Deal):** başlık, firma, kişi, tutar, para birimi, aşama, kapanış tarihi, olasılık, sorumlu kullanıcı, kazanıldı/kaybedildi + sebep. Aşamalar kiracı bazında özelleştirilebilir.
+- [ ] **C3 — Kanban satış hattı:** sürükle-bırak aşama değiştirme, aşama bazlı toplam tutar, filtre.
 
 ---
 
 ## Faz 7 — Satış Derinleştirme (C4–C7) → `v1.7.0`
 
-4. **C4 — Aktivite ve görev:** arama/toplantı/not/görev; atama, son tarih, tamamlandı; "bugün yapılacaklar" görünümü.
-5. **C5 — Lead yönetimi:** aday kayıt, kaynak, durum; tek tıkla firma + kişi + fırsata dönüştürme.
-6. **C6 — Timeline:** firma altında tüm modüllerin kronolojik birleşik akışı.
-7. **C7 — Teklif/sözleşme:** kalemler, tutar hesabı, revizyon geçmişi, durum takibi.
+- [ ] **C4 — Aktivite ve görev:** arama/toplantı/not/görev; atama, son tarih, tamamlandı; "bugün yapılacaklar" görünümü.
+- [ ] **C5 — Lead yönetimi:** aday kayıt, kaynak, durum; tek tıkla firma + kişi + fırsata dönüştürme.
+- [ ] **C6 — Timeline:** firma altında tüm modüllerin kronolojik birleşik akışı.
+- [ ] **C7 — Teklif/sözleşme:** kalemler, tutar hesabı, revizyon geçmişi, durum takibi.
 
 ---
 
 ## Faz 8 — Otomasyon ve İletişim (D1–D5) → `v1.8.0`
 
-1. **D1 — E-posta bildirimleri:** SMTP yapılandırması, şablonlar, kullanıcı bazlı tercih.
-2. **D2 — İş akışı otomasyonu:** tetikleyici (durum değişti / tarih yaklaştı) → eylem (görev aç, e-posta gönder, alan güncelle); kiracı bazlı kural tanımı.
-3. **D3 — E-posta entegrasyonu:** IMAP/Gmail/Outlook ile iki yönlü senkron; yazışmanın ilgili kayda düşmesi.
-4. **D4 — Takvim:** aylık/haftalık görünüm, hatırlatma, `.ics` dışa aktarım.
-5. **D5 — Bildirim merkezi:** uygulama içi bildirim listesi, okundu işaretleme.
+- [ ] **D1 — E-posta bildirimleri:** SMTP yapılandırması, şablonlar, kullanıcı bazlı tercih.
+- [ ] **D2 — İş akışı otomasyonu:** tetikleyici (durum değişti / tarih yaklaştı) → eylem (görev aç, e-posta gönder, alan güncelle); kiracı bazlı kural tanımı.
+- [ ] **D3 — E-posta entegrasyonu:** IMAP/Gmail/Outlook ile iki yönlü senkron; yazışmanın ilgili kayda düşmesi.
+- [ ] **D4 — Takvim:** aylık/haftalık görünüm, hatırlatma, `.ics` dışa aktarım.
+- [ ] **D5 — Bildirim merkezi:** uygulama içi bildirim listesi, okundu işaretleme.
 
 ---
 
 ## Faz 9 — Veri Giriş/Çıkış (E1, E2, E5) → `v1.9.0`
 
-1. **E1 — Excel/CSV dışa aktarım:** her liste için, aktif filtreye saygılı.
-2. **E2 — Excel/CSV içe aktarım:** dosya yükleme, sütun eşleştirme ekranı, doğrulama ve hata raporu, ön izleme; müşteri devreye alma (onboarding) için kritik.
-3. **E5 — PDF rapor çıktısı:** kiracı logosu ile.
+- [ ] **E1 — Excel/CSV dışa aktarım:** her liste için, aktif filtreye saygılı.
+- [ ] **E2 — Excel/CSV içe aktarım:** dosya yükleme, sütun eşleştirme ekranı, doğrulama ve hata raporu, ön izleme; müşteri devreye alma (onboarding) için kritik.
+- [ ] **E5 — PDF rapor çıktısı:** kiracı logosu ile.
 
 ---
 
 ## Faz 10 — Kişiselleştirme ve Süreklilik (E3, E4, E7) → `v1.10.0`
 
-1. **E3 — Özelleştirilebilir dashboard:** kart seçimi, sıralama, kullanıcı bazlı kayıt.
-2. **E4 — Gelişmiş filtre + kayıtlı görünümler:** çoklu kriter, kaydet/paylaş, varsayılan görünüm.
-3. **E7 — Yedekleme/geri yükleme:** kiracı bazlı yedek alma ve geri yükleme, zamanlanmış otomatik yedek.
+- [ ] **E3 — Özelleştirilebilir dashboard:** kart seçimi, sıralama, kullanıcı bazlı kayıt.
+- [ ] **E4 — Gelişmiş filtre + kayıtlı görünümler:** çoklu kriter, kaydet/paylaş, varsayılan görünüm.
+- [ ] **E7 — Yedekleme/geri yükleme:** kiracı bazlı yedek alma ve geri yükleme, zamanlanmış otomatik yedek.
 
 ---
 
@@ -250,19 +344,19 @@ Yalnızca `platform_admin` erişimli `/admin` alanı.
 
 ## Faz 12 — Hesap Güvenliği ve KVKK (F1–F4, F7) → `v1.12.0`
 
-1. **F1 — Şifre politikası + şifremi unuttum:** minimum karmaşıklık, süreli sıfırlama bağlantısı.
-2. **F2 — İki faktörlü doğrulama:** TOTP, yedek kodlar, kiracı bazında zorunlu kılma seçeneği.
-3. **F3 — Oturum yönetimi:** aktif oturum listesi, uzaktan sonlandırma, oturum süresi politikası.
-4. **F4 — Hız sınırlama:** giriş denemesi sınırı, geçici kilit, brute-force koruması.
-5. **F7 — KVKK:** veri saklama süresi, silme/dışa aktarma talebi akışı, aydınlatma metni, açık rıza kaydı.
+- [ ] **F1 — Şifre politikası + şifremi unuttum:** minimum karmaşıklık, süreli sıfırlama bağlantısı.
+- [ ] **F2 — İki faktörlü doğrulama:** TOTP, yedek kodlar, kiracı bazında zorunlu kılma seçeneği.
+- [ ] **F3 — Oturum yönetimi:** aktif oturum listesi, uzaktan sonlandırma, oturum süresi politikası.
+- [ ] **F4 — Hız sınırlama:** giriş denemesi sınırı, geçici kilit, brute-force koruması.
+- [ ] **F7 — KVKK:** veri saklama süresi, silme/dışa aktarma talebi akışı, aydınlatma metni, açık rıza kaydı.
 
 ---
 
 ## Faz 13 — AI Özellikleri (G1–G3) → `v1.13.0`
 
-1. **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
-2. **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
-3. **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
+- [ ] **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
+- [ ] **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
+- [ ] **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
 
 **Kural:** AI çağrıları kiracı verisini kiracı sınırının dışına taşımaz; hangi
 verinin modele gönderildiği kiracı yöneticisine açıkça bildirilir ve
