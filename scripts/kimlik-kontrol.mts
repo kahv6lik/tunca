@@ -9,11 +9,14 @@
  */
 import { chromium } from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3000";
 const CHROME = process.env.PW_CHROME ?? "/opt/pw-browsers/chromium";
-const prisma = new PrismaClient();
+// RLS açık: gerçek toplamları okumak için yönetim bağlamı gerekir.
+const temel = new PrismaClient();
+const prisma = yonetimIstemcisi(temel);
 
 let gecti = 0;
 let kaldi = 0;
@@ -118,5 +121,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await temel.$disconnect();
   });

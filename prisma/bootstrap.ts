@@ -11,9 +11,12 @@
  *   ADMIN_NAME      (varsayılan: Sistem Yöneticisi)
  */
 import { PrismaClient } from "@prisma/client";
+import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+// RLS yönetim bağlamı: kurulum betikleri kiracılar ötesi yazabilmelidir.
+const temelIstemci = new PrismaClient();
+const prisma = yonetimIstemcisi(temelIstemci) as unknown as PrismaClient;
 
 async function main() {
   const tenantAd = process.env.TENANT_NAME || "Gezegen Danışmanlık";
@@ -53,5 +56,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await temelIstemci.$disconnect();
   });

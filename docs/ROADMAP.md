@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.1.0` — Faz 1 tamamlandı |
-| **Sıradaki faz** | **Faz 2** — PostgreSQL + Row-Level Security (`v1.2.0`) |
+| **Son çıkan sürüm** | `v1.2.0` — Faz 2 tamamlandı |
+| **Sıradaki faz** | **Faz 3** — Çapraz kiracı sızıntı testleri + test altyapısı (`v1.3.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -88,8 +88,9 @@ izolasyonu (veri katmanı + HTTP) ve gerçek tarayıcıyla kimlik doğrulamayı
 çalıştırır. Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
-Önemli: doğrulama kendi geçici veritabanını (`prisma/dogrulama.db`) ve kendi
-portunu (3100) kullanır — **geliştirme veritabanınıza dokunmaz.**
+Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
+(3100) kullanır — **geliştirme veritabanınıza dokunmaz.** Şema her çalıştırmada
+sıfırdan kurulur ve sonunda silinir.
 
 Tek tek çalıştırmak isterseniz:
 
@@ -129,7 +130,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | Faz | Kapsam | Sürüm | Durum | Sorumlu |
 |-----|--------|-------|-------|---------|
 | 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı | — |
-| 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | planlandı | |
+| 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | ✅ tamamlandı | — |
 | 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | planlandı | |
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı | |
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı | |
@@ -146,8 +147,13 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 
 ```bash
 npm install
-cp .env.example .env            # AUTH_SECRET'i değiştirin
-npm run db:migrate              # şemayı uygula
+cp .env.example .env            # AUTH_SECRET ve DATABASE_URL'i ayarlayın
+
+# PostgreSQL gerekir (Faz 2'den itibaren). Yerelde:
+#   createdb gezegen_dev
+# veya Docker ile:  docker compose up -d db
+
+npm run db:migrate              # şemayı ve RLS politikalarını uygula
 npm run db:seed                 # iki kiracılı demo veri
 npm run dev                     # http://localhost:3000
 ```
@@ -237,27 +243,44 @@ katmanında bir hata olsa bile veritabanı yanlış satırı döndürmez
 (savunma derinliği).
 
 ### Çalışma paketleri
-- [ ] **Postgres'e geçiş**
+- [x] **Postgres'e geçiş**
    - `datasource` provider → `postgresql`; SQLite'a özgü kalıpların gözden geçirilmesi.
    - `docker-compose.yml`'e Postgres servisi + kalıcı volume.
    - Migration'ların Postgres için yeniden üretilmesi.
    - Mevcut SQLite verisinin taşınması için tek seferlik betik.
    - `deploy.sh` ve `.env.example` güncellemesi; yedekleme (`pg_dump`) notu.
-- [ ] **Row-Level Security**
+- [x] **Row-Level Security**
    - Tenant içeren her tabloda `ENABLE ROW LEVEL SECURITY`.
    - `USING (tenant_id = current_setting('app.tenant_id')::text)` politikaları.
    - Bağlantı başına `SET LOCAL app.tenant_id` uygulayan Prisma sarmalayıcısı.
    - Uygulama rolünün `BYPASSRLS` yetkisi **olmadığının** doğrulanması.
    - Admin/sistem işlemleri için ayrı, denetlenen rol.
 
-### Kabul kriterleri
-- Uygulama Postgres üzerinde eksiksiz çalışır; veri kaybı yok.
-- `app.tenant_id` ayarlanmadan yapılan ham sorgu **sıfır satır** döner.
-- RLS açıkken sorgu planları `tenant_id` indeksini kullanır (performans kontrolü).
+### Kabul kriterleri — hepsi sağlandı ✅
+- Uygulama Postgres üzerinde eksiksiz çalışır; `npm run dogrula` → **70/70**.
+- `app.tenant_id` ayarlanmadan yapılan sorgu **sıfır satır** döner — altı tablo
+  için ayrı ayrı ve ham SQL ile de doğrulandı.
+- SQLite → PostgreSQL taşıma betiği gerçek v1.1.x formatındaki bir veritabanıyla
+  test edildi: tüm kayıtlar, ondalık tutarlar, tarihler ve ilişkiler korundu.
+- Performans: RLS sarmalamasıyla sorgu başına ~2 ms (ölçüldü).
 
-### Not
-Bu faz ne kadar geciktirilirse taşıma o kadar pahalılaşır. Canlıda müşteri
-varken yapılması durumunda kesinti planı ve veri göçü penceresi gerekir.
+### Uygulama notları
+- **Üç erişim bağlamı:** `app.tenant_id` (normal trafik), `app.kimlik_dogrulama`
+  (yalnızca giriş, User+Tenant salt okuma), `app.yonetim` (kurulum betikleri).
+  Hiçbiri ayarlanmazsa veritabanı sıfır satır döndürür — "bağlam yoksa veri yok"
+  varsayılan davranıştır.
+- **`FORCE ROW LEVEL SECURITY`** kullanıldı: tablo sahibi normalde RLS'ten
+  muaftır, uygulama rolü tabloların sahibi olduğu için bu olmadan politikalar
+  hiçbir işe yaramazdı.
+- **Her sorgu bir işlem içinde** çalışır (`set_config(..., true)` + asıl sorgu).
+  Bağlantı havuzundan gelen bir bağlantının bir sonraki isteğe bağlam
+  sızdırmaması için gereklidir.
+- **SQLite migration'ları** `prisma/_sqlite-arsiv/` altına taşındı; Prisma
+  migration'ları veritabanına özgüdür, Postgres'te uygulanamazlar.
+
+### Canlıya alma
+Bu bir motor değişikliğidir, sıradan bir sürüm alma değil. Adım adım süreç ve
+geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 
 ---
 

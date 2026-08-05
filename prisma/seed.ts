@@ -7,9 +7,12 @@
  * birbirinden tamamen ayrı olduğu görülebilir.
  */
 import { PrismaClient } from "@prisma/client";
+import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+// RLS yönetim bağlamı: kurulum betikleri kiracılar ötesi yazabilmelidir.
+const temelIstemci = new PrismaClient();
+const prisma = yonetimIstemcisi(temelIstemci) as unknown as PrismaClient;
 
 const ILLER = [
   "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Konya", "Gaziantep",
@@ -197,5 +200,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await temelIstemci.$disconnect();
   });

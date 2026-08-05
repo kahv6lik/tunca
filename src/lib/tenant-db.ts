@@ -2,22 +2,27 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { prisma } from "./db";
 import { requireSession } from "./auth";
+import { kiraciIstemcisi } from "./rls";
 
 /**
- * Kiracı kapsamlı veri erişim katmanı (Faz 1 / A2).
+ * Kiracı kapsamlı veri erişim katmanı (Faz 1 / A2 + Faz 2 / A4).
  *
  * Uygulamanın hiçbir sayfası veya action'ı `prisma`'yı doğrudan çağırmaz;
- * hepsi buradan geçer. Prisma client extension'ı, kiracıya ait modellerde:
+ * hepsi buradan geçer. İki bağımsız koruma katmanı vardır:
  *
- *   - okuma/sayma/gruplama sorgularına  → `where.tenantId` ekler
- *   - oluşturma işlemlerine             → `data.tenantId` ekler
- *   - `findUnique`, `update`, `delete`  → kullanımını ENGELLER
+ *   1. UYGULAMA KATMANI (bu dosya) — Prisma client extension'ı kiracıya ait
+ *      modellerde okuma sorgularına `where.tenantId`, oluşturma işlemlerine
+ *      `data.tenantId` ekler; `findUnique`, `update`, `delete`, `upsert`
+ *      kullanımını engeller (bunlar yalnızca birincil anahtarla çalışır, yani
+ *      kiracı filtresi uygulanamaz).
  *
- * Son madde bilinçli: bu üç işlem yalnızca birincil anahtarla çalışır, yani
- * kiracı filtresi uygulanamaz. Bunların yerine `findFirst`, `updateMany` ve
- * `deleteMany` kullanılır — onlara filtre eklenebildiği için kiracı sınırı
- * korunur. Aşağıdaki `sahiplikDogrula` / `tenantGuncelle` / `tenantSil`
- * yardımcıları bu güvenli kalıbı hazır sunar.
+ *   2. VERİTABANI KATMANI (`src/lib/rls.ts` + RLS migration'ı) — her sorgu
+ *      `app.tenant_id` ayarlanmış bir işlem içinde çalışır; PostgreSQL
+ *      politikaları yanlış kiracının satırını hiç döndürmez.
+ *
+ * İkinci katman, birincisinde bir hata olsa bile veri sızmamasını sağlar.
+ * Yeni bir sorgu yolu eklerken buradan geçmeyi unutan bir geliştirici veri
+ * sızdıramaz — veritabanı boş sonuç döndürür.
  */
 
 const KIRACI_MODELLERI = new Set([
@@ -54,7 +59,12 @@ export function tenantClient(tenantId: string) {
     throw new Error("tenantClient: tenantId zorunludur.");
   }
 
-  return prisma.$extends({
+  // RLS bağlamını uygulayan istemcinin ÜZERİNE uygulama filtresini ekliyoruz.
+  // Sıra önemli: dıştaki extension önce çalışıp where/data'yı düzenler,
+  // içteki RLS katmanı sorguyu `app.tenant_id` ayarlı bir işleme sarar.
+  const temel = kiraciIstemcisi(tenantId) as unknown as typeof prisma;
+
+  return temel.$extends({
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {

@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { createSession } from "@/lib/session";
+import { kimlikIstemcisi } from "@/lib/rls";
 
 export type LoginState = { error?: string; kiraciSor?: boolean };
 
@@ -23,14 +23,19 @@ export async function loginAction(
     return { error: "E-posta ve şifre gereklidir." };
   }
 
-  // Uygulamada `prisma`'nın doğrudan kullanıldığı TEK yer burasıdır ve
-  // bilinçlidir: kimlik doğrulanmadan önce henüz bir kiracı bağlamı yoktur,
-  // kiracı zaten bu sorgunun sonucunda belirlenir. Oturum açıldıktan sonraki
-  // her erişim `src/lib/tenant-db.ts` üzerinden gider.
+  // Kiracılar ötesi okuma yapabilen TEK yer burasıdır ve bilinçlidir: kimlik
+  // doğrulanmadan önce henüz bir kiracı bağlamı yoktur, kiracı zaten bu
+  // sorgunun sonucunda belirlenir. Oturum açıldıktan sonraki her erişim
+  // `src/lib/tenant-db.ts` üzerinden gider.
+  //
+  // `kimlikIstemcisi` RLS'te yalnızca User ve Tenant tablolarında SALT OKUMA
+  // izni veren bağlamı açar; bu bağlamda hiçbir yazma yapılamaz ve iş verisi
+  // (firma, yatırım, eğitim, hizmet) görünmez.
   //
   // Aynı e-posta farklı kiracılarda bulunabilir; adaylar arasından şifresi
   // doğrulanan ve kiracısı aktif olan hesap seçilir.
-  const adaylar = await prisma.user.findMany({
+  const db = kimlikIstemcisi();
+  const adaylar = await db.user.findMany({
     where: {
       email,
       ...(kiraciKodu ? { tenant: { slug: kiraciKodu } } : {}),

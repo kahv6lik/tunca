@@ -3,7 +3,7 @@ FROM node:22-slim
 
 # Prisma için gerekli sistem kütüphaneleri
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -21,8 +21,9 @@ RUN npm ci --include=dev
 # Uygulama kaynak kodu
 COPY . .
 
-# Derleme sırasında Prisma'nın geçerli bir DATABASE_URL görmesi yeterli
-ENV DATABASE_URL="file:/app/data/prod.db"
+# Derleme sırasında Prisma'nın sözdizimsel olarak geçerli bir DATABASE_URL
+# görmesi yeterli — bu adreste gerçekten bir veritabanı olması gerekmez.
+ENV DATABASE_URL="postgresql://gezegen:gezegen@db:5432/gezegen?schema=public"
 RUN npm run build
 
 # Giriş betiği: migrasyonları uygula, yönetici oluştur, sunucuyu başlat

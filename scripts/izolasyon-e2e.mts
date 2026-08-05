@@ -18,9 +18,12 @@
  */
 import { SignJWT } from "jose";
 import { PrismaClient } from "@prisma/client";
+import { yonetimIstemcisi } from "../src/lib/rls";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3000";
-const prisma = new PrismaClient();
+// RLS açık: gerçek toplamları okumak için yönetim bağlamı gerekir.
+const temel = new PrismaClient();
+const prisma = yonetimIstemcisi(temel);
 const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
 let gecti = 0;
@@ -138,5 +141,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await temel.$disconnect();
   });

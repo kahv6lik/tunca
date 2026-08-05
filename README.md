@@ -7,6 +7,8 @@ hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
 
 - 🏛️ **Çok kiracılı (multi-tenant)** — her müşteri yalnızca kendi kiracısındaki
   veriyi görür; kiracılar birbirinin verisini ve varlığını göremez
+- 🛡️ **İki katmanlı izolasyon** — uygulama katmanı + PostgreSQL Row-Level
+  Security; kodda bir sorgu filtreyi unutsa bile veritabanı veri döndürmez
 - 🔐 **Kullanıcı girişi** (e-posta + şifre, JWT tabanlı oturum)
 - 🏢 **Firma Yönetimi** — kayıt, arama, il/durum filtresi, sayfalama (800+ firma)
 - 💰 **Yatırım Destekleri** — tutar, tür, tarih ve durum takibi
@@ -18,7 +20,7 @@ hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
 ## Teknolojiler
 
 - [Next.js 14](https://nextjs.org/) (App Router, Server Actions)
-- [Prisma ORM](https://www.prisma.io/) + **SQLite** (kolay kurulum; Postgres'e taşınabilir)
+- [Prisma ORM](https://www.prisma.io/) + **PostgreSQL** (Row-Level Security ile kiracı izolasyonu)
 - [Tailwind CSS](https://tailwindcss.com/)
 - Kimlik doğrulama: `jose` (JWT) + `bcryptjs`
 - Dağıtım: **Docker + Nginx + Let's Encrypt** (otomatik HTTPS)
@@ -29,8 +31,10 @@ Gereksinim: Node.js 18+ (önerilen 20/22)
 
 ```bash
 npm install
-cp .env.example .env          # AUTH_SECRET değerini değiştirin
-npm run db:migrate            # şemayı uygula (prisma migrate deploy)
+cp .env.example .env          # AUTH_SECRET ve DATABASE_URL değerlerini ayarlayın
+
+# PostgreSQL gerekir. Docker ile: docker compose up -d db
+npm run db:migrate            # şemayı + RLS politikalarını uygula
 npm run db:seed               # örnek verileri yükle (800 firma)
 npm run dev                   # http://localhost:3000
 ```
@@ -50,8 +54,11 @@ npm run dev                   # http://localhost:3000
 ### İzolasyon Doğrulama
 
 ```bash
-npm run kontrol:izolasyon    # veri katmanı kontrolleri
+npm run dogrula              # tümü + rapor (önerilen)
+
+npm run kontrol:izolasyon    # veri katmanı + RLS
 npm run kontrol:e2e          # gerçek HTTP üzerinden (sunucu çalışırken)
+npm run kontrol:kimlik       # giriş formu, gerçek tarayıcı (sunucu çalışırken)
 ```
 
 > `db:seed` sahte demo verisi üretir; üretimde kullanılmaz (aşağıya bakın).
@@ -130,12 +137,14 @@ docker compose up -d                  # başlat
 
 ### Veri Yedekleme
 
-Tüm veriler `gezegen-db` adlı Docker volume'ünde (SQLite) tutulur:
+Tüm veriler `gezegen-pgdata` adlı Docker volume'ünde (PostgreSQL) tutulur:
 
 ```bash
 # Yedek al
-docker run --rm -v gezegen-crm_gezegen-db:/data -v $(pwd):/backup alpine \
-  cp /data/prod.db /backup/yedek-$(date +%F).db
+docker exec gezegen-crm-db pg_dump -U gezegen gezegen > yedek-$(date +%F).sql
+
+# Geri yükle
+cat yedek-<TARIH>.sql | docker exec -i gezegen-crm-db psql -U gezegen -d gezegen
 ```
 
 ### Sertifika Testi (isteğe bağlı)
@@ -180,11 +189,16 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 | `npm run start` | Üretim sunucusu (Node) |
 | `npm run db:migrate` | Migrasyonları uygula (prisma migrate deploy) |
 | `npm run db:seed` | Örnek demo verilerini yükle |
-| `npm run db:bootstrap` | Sadece yönetici kullanıcısı oluştur (üretim) |
+| `npm run db:bootstrap` | Kiracı + yönetici kullanıcısı oluştur (üretim) |
+| `npm run dogrula` | Tam doğrulama + rapor (`docs/dogrulama/v<sürüm>.md`) |
+| `npm run demo:kur` | Demo yönetici hesabını geri getir (veriye dokunmaz) |
+| `npm run gecis:postgres` | SQLite → PostgreSQL veri taşıma (tek seferlik) |
 | `./deploy.sh` | Docker + Nginx + HTTPS ile sunucuya dağıt |
 
 ## Veri Modeli
 
+- **Tenant** — kiracı (hizmet verilen müşteri şirketi); diğer tüm modeller
+  `tenantId` taşır ve kiracı sınırı hem uygulamada hem veritabanında (RLS) zorunludur
 - **User** — sisteme giriş yapan ekip üyeleri
 - **Firma** — müşteriye bağlı firmalar
 - **YatirimDestegi** — firmaya verilen yatırım destekleri (Firma'ya bağlı)
@@ -209,7 +223,7 @@ src/
     login/             # Giriş sayfası
     (app)/             # Korumalı panel (sidebar düzeni)
 Dockerfile             # Üretim imajı
-docker-compose.yml     # app + nginx + certbot
+docker-compose.yml     # db (postgres) + app + nginx + certbot
 docker-entrypoint.sh   # migrate + bootstrap + start
 deploy.sh              # Otomatik dağıtım script'i
 deploy/
@@ -219,7 +233,7 @@ deploy/
 
 ## Üretime Alma Notları
 
-- SQLite tek sunucu için idealdir. Çok kullanıcılı yoğun kullanımda
+- PostgreSQL çok kullanıcılı kullanım için uygundur. Çok yoğun kullanımda
   `prisma/schema.prisma` içindeki `provider` değerini `postgresql` yapıp
   `DATABASE_URL`'i güncelleyin.
 - `AUTH_SECRET`'i güçlü ve gizli bir değere ayarlayın (deploy.sh otomatik üretir).

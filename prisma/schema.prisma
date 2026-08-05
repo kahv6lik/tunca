@@ -1,5 +1,8 @@
 // Gezegen CRM — veri modeli
-// SQLite kullanıldığı için enum yerine String alanlar + uygulama sabitleri kullanılır.
+//
+// PostgreSQL (Faz 2). Enum yerine String alanlar + `src/lib/constants.ts`
+// içindeki sabitler kullanılır; bu tercih SQLite döneminden kalmadır ve
+// kiracıya özel durum değerlerini (Faz 11) kolaylaştırdığı için korunmuştur.
 //
 // ÇOK KİRACILILIK (Faz 1):
 // Tenant dışındaki her model `tenantId` taşır ve tüm indekslerde `tenantId`
@@ -11,7 +14,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

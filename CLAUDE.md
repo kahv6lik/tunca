@@ -21,7 +21,8 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 ## Teknoloji Yığını
 
 - **Next.js 14** (App Router + Server Actions, `src/app`)
-- **Prisma ORM + SQLite** (`prisma/schema.prisma`, `DATABASE_URL`)
+- **Prisma ORM + PostgreSQL** (`prisma/schema.prisma`, `DATABASE_URL`)
+  — kiracı izolasyonu Row-Level Security ile veritabanı katmanında da zorunlu
 - **Tailwind CSS** + shadcn tarzı bileşen sistemi, dark mode (`next-themes`)
 - **Recharts** (grafikler) + **framer-motion** (animasyon)
 - Kimlik doğrulama: `jose` (JWT, `gezegen_session` cookie) + `bcryptjs`
@@ -32,8 +33,9 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 
 ```
 prisma/
-  schema.prisma        # User, Firma, YatirimDestegi, Egitim, Hizmet modelleri
-  migrations/          # prisma migrate deploy ile uygulanır
+  schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet
+  migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
+  _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
   bootstrap.ts         # üretim için ilk kullanıcı oluşturma
 src/
@@ -57,19 +59,23 @@ src/
   lib/
     auth.ts, session.ts   # oturum ve requireSession
     constants.ts          # durum/tür sabitleri + rozet etiketleri
-    db.ts, format.ts, utils.ts, tr-iller.ts, chart-*.ts
+    tenant-db.ts          # kiracı kapsamlı veri erişimi (ZORUNLU giriş noktası)
+    rls.ts                # PostgreSQL RLS bağlamları
+    db.ts, format.ts, utils.ts, tr-iller.ts, chart-*.ts, version.ts
 ```
 
 ### Veri Modeli
 
 `Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya `firmaId`
-ile bağlıdır (`onDelete: Cascade`). SQLite kullanıldığı için enum yerine
-`String` alan + `src/lib/constants.ts` içindeki sabitler kullanılır.
+ile bağlıdır (`onDelete: Cascade`). Enum yerine `String` alan +
+`src/lib/constants.ts` içindeki sabitler kullanılır (Faz 11'deki kiracıya özel
+alanları kolaylaştırdığı için korunan bir tercih).
 
-### Kiracı Katmanı (Faz 1'den itibaren ZORUNLU)
+### Kiracı Katmanı — İKİ KATMAN (ZORUNLU)
 
-Veri erişimi **yalnızca `src/lib/tenant-db.ts` üzerinden** yapılır:
+**1. Uygulama katmanı** — veri erişimi **yalnızca `src/lib/tenant-db.ts`
+üzerinden** yapılır:
 
 ```ts
 const db = await getTenantDb();           // oturumdaki kiracıya bağlı
@@ -81,8 +87,21 @@ const firmalar = await db.firma.findMany(); // tenantId otomatik eklenir
   `tenantSil`, `tenantOlustur` yardımcıları kullanılır.
 - Alt kayıt oluşturulurken `firmaSahipligiDogrula` ile firmanın kiracıya ait
   olduğu doğrulanır.
-- `prisma`'nın doğrudan kullanıldığı tek yer giriş action'ıdır
-  (`src/app/login/actions.ts`) — oturum öncesi kiracı henüz belli değildir.
+- Kiracılar ötesi okumanın yapıldığı tek yer giriş action'ıdır
+  (`src/app/login/actions.ts`) — oturum öncesi kiracı henüz belli değildir ve
+  orada yalnızca `kimlikIstemcisi` (salt okuma) kullanılır.
+
+**2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
+`src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
+
+| Bağlam | Kullanım | Yetki |
+|--------|----------|-------|
+| `app.tenant_id` | `kiraciIstemcisi()` — normal trafik | O kiracının satırları |
+| `app.kimlik_dogrulama` | `kimlikIstemcisi()` — yalnızca giriş | User+Tenant, salt okuma |
+| `app.yonetim` | `yonetimIstemcisi()` — kurulum betikleri | Tam erişim |
+
+Bağlam ayarlanmazsa veritabanı **sıfır satır** döndürür. Yani uygulama
+katmanında bir sorgu filtreyi unutsa bile veri sızmaz.
 
 ### Doğrulama (ZORUNLU — her geliştirmede)
 
@@ -91,12 +110,12 @@ npm run dogrula
 ```
 
 Tip kontrolü + derleme + migration + demo veri + kiracı izolasyonu (veri
-katmanı ve HTTP) + gerçek tarayıcıyla kimlik doğrulama = **58 kontrol**.
+katmanı, RLS ve HTTP) + gerçek tarayıcıyla kimlik doğrulama = **70 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
-Doğrulama kendi geçici veritabanını ve portunu (3100) kullanır; geliştirme
-veritabanına dokunmaz.
+Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
+kullanır; geliştirme veritabanınıza dokunmaz.
 
-Tek tek: `kontrol:izolasyon` (19), `kontrol:e2e` (14), `kontrol:kimlik` (18).
+Tek tek: `kontrol:izolasyon` (31), `kontrol:e2e` (14), `kontrol:kimlik` (18).
 
 Giriş yapılamaz duruma düşülürse: `npm run demo:kur` — demo yönetici hesabını
 (`admin@gezegen.com` / `admin123`, tam yetkili) veriye dokunmadan geri getirir.
@@ -162,7 +181,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | Faz | Kapsam | Sürüm | Durum |
 |-----|--------|-------|-------|
 | 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | ✅ tamamlandı |
-| 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | planlandı |
+| 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | ✅ tamamlandı |
 | 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | planlandı |
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | planlandı |
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | planlandı |

@@ -2,6 +2,24 @@
 # Değişkenler deploy.env dosyasından gelir (deploy.sh tarafından yüklenir).
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: gezegen-crm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-gezegen}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD tanımlı olmalı (deploy.env)}"
+      POSTGRES_DB: "${POSTGRES_DB:-gezegen}"
+    volumes:
+      - gezegen-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gezegen} -d ${POSTGRES_DB:-gezegen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - gezegen
+
   app:
     build: .
     image: gezegen-crm:latest
@@ -9,14 +27,15 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      # SQLite veritabanı kalıcı volume içinde
-      DATABASE_URL: "file:/app/data/prod.db"
+      # PostgreSQL (Faz 2) — RLS ile kiracı izolasyonu veritabanı katmanında
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-gezegen}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gezegen}?schema=public"
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET tanımlı olmalı (deploy.env)}"
       ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@gezegen.com}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
       ADMIN_NAME: "${ADMIN_NAME:-Sistem Yöneticisi}"
-    volumes:
-      - gezegen-db:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - "3000"
     networks:
@@ -51,7 +70,7 @@ services:
       - gezegen
 
 volumes:
-  gezegen-db:
+  gezegen-pgdata:
 
 networks:
   gezegen:

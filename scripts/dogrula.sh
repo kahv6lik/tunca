@@ -8,16 +8,16 @@
 # izolasyonu, uçtan uca izolasyon ve gerçek tarayıcıyla kimlik doğrulama.
 # Sonucu hem ekrana yazar hem de docs/dogrulama/v<sürüm>.md dosyasına kaydeder.
 #
-# ÖNEMLİ: Geliştirme veritabanınıza (prisma/dev.db) DOKUNMAZ. Kendi geçici
-# veritabanını (prisma/dogrulama.db) ve kendi portunu (3100) kullanır.
+# ÖNEMLİ: Geliştirme veritabanınıza DOKUNMAZ. Aynı PostgreSQL sunucusunda
+# ayrı bir şema (`dogrulama`) ve ayrı bir port (3100) kullanır; şema her
+# çalıştırmada sıfırdan kurulur ve sonunda silinir.
 
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
 PORT="${DOGRULA_PORT:-3100}"
-DB_DOSYA="prisma/dogrulama.db"
-DB_URL="file:./dogrulama.db"
+DOGRULA_SEMA="dogrulama"
 BASE="http://localhost:${PORT}"
 SURUM="$(node -p "require('./package.json').version")"
 RAPOR_DIZIN="docs/dogrulama"
@@ -46,6 +46,11 @@ port_bosalt() {
   return 1
 }
 
+sema_sil() {
+  [[ -n "${PSQL_URL:-}" ]] || return 0
+  psql "$PSQL_URL" -q -c "DROP SCHEMA IF EXISTS ${DOGRULA_SEMA} CASCADE;" >/dev/null 2>&1 || true
+}
+
 temizle() {
   if [[ -n "$SUNUCU_PID" ]]; then
     # setsid ile başlatıldığı için PID = süreç grubu kimliği; başındaki eksi
@@ -54,7 +59,7 @@ temizle() {
     kill -9 "$SUNUCU_PID" 2>/dev/null || true
   fi
   port_bosalt >/dev/null 2>&1 || true
-  rm -f "$DB_DOSYA"
+  sema_sil
   rm -rf "$GECICI"
 }
 trap temizle EXIT
@@ -115,6 +120,23 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 set -a; . ./.env; set +a
+
+if [[ "${DATABASE_URL:-}" != postgres* ]]; then
+  echo "HATA: DATABASE_URL bir PostgreSQL adresi olmalı (Faz 2). Şu an: ${DATABASE_URL:-tanımsız}" >&2
+  exit 1
+fi
+
+# Doğrulama kendi şemasında çalışır; geliştirme şemasına dokunmaz.
+TEMEL_URL="${DATABASE_URL%%\?*}"          # sorgu parametreleri olmadan
+PSQL_URL="$TEMEL_URL"                     # psql `?schema=` parametresini kabul etmez
+DB_URL="${TEMEL_URL}?schema=${DOGRULA_SEMA}"
+
+if ! psql "$PSQL_URL" -q -c 'SELECT 1' >/dev/null 2>&1; then
+  echo "HATA: PostgreSQL'e bağlanılamadı: ${PSQL_URL%%:*}://…" >&2
+  echo "      Sunucu çalışıyor mu? (ör. 'service postgresql start' veya docker compose up db)" >&2
+  exit 1
+fi
+
 COMMIT="$(git rev-parse --short HEAD)"
 DAL="$(git rev-parse --abbrev-ref HEAD)"
 TARIH="$(date '+%Y-%m-%d %H:%M')"
@@ -145,7 +167,7 @@ fi
 # ── 3. Migration ──────────────────────────────────────────────────────────
 echo ""
 echo "▶ Veritabanı"
-rm -f "$DB_DOSYA"
+psql "$PSQL_URL" -q -c "DROP SCHEMA IF EXISTS ${DOGRULA_SEMA} CASCADE;" >/dev/null 2>&1
 if DATABASE_URL="$DB_URL" npx prisma migrate deploy > "${GECICI}/migrate.log" 2>&1; then
   MIG_SAYI="$(ls -1 prisma/migrations | grep -c '^[0-9]')"
   adim "Migration'lar temiz veritabanına uygulandı" "GECTI" "${MIG_SAYI} migration"
