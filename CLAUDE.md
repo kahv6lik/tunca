@@ -26,6 +26,7 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 - **Recharts** (grafikler) + **framer-motion** (animasyon)
 - Kimlik doğrulama: `jose` (JWT, `gezegen_session` cookie) + `bcryptjs`
 - Dağıtım: Docker + Nginx + Let's Encrypt (`deploy.sh`, `docker-compose.yml`)
+  — sunucuya sürüm alma adımları: **`docs/DEPLOY.md`**
 
 ## Dizin Yapısı
 
