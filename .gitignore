@@ -38,3 +38,6 @@ next-env.d.ts
 /deploy.env
 /deploy/nginx/app.conf
 /deploy/certbot/
+
+# doğrulama betiğinin geçici veritabanı
+/prisma/dogrulama.db

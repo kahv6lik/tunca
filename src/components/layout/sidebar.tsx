@@ -1,5 +1,6 @@
 import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
+import { APP_VERSION_ETIKET } from "@/lib/version";
 
 export function Sidebar() {
   return (
@@ -17,7 +18,7 @@ export function Sidebar() {
           </div>
           <div className="text-xs">
             <p className="font-semibold text-foreground">Gezegen CRM</p>
-            <p className="text-muted-foreground">v1.0 · Premium</p>
+            <p className="text-muted-foreground">{`${APP_VERSION_ETIKET} · Premium`}</p>
           </div>
         </div>
       </div>

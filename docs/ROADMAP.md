@@ -77,17 +77,50 @@ git tag -a v1.2.0 <commit> -m "v1.2.0 — Faz 2: PostgreSQL + RLS"
 git push origin v1.2.0
 ```
 
+### Doğrulama — her geliştirmede
+
+```bash
+npm run dogrula
+```
+
+Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, kiracı
+izolasyonu (veri katmanı + HTTP) ve gerçek tarayıcıyla kimlik doğrulamayı
+çalıştırır. Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
+
+Önemli: doğrulama kendi geçici veritabanını (`prisma/dogrulama.db`) ve kendi
+portunu (3100) kullanır — **geliştirme veritabanınıza dokunmaz.**
+
+Tek tek çalıştırmak isterseniz:
+
+```bash
+npm run kontrol:izolasyon   # veri katmanı
+npm run kontrol:e2e         # HTTP (sunucu çalışırken)
+npm run kontrol:kimlik      # giriş formu, gerçek tarayıcı (sunucu çalışırken)
+```
+
 ### Faz kapanış kontrol listesi
 
 Bir fazı kapatmadan önce hepsi sağlanmalı:
 
 - [ ] Faz bölümündeki tüm çalışma paketleri işaretli
 - [ ] Kabul kriterleri tek tek doğrulandı
-- [ ] `npm run kontrol:izolasyon` geçiyor
-- [ ] `npx tsc --noEmit` ve `npm run build` temiz
+- [ ] `npm run dogrula` **sıfır hatayla** geçiyor
+- [ ] `docs/dogrulama/v<sürüm>.md` raporu commit'lendi
 - [ ] Bu dosyada faz durumu ✅, "Şu An Neredeyiz" tablosu güncel
 - [ ] `CLAUDE.md` içindeki faz tablosu ve sürüm geçmişi güncel
 - [ ] `npm run release:major` ile sürüm çıkarıldı
+
+### Giriş yapamıyorsanız
+
+Demo yönetici hesabını veriye dokunmadan geri getirir:
+
+```bash
+npm run demo:kur     # admin@gezegen.com / admin123, tam yetkili admin
+```
+
+Kiracı yoksa oluşturur, kullanıcı yoksa oluşturur, varsa şifresini ve rolünü
+sıfırlar. Firmalarınız ve kayıtlarınız etkilenmez.
 
 ## Faz Özeti
 

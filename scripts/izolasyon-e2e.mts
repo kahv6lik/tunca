@@ -124,6 +124,7 @@ async function main() {
 
   console.log(`\n${"─".repeat(50)}`);
   console.log(`Geçen: ${gecti}   Kalan: ${kaldi}`);
+  console.log(`SONUC gecti=${gecti} kaldi=${kaldi}`);
   if (kaldi > 0) {
     console.log("❌ UÇTAN UCA İZOLASYON KONTROLÜ BAŞARISIZ");
     process.exit(1);

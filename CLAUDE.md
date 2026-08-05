@@ -83,12 +83,22 @@ const firmalar = await db.firma.findMany(); // tenantId otomatik eklenir
 - `prisma`'nın doğrudan kullanıldığı tek yer giriş action'ıdır
   (`src/app/login/actions.ts`) — oturum öncesi kiracı henüz belli değildir.
 
-Doğrulama betikleri:
+### Doğrulama (ZORUNLU — her geliştirmede)
 
 ```bash
-npm run kontrol:izolasyon   # veri katmanı (19 kontrol)
-npm run kontrol:e2e         # gerçek HTTP üzerinden (14 kontrol, sunucu açıkken)
+npm run dogrula
 ```
+
+Tip kontrolü + derleme + migration + demo veri + kiracı izolasyonu (veri
+katmanı ve HTTP) + gerçek tarayıcıyla kimlik doğrulama = **58 kontrol**.
+Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
+Doğrulama kendi geçici veritabanını ve portunu (3100) kullanır; geliştirme
+veritabanına dokunmaz.
+
+Tek tek: `kontrol:izolasyon` (19), `kontrol:e2e` (14), `kontrol:kimlik` (18).
+
+Giriş yapılamaz duruma düşülürse: `npm run demo:kur` — demo yönetici hesabını
+(`admin@gezegen.com` / `admin123`, tam yetkili) veriye dokunmadan geri getirir.
 
 ---
 
