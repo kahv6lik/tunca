@@ -208,4 +208,9 @@ deploy/
 - SQLite tek sunucu için idealdir. Çok kullanıcılı yoğun kullanımda
   `prisma/schema.prisma` içindeki `provider` değerini `postgresql` yapıp
   `DATABASE_URL`'i güncelleyin.
+- **Supabase / Postgres kullanıyorsanız:** `public` şemasındaki tüm tablolarda
+  **RLS (Row-Level Security)** açık olmalıdır; aksi halde tablolar Supabase'in
+  public API'si üzerinden internete açık kalır (`rls_disabled_in_public`
+  uyarısı). Hazır düzeltme için bkz. [`supabase/README.md`](supabase/README.md)
+  ve [`supabase/enable-rls.sql`](supabase/enable-rls.sql).
 - `AUTH_SECRET`'i güçlü ve gizli bir değere ayarlayın (deploy.sh otomatik üretir).
