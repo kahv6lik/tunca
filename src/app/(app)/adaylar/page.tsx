@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import LeadPanel, { DonusturPanel, LeadSilDugmesi } from "@/components/adaylar/LeadPanel";
 import { formatTarih } from "@/lib/format";
 import { LEAD_DURUM, durumBadge } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,12 @@ export default async function AdaylarPage({
       <PageHeader
         title="Adaylar"
         subtitle={`${toplam} aday · %${donusumOrani} dönüşüm`}
-        action={ekleyebilir ? <LeadPanel kullanicilar={kullanicilar} /> : undefined}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <DisaAktarDugmesi tur="adaylar" filtreler={{ ara, durum, kaynak }} />
+            {ekleyebilir && <LeadPanel kullanicilar={kullanicilar} />}
+          </div>
+        }
       />
 
       {/* Huni — hangi durumda kaç aday var */}

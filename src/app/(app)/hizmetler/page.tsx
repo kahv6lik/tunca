@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 import { HIZMET_DURUM } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -51,7 +52,11 @@ export default async function HizmetlerPage({
 
   return (
     <div>
-      <PageHeader title="Hizmetler" subtitle={`${toplam} kayıt`} />
+      <PageHeader
+        title="Hizmetler"
+        subtitle={`${toplam} kayıt`}
+        action={<DisaAktarDugmesi tur="hizmetler" filtreler={{ ara, durum }} />}
+      />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-[220px] flex-1">

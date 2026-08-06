@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatPara, formatTarih } from "@/lib/format";
 import { YATIRIM_DURUM } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -63,6 +64,7 @@ export default async function YatirimlarPage({
       <PageHeader
         title="Yatırım Destekleri"
         subtitle={`${toplam} kayıt · Toplam (TRY): ${formatPara(agg._sum.tutar ?? 0)}`}
+        action={<DisaAktarDugmesi tur="yatirimlar" filtreler={{ ara, durum }} />}
       />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">

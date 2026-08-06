@@ -184,3 +184,53 @@
     animation: shimmer 1.6s infinite;
   }
 }
+
+/* ── Baskı (Faz 9 / E5) ───────────────────────────────────────────────────
+   PDF, tarayıcının "Yazdır → PDF olarak kaydet" motoruyla üretilir. Arayüz
+   kabuğu (kenar çubuğu, üst çubuk, düğmeler) baskıda görünmez; yalnızca
+   belgenin kendisi kâğıda düşer. Bu sayede sunucuya PDF kütüphanesi ya da
+   headless tarayıcı eklemeden Türkçe karakterleri kusursuz bir çıktı alınır.
+   ------------------------------------------------------------------------ */
+@media print {
+  /* Kabuk ve etkileşimli öğeler baskıda yok */
+  aside,
+  header,
+  nav,
+  .no-print,
+  button {
+    display: none !important;
+  }
+
+  /* Baskıda her zaman açık tema: koyu arka plan tonerı boşa harcar ve
+     çoğu yazıcıda arka plan rengi zaten basılmaz. */
+  html,
+  body {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+
+  /* Kabuğun bıraktığı boşlukları sıfırla */
+  main,
+  .lg\:pl-64 {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  .yazdir-sayfa {
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  /* Tablo satırları sayfa ortasından bölünmesin */
+  tr,
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}

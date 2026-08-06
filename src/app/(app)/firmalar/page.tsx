@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -83,11 +84,14 @@ export default async function FirmalarPage({
         title="Firmalar"
         subtitle={`${toplam} firma listeleniyor`}
         action={
-          ekleyebilir ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <DisaAktarDugmesi tur="firmalar" filtreler={{ ara, durum, il }} />
+            {ekleyebilir && (
             <Link href="/firmalar/yeni" className="btn-primary">
               + Yeni Firma
             </Link>
-          ) : undefined
+            )}
+          </div>
         }
       />
 

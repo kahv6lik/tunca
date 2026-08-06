@@ -464,6 +464,152 @@ async function main() {
     `HTTP ${gorevYanit.status}`
   );
 
+  // 11 — Veri giriş/çıkış (Faz 9)
+  console.log("\n11. Veri giriş/çıkış — dışa aktarım, içe aktarım, PDF");
+
+  const firmaListesi = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
+  kontrol("Listede 'Dışa Aktar' düğmesi var", firmaListesi.govde.includes("Dışa Aktar"));
+
+  const iceAktar = await sayfaGetir("admin@gezegen.com", "admin123", "/ice-aktar");
+  kontrol(
+    "İçe aktarım sihirbazı açılıyor",
+    !iceAktar.url.includes("/yetkisiz") && iceAktar.govde.includes("İçe Aktar")
+  );
+  kontrol(
+    "Sihirbaz üç adımı anlatıyor",
+    iceAktar.govde.includes("başlık") && iceAktar.govde.includes("onaylamadan")
+  );
+
+  /**
+   * İçe aktarım listesi KULLANICININ OLUŞTURMA İZNİNE göre süzülür.
+   *
+   * Salt okunur kullanıcı seed'deki "Saha Ekibi" grubu sayesinde
+   * `firma.olustur` ve `egitim.olustur` iznine sahiptir (grupların yetki
+   * EKLEDİĞİNİ gösteren senaryo), ama `lead.olustur` ve `hizmet.olustur`
+   * yoktur. Sayfa açılmalı ama listede yalnızca izinli kümeler olmalı —
+   * "sayfa açılıyor mu" değil, "ne sunuyor" sorusu asıl olan.
+   */
+  const okuyucuIce = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/ice-aktar");
+  kontrol(
+    "Grup izniyle içe aktarım sayfası açılıyor",
+    !okuyucuIce.url.includes("/yetkisiz"),
+    okuyucuIce.url
+  );
+  const okuyucuSecenekler = await (async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    await p.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await p.fill("#email", "okuyucu@gezegen.com");
+    await p.fill("#password", "okuyucu123");
+    await p.click("button[type=submit]");
+    await p.waitForTimeout(2000);
+    await p.goto(`${BASE}/ice-aktar`, { waitUntil: "domcontentloaded" });
+    await p.waitForTimeout(800);
+    const degerler = await p.locator("#kume option").allTextContents();
+    await ctx.close();
+    return degerler;
+  })();
+
+  kontrol(
+    "İzinli veri kümeleri listeleniyor (Firmalar, Eğitimler)",
+    okuyucuSecenekler.some((s) => s.includes("Firmalar")) &&
+      okuyucuSecenekler.some((s) => s.includes("Eğitimler")),
+    okuyucuSecenekler.join(", ")
+  );
+  kontrol(
+    "İzni olmayan kümeler listede YOK (Adaylar, Hizmetler)",
+    !okuyucuSecenekler.some((s) => s.includes("Adaylar")) &&
+      !okuyucuSecenekler.some((s) => s.includes("Hizmetler")),
+    okuyucuSecenekler.join(", ")
+  );
+
+  // Dışa aktarım uç noktası: oturumlu istek dosya döndürmeli.
+  const ctxDisa = await browser.newContext();
+  const sayfaDisa = await ctxDisa.newPage();
+  await sayfaDisa.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await sayfaDisa.fill("#email", "admin@gezegen.com");
+  await sayfaDisa.fill("#password", "admin123");
+  await sayfaDisa.click("button[type=submit]");
+  await sayfaDisa.waitForTimeout(2000);
+
+  const csvYanit = await sayfaDisa.request.get(
+    `${BASE}/api/disa-aktar?tur=firmalar&bicim=csv`
+  );
+  const csvMetin = await csvYanit.text();
+  kontrol("CSV dışa aktarım dosya döndürüyor", csvYanit.status() === 200);
+  kontrol(
+    "CSV BOM ile başlıyor (Excel Türkçe karakterleri doğru açar)",
+    csvMetin.charCodeAt(0) === 0xfeff
+  );
+  kontrol(
+    "CSV başlıkları noktalı virgülle ayrılmış",
+    csvMetin.slice(1).split("\n")[0].includes("Firma Adı;Vergi No")
+  );
+
+  const xlsxYanit = await sayfaDisa.request.get(
+    `${BASE}/api/disa-aktar?tur=firmalar&bicim=xlsx`
+  );
+  const xlsxGovde = await xlsxYanit.body();
+  kontrol(
+    "Excel dışa aktarım geçerli bir .xlsx döndürüyor",
+    xlsxYanit.status() === 200 && xlsxGovde[0] === 0x50 && xlsxGovde[1] === 0x4b,
+    "ZIP imzası (PK)"
+  );
+
+  const tanimsizYanit = await sayfaDisa.request.get(`${BASE}/api/disa-aktar?tur=parola`);
+  kontrol(
+    "Tanımsız veri kümesi dışa aktarılamıyor",
+    tanimsizYanit.status() === 400,
+    `HTTP ${tanimsizYanit.status()}`
+  );
+  await ctxDisa.close();
+
+  // Salt okunur kullanıcı da dışa aktarabilir (görüntüleme izni yeterli),
+  // ama izni olmayan modülü aktaramaz.
+  const ctxOkuyucu = await browser.newContext();
+  const sayfaOkuyucu = await ctxOkuyucu.newPage();
+  await sayfaOkuyucu.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await sayfaOkuyucu.fill("#email", "okuyucu@gezegen.com");
+  await sayfaOkuyucu.fill("#password", "okuyucu123");
+  await sayfaOkuyucu.click("button[type=submit]");
+  await sayfaOkuyucu.waitForTimeout(2000);
+
+  const okuyucuDisa = await sayfaOkuyucu.request.get(
+    `${BASE}/api/disa-aktar?tur=firmalar&bicim=csv`
+  );
+  kontrol("Salt okunur firma listesini dışa aktarabiliyor", okuyucuDisa.status() === 200);
+
+  const oturumsuz = await fetch(`${BASE}/api/disa-aktar?tur=firmalar&bicim=csv`, {
+    redirect: "manual",
+  });
+  kontrol(
+    "Oturumsuz dışa aktarım engelleniyor",
+    oturumsuz.status >= 300 && oturumsuz.status < 400,
+    `HTTP ${oturumsuz.status} (login'e yönlendirme)`
+  );
+  await ctxOkuyucu.close();
+
+  // PDF çıktısı — kiracı markasıyla yazdırma sayfası
+  const teklif = await prisma.teklif.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    select: { id: true, no: true },
+  });
+  if (teklif) {
+    const yazdir = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/teklifler/${teklif.id}/yazdir`
+    );
+    kontrol(
+      "Teklif yazdırma sayfası açılıyor",
+      !yazdir.url.includes("/yetkisiz") && yazdir.govde.includes(teklif.no)
+    );
+    kontrol(
+      "Yazdırma sayfasında kuruluş markası var",
+      yazdir.govde.includes("Gezegen Danışmanlık") && yazdir.govde.includes("Teklif Belgesi")
+    );
+  }
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

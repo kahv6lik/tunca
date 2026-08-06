@@ -6,6 +6,7 @@ import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -60,7 +61,11 @@ export default async function KisilerPage({
 
   return (
     <div>
-      <PageHeader title="Kişiler" subtitle={`${toplam} kişi`} />
+      <PageHeader
+        title="Kişiler"
+        subtitle={`${toplam} kişi`}
+        action={<DisaAktarDugmesi tur="kisiler" filtreler={{ ara }} />}
+      />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-[240px] flex-1">

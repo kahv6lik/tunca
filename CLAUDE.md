@@ -61,9 +61,12 @@ src/
       bildirimler/     # bildirim merkezi + tercihler (Faz 8)
       takvim/          # aylık ızgara (Faz 8)
       otomasyon/       # iş akışı kuralları + eposta/ ayarları (Faz 8)
+      ice-aktar/       # Excel/CSV içe aktarım sihirbazı (Faz 9)
+      teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
     api/
       gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
       takvim.ics/      # takvim dışa aktarımı (oturum gerektirir)
+      disa-aktar/      # Excel/CSV dışa aktarımı (izin + denetim) (Faz 9)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -100,6 +103,8 @@ src/
     takvim.ts             # takvim öğeleri + .ics üretimi (Faz 8)
     sifreleme.ts          # AES-256-GCM — posta parolaları (Faz 8)
     zamanlanmis.ts        # oturumsuz zamanlanmış işler — TEK KAPI (Faz 8)
+    disa-aktar.ts         # dışa aktarım — TEK KAPI (+ -saf, -tanimlar) (Faz 9)
+    ice-aktar.ts          # içe aktarım (+ -saf: ayrıştırma/doğrulama) (Faz 9)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -237,6 +242,22 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Takvimin kendi kaydı yoktur**; var olan kayıtların tarihli hâlidir.
   `.ics` dışa aktarımı oturum gerektirir (token'lı açık akış yok).
 
+### Veri Giriş/Çıkış (Faz 9)
+
+- **Dışa aktarım tek kapıdan geçer** (`src/lib/disa-aktar.ts`): sorgu kiracı
+  katmanından, izin veri kümesinin kendi anahtarından gelir; tanımlı olmayan
+  küme aktarılamaz. Her aktarım denetim günlüğüne düşer.
+- **CSV Türkçe için ayarlıdır:** BOM ile başlar, noktalı virgülle ayırır
+  (Excel'in TR yerelinde beklediği). Okurken ayırıcı otomatik seçilir.
+- **İçe aktarım üç adımdır** ve yazma yalnızca sonuncudadır: oku →
+  sütun eşleştir → **ön izle ve onayla**. Hatalı satır atlanır, aktarım
+  düşmez. Aynı adlı firma iki kez açılmaz; yeni firma paket limitine tabidir.
+- **PDF tarayıcının yazdırma motoruyla üretilir** — sunucuya PDF kütüphanesi
+  ya da headless Chromium eklenmedi. Gerekçe `teklifler/[id]/yazdir` başında
+  yazılıdır (Türkçe font + imaj boyutu).
+- Ayrıştırma/doğrulama gibi saf işler `-saf.ts` dosyalarındadır; testler
+  veritabanı olmadan doğrudan onları sınar.
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -257,7 +278,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**235 kontrol**.
+**273 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -265,10 +286,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (133 test, ~7 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (156 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 81)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 96)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -346,7 +367,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | ✅ tamamlandı |
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | ✅ tamamlandı |
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | ✅ tamamlandı |
-| 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | planlandı |
+| 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | ✅ tamamlandı |
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | planlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | planlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | planlandı |
@@ -384,3 +405,6 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 - **v1.8.0** — **Faz 8:** Otomasyon ve iletişim. Bildirim merkezi, kiracı
   bazlı SMTP (şifreli parolalar) ve gönderim kuyruğu, zamanlanmış iş akışı
   kuralları, IMAP gelen kutusu senkronu, takvim ve `.ics` dışa aktarım.
+- **v1.9.0** — **Faz 9:** Veri giriş/çıkış. Dokuz liste için Excel/CSV dışa
+  aktarım (filtreye saygılı), sütun eşleştirmeli ve ön izlemeli içe aktarım
+  sihirbazı, kiracı markalı teklif PDF çıktısı.

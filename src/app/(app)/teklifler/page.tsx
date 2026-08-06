@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatPara, formatTarih } from "@/lib/format";
 import { TEKLIF_DURUM, durumBadge } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -63,11 +64,14 @@ export default async function TekliflerPage({
         title="Teklifler"
         subtitle={`${ozet.reduce((s, o) => s + o._count._all, 0)} teklif`}
         action={
-          ekleyebilir ? (
-            <Link href="/teklifler/yeni" className="btn-primary">
-              <Plus className="h-4 w-4" /> Yeni Teklif
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <DisaAktarDugmesi tur="teklifler" filtreler={{ ara, durum }} />
+            {ekleyebilir && (
+              <Link href="/teklifler/yeni" className="btn-primary">
+                <Plus className="h-4 w-4" /> Yeni Teklif
+              </Link>
+            )}
+          </div>
         }
       />
 

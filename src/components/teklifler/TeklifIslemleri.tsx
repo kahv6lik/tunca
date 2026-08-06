@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Copy, Send, Check, XCircle, Trash2 } from "lucide-react";
+import { Copy, Send, Check, XCircle, Trash2, Printer } from "lucide-react";
 import {
   teklifDurumDegistir,
   teklifRevizeEt,
@@ -34,6 +34,12 @@ export default function TeklifIslemleri({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Yazdırma her durumda açık: revize edilmiş bir sürümün çıktısı da
+          alınabilmeli — geçmiş teklifin belgesi arşiv için gerekir. */}
+      <a href={`/teklifler/${id}/yazdir`} className="btn-secondary h-9 px-3 text-sm">
+        <Printer className="h-4 w-4" /> Yazdır / PDF
+      </a>
+
       {duzenleyebilir && !dondurulmus && durum !== "gonderildi" && (
         <button
           type="button"

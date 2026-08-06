@@ -16,6 +16,7 @@ import {
   FileText,
   CalendarDays,
   Zap,
+  Upload,
   BarChart3,
   Users,
   ScrollText,
@@ -44,6 +45,9 @@ export const NAV: NavItem[] = [
   { href: "/takvim", label: "Takvim", icon: CalendarDays, izin: "takvim.goruntule" },
   { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
   { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule" },
+  // İçe aktarım firma OLUŞTURMA yetkisi olanlara görünür; sayfa da izinli
+  // veri kümesi yoksa kendini açmaz.
+  { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
   { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
 ];

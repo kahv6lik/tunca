@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.8.0` — Faz 8 tamamlandı |
-| **Sıradaki faz** | **Faz 9** — Excel/CSV dışa-içe aktarım, PDF (`v1.9.0`) |
+| **Son çıkan sürüm** | `v1.9.0` — Faz 9 tamamlandı |
+| **Sıradaki faz** | **Faz 10** — Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (`v1.10.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**235 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**273 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (133 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (156 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -142,7 +142,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | ✅ tamamlandı | — |
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | ✅ tamamlandı | — |
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | ✅ tamamlandı | — |
-| 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı | |
+| 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | ✅ tamamlandı | — |
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı | |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı | |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı | |
@@ -368,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **235 kontrol** ile geçiyor (133 birim test dahil).
+- `npm run dogrula` toplam **273 kontrol** ile geçiyor (156 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -575,11 +575,60 @@ kimlik doğrulaması olmadan okunabilir kılardı.
 
 ---
 
-## Faz 9 — Veri Giriş/Çıkış (E1, E2, E5) → `v1.9.0`
+## Faz 9 — Veri Giriş/Çıkış (E1, E2, E5) → `v1.9.0` ✅
 
-- [ ] **E1 — Excel/CSV dışa aktarım:** her liste için, aktif filtreye saygılı.
-- [ ] **E2 — Excel/CSV içe aktarım:** dosya yükleme, sütun eşleştirme ekranı, doğrulama ve hata raporu, ön izleme; müşteri devreye alma (onboarding) için kritik.
-- [ ] **E5 — PDF rapor çıktısı:** kiracı logosu ile.
+- [x] **E1 — Excel/CSV dışa aktarım:** dokuz liste için, aktif filtreye saygılı; biçimli `.xlsx` ve Excel uyumlu `.csv`.
+- [x] **E2 — Excel/CSV içe aktarım:** dosya yükleme, otomatik + elle sütun eşleştirme, satır satır doğrulama, ön izleme ve hata raporu.
+- [x] **E5 — PDF çıktı:** kiracı logosu ve ana rengiyle teklif belgesi.
+
+### Nasıl kuruldu
+
+**Dışa aktarım tek kapıdan geçer** (`src/lib/disa-aktar.ts`). Sorgular kiracı
+katmanından geçtiği için sınır aşılamaz; uç nokta veri kümesinin KENDİ iznini
+arar (firmalar → `firma.goruntule`) ve paket kısıtı `etkinIzinler()` içinde
+zaten uygulandığından kapalı bir modül dışa aktarılamaz. Tanımlı olmayan bir
+küme adı çalıştırılamaz — sütun listesi tek yerde durur, bir alanı
+yanlışlıkla dışa açmak zorlaşır. Her dışa aktarım denetim günlüğüne düşer:
+bir kullanıcının bütün müşteri listesini indirmesi sonradan görülebilmelidir.
+
+**CSV'nin ayrıntıları Türkçe için ayarlandı.** Dosya BOM ile başlar (yoksa
+Excel Windows'ta yanlış kod sayfası seçer ve Türkçe karakterler bozulur) ve
+ayırıcı noktalı virgüldür (Türkçe Excel'in beklediği; virgül kullanmak
+sütunları tek hücrede birleştirir). Okurken ise ayırıcı otomatik seçilir —
+başka sistemlerden gelen virgüllü dosyalar da kabul edilir.
+
+**İçe aktarım üç adımdır, ikisi yazmadan önce gelir.** Dosya okunur →
+sütunlar eşleştirilir (Türkçe karakter ve büyük/küçük harf farkı yok sayılarak
+otomatik önerilir, kullanıcı düzeltir) → ön izlemede her satır doğrulanır ve
+kullanıcı onaylar. Doğrulamasız bir içe aktarım, bir kuruluşun verisini tek
+hamlede çöpe çevirebilir. **Hatalı satırlar atlanır**, geri kalanlar aktarılır
+— bir satır yüzünden 500 satırlık aktarım düşmemelidir.
+
+**Aynı adlı firma iki kez açılmaz.** Alt kayıt (kişi, yatırım, eğitim, hizmet)
+içe aktarımında firma adı mevcut kayda bağlanır; aksi halde her aktarımda
+firma kopyaları üretilirdi. Yeni firma açmak paket limitine tabidir — içe
+aktarım limitin arka kapısı değildir.
+
+**PDF, tarayıcının yazdırma motoruyla üretilir.** Sunucuya PDF kütüphanesi
+eklenmedi ve bu bilinçli: PDFKit/react-pdf Türkçe karakter için gömülü TTF
+font ister (aksi halde ş/ğ/İ/ı bozulur), headless tarayıcı ise üretim imajına
+~300 MB Chromium ekler. Tarayıcının çıktısı zaten gerçek bir PDF'tir,
+Türkçe kusursuzdur ve kullanıcı sayfa boyutunu kendi seçer. Sayfa
+`@media print` ile hazırlandı; kabuk ve düğmeler baskıda görünmez.
+
+**Kütüphane seçimi güvenlik gerekçesiyle değişti.** İlk tercih `xlsx`
+(SheetJS) idi; npm'deki 0.18.5 sürümünün prototype pollution ve ReDoS
+uyarıları var ve içe aktarım tam olarak o yola (kullanıcının yüklediği dosya)
+veri veriyor. `exceljs`'e geçildi.
+
+### Kabul kriterleri
+- [x] Dışa aktarım kiracı sınırını aşamıyor; izni olmayan küme 403, tanımsız küme 400 dönüyor.
+- [x] Oturumsuz dışa aktarım isteği girişe yönlendiriliyor.
+- [x] Üretilen `.xlsx` geçerli bir ZIP (PK imzası), `.csv` BOM'lu ve noktalı virgüllü.
+- [x] CSV ayrıştırıcı tırnak içindeki ayırıcıyı, satır sonunu ve kaçırılmış çift tırnağı doğru okuyor.
+- [x] Zorunlu alanı boş ve sayı alanı metin olan satırlar ön izlemede hata olarak işaretleniyor, yazılmıyor.
+- [x] İçe aktarım listesi kullanıcının oluşturma iznine göre süzülüyor (grup izniyle gelen kümeler dahil).
+- [x] Teklif PDF'i kiracı logosu ve ana rengiyle çıkıyor.
 
 ---
 

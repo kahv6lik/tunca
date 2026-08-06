@@ -11,6 +11,7 @@ import FirsatPanel from "@/components/firsatlar/FirsatPanel";
 import { formatPara, formatTarih } from "@/lib/format";
 import { FIRSAT_DURUM } from "@/lib/constants";
 import { durumBadge } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,11 @@ export default async function FirsatlarPage({
                 <List className="h-4 w-4" /> Liste
               </Link>
             </div>
+
+            <DisaAktarDugmesi
+              tur="firsatlar"
+              filtreler={{ ara, durum: durum || undefined, sorumlu }}
+            />
 
             {asamaYonetir && (
               <Link href="/firsatlar/asamalar" className="btn-secondary">

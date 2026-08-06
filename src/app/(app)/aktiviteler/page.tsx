@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import AktivitePanel, { AktiviteIslemleri } from "@/components/aktiviteler/AktivitePanel";
 import { formatTarih, toDateInput } from "@/lib/format";
 import { AKTIVITE_TUR } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -123,9 +124,15 @@ export default async function AktivitelerPage({
             : "Arama, toplantı, not ve görevler"
         }
         action={
-          ekleyebilir ? (
-            <AktivitePanel kullanicilar={kullanicilar} firmalar={firmalar} />
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <DisaAktarDugmesi
+              tur="aktiviteler"
+              filtreler={{ aktiviteTur: tur || undefined, atanan }}
+            />
+            {ekleyebilir && (
+              <AktivitePanel kullanicilar={kullanicilar} firmalar={firmalar} />
+            )}
+          </div>
         }
       />
 

@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 import { EGITIM_DURUM } from "@/lib/constants";
+import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -55,6 +56,7 @@ export default async function EgitimlerPage({
       <PageHeader
         title="Eğitimler"
         subtitle={`${toplam} kayıt · ${agg._sum.sureSaat ?? 0} saat · ${agg._sum.katilimci ?? 0} katılımcı`}
+        action={<DisaAktarDugmesi tur="egitimler" filtreler={{ ara, durum }} />}
       />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">
