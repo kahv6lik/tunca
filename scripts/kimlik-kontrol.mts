@@ -303,6 +303,95 @@ async function main() {
     !ikinciFirsat.govde.includes("Gezegen Danışmanlık")
   );
 
+  // 9 — Satış derinleştirme (Faz 7)
+  console.log("\n9. Satış derinleştirme — aktivite, aday, teklif, timeline");
+
+  const yoneticiAktivite = await sayfaGetir("admin@gezegen.com", "admin123", "/aktiviteler");
+  kontrol(
+    "Yönetici aktiviteleri açabiliyor",
+    !yoneticiAktivite.url.includes("/yetkisiz") && yoneticiAktivite.govde.includes("Aktiviteler")
+  );
+  kontrol(
+    "Bugün / Açık Görevler / Akış sekmeleri var",
+    yoneticiAktivite.govde.includes("Bugün") &&
+      yoneticiAktivite.govde.includes("Açık Görevler") &&
+      yoneticiAktivite.govde.includes("Akış")
+  );
+
+  const yoneticiAdaylar = await sayfaGetir("admin@gezegen.com", "admin123", "/adaylar");
+  kontrol(
+    "Yönetici adayları açabiliyor",
+    !yoneticiAdaylar.url.includes("/yetkisiz") && yoneticiAdaylar.govde.includes("Adaylar")
+  );
+  kontrol(
+    "Aday hunisi ve dönüşüm oranı hesaplanıyor",
+    yoneticiAdaylar.govde.includes("dönüşüm") &&
+      yoneticiAdaylar.govde.toLocaleLowerCase("tr").includes("nitelikli")
+  );
+
+  const yoneticiTeklif = await sayfaGetir("admin@gezegen.com", "admin123", "/teklifler");
+  kontrol(
+    "Yönetici teklifleri açabiliyor",
+    !yoneticiTeklif.url.includes("/yetkisiz") && yoneticiTeklif.govde.includes("Teklifler")
+  );
+  kontrol(
+    "Teklif durum özeti görünüyor",
+    yoneticiTeklif.govde.toLocaleLowerCase("tr").includes("taslak") &&
+      yoneticiTeklif.govde.toLocaleLowerCase("tr").includes("gönderildi")
+  );
+
+  // Timeline: firma detayında bütün modüllerin birleşik akışı (C6)
+  const ilkFirma = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    select: { id: true },
+  });
+  if (ilkFirma) {
+    const firmaDetay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ilkFirma.id}`
+    );
+    kontrol("Firma detayında zaman akışı var", firmaDetay.govde.includes("Zaman Akışı"));
+    kontrol(
+      "Akışta farklı modüllerden kayıtlar birleşiyor",
+      firmaDetay.govde.includes("Kişiler") && firmaDetay.govde.includes("Fırsatlar")
+    );
+  }
+
+  // Salt okunur kullanıcı yazma düğmelerini görmez.
+  const okuyucuAday = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/adaylar");
+  kontrol("Salt okunur adayları görebiliyor", !okuyucuAday.url.includes("/yetkisiz"));
+  kontrol("Salt okunur 'Yeni Aday' düğmesini GÖRMÜYOR", !okuyucuAday.govde.includes("Yeni Aday"));
+  // NOT: "Dönüştürüldü" durum rozeti de "Dönüştür" dizgesini içerir; düğmeyi
+  // ararken rozeti yakalamamak için sonrasında "üldü" gelmeyen eşleşme aranır.
+  const donusturDugmesi = /Dönüştür(?!üldü)/;
+  kontrol(
+    "Salt okunur 'Dönüştür' düğmesini GÖRMÜYOR",
+    !donusturDugmesi.test(okuyucuAday.govde)
+  );
+  kontrol(
+    "Yönetici 'Dönüştür' düğmesini GÖRÜYOR (kontrolün boşa düşmediğini kanıtlar)",
+    donusturDugmesi.test(yoneticiAdaylar.govde)
+  );
+
+  const okuyucuTeklif = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/teklifler");
+  kontrol(
+    "Salt okunur 'Yeni Teklif' düğmesini GÖRMÜYOR",
+    !okuyucuTeklif.govde.includes("Yeni Teklif")
+  );
+
+  // İkinci kiracı yalnızca kendi verisini görür.
+  const ikinciAday = await sayfaGetir("admin@anadolu.com", "anadolu123", "/adaylar");
+  kontrol(
+    "İkinci kiracı kendi adaylarını görüyor",
+    !ikinciAday.url.includes("/yetkisiz") && ikinciAday.govde.includes("Adaylar")
+  );
+  const ikinciTeklif = await sayfaGetir("admin@anadolu.com", "anadolu123", "/teklifler");
+  kontrol(
+    "İkinci kiracı diğerinin firmasını tekliflerde görmüyor",
+    !ikinciTeklif.govde.includes("Gezegen Danışmanlık")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

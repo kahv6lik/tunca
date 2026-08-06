@@ -55,6 +55,21 @@ const FIRSAT_BASLIKLARI = [
   "Eğitim programı anlaşması", "Ar-Ge merkezi kurulumu",
   "İhracat danışmanlığı", "Süreç iyileştirme projesi",
 ];
+// Faz 7
+const AKTIVITE_BASLIKLARI = [
+  "Tanışma görüşmesi yapıldı", "Teklif için arandı", "Fiyat revizyonu konuşuldu",
+  "Toplantı planlandı", "Sözleşme taslağı gönderildi", "Referans görüşmesi",
+  "Teknik ekiple toplantı", "Yıllık değerlendirme",
+];
+const LEAD_KAYNAK_ORNEK = ["Web sitesi", "Fuar", "Referans", "Telefon", "Sosyal medya"];
+const TEKLIF_KALEMLERI = [
+  { aciklama: "Danışmanlık hizmeti", birim: "ay", birimFiyat: 45000 },
+  { aciklama: "Süreç analizi ve raporlama", birim: "paket", birimFiyat: 120000 },
+  { aciklama: "Eğitim programı", birim: "gün", birimFiyat: 28000 },
+  { aciklama: "Belgelendirme desteği", birim: "paket", birimFiyat: 75000 },
+  { aciklama: "Yerinde denetim", birim: "gün", birimFiyat: 18000 },
+];
+
 const VARSAYILAN_ASAMALAR = [
   { ad: "Yeni", sira: 0, olasilik: 10, renk: "#6366f1" },
   { ad: "İletişim", sira: 1, olasilik: 25, renk: "#0ea5e9" },
@@ -248,10 +263,106 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   for (let i = 0; i < firsatlar.length; i += BATCH)
     await prisma.firsat.createMany({ data: firsatlar.slice(i, i + BATCH) });
 
+  // ── Faz 7: aktiviteler, adaylar ve teklifler ────────────────────────────
+  const uretilenFirsatlar = await prisma.firsat.findMany({
+    where: { tenantId },
+    select: { id: true, firmaId: true, baslik: true, tutar: true, kisiId: true },
+  });
+
+  // Aktiviteler: bir kısmı geçmiş kayıt (not/arama), bir kısmı açık görev.
+  const aktiviteler: any[] = [];
+  for (const f of uretilenFirsatlar) {
+    for (let k = 0; k < rndInt(1, 3); k++) {
+      const gorev = Math.random() < 0.4;
+      aktiviteler.push({
+        tenantId,
+        firmaId: f.firmaId,
+        firsatId: f.id,
+        kisiId: f.kisiId,
+        tur: gorev ? "gorev" : rnd(["arama", "toplanti", "eposta", "not"]),
+        baslik: rnd(AKTIVITE_BASLIKLARI),
+        // Görevlerin bir kısmı bugüne/geçmişe düşsün ki "Bugün" sekmesi dolu olsun.
+        sonTarih: gorev ? rndTarih(rndInt(-20, 10)) : null,
+        tamamlandi: gorev && Math.random() < 0.35 ? rndTarih(20) : null,
+        atananId: kullanicilar.length ? rnd(kullanicilar).id : null,
+        createdAt: rndTarih(180),
+      });
+    }
+  }
+  for (let i = 0; i < aktiviteler.length; i += BATCH)
+    await prisma.aktivite.createMany({ data: aktiviteler.slice(i, i + BATCH) });
+
+  // Adaylar — bir kısmı dönüşmüş sayılmaz; dönüşüm elle denenebilsin.
+  const leadler = Array.from({ length: Math.max(8, Math.round(firmaSayisi / 25)) }).map(() => ({
+    tenantId,
+    ad: `${rnd(ADLAR)} ${rnd(SOYADLAR)}`,
+    firmaAd: `${rnd(FIRMA_EKLERI)} ${rnd(SEKTORLER)} Ltd. Şti.`,
+    unvan: rnd(UNVANLAR),
+    email: `aday${rndInt(1000, 9999)}@ornek.com`,
+    telefon: `0${rndInt(500, 555)} ${rndInt(100, 999)} ${rndInt(10, 99)} ${rndInt(10, 99)}`,
+    il: rnd(ILLER),
+    sektor: rnd(SEKTORLER),
+    kaynak: rnd(LEAD_KAYNAK_ORNEK),
+    durum: rnd(["yeni", "yeni", "iletisim", "nitelikli", "elendi"]),
+    atananId: kullanicilar.length ? rnd(kullanicilar).id : null,
+    createdAt: rndTarih(120),
+  }));
+  await prisma.lead.createMany({ data: leadler });
+
+  // Teklifler — açık fırsatların bir kısmına kalemli teklif.
+  let teklifSayisi = 0;
+  let kalemSayisi = 0;
+  const yil = new Date().getFullYear();
+  for (const f of uretilenFirsatlar) {
+    if (Math.random() > 0.3) continue;
+    teklifSayisi++;
+
+    const secilenler = [rnd(TEKLIF_KALEMLERI), rnd(TEKLIF_KALEMLERI)];
+    const kalemler = secilenler.map((k, i) => {
+      const miktar = rndInt(1, 12);
+      return { ...k, sira: i, miktar, tutar: miktar * k.birimFiyat };
+    });
+
+    const araToplam = kalemler.reduce((s, k) => s + k.tutar, 0);
+    const indirimOrani = rnd([0, 0, 5, 10]);
+    const indirimTutari = (araToplam * indirimOrani) / 100;
+    const kdvTutari = ((araToplam - indirimTutari) * 20) / 100;
+
+    const durum = rnd(["taslak", "gonderildi", "gonderildi", "kabul", "red"]);
+    const teklif = await prisma.teklif.create({
+      data: {
+        tenantId,
+        firmaId: f.firmaId,
+        firsatId: f.id,
+        kisiId: f.kisiId,
+        no: `TKF-${yil}-${String(teklifSayisi).padStart(4, "0")}`,
+        baslik: `${f.baslik} teklifi`,
+        durum,
+        paraBirimi: "TRY",
+        indirimOrani,
+        kdvOrani: 20,
+        araToplam,
+        indirimTutari,
+        kdvTutari,
+        toplam: araToplam - indirimTutari + kdvTutari,
+        gecerlilikTarihi: rndTarih(-30),
+        gonderimTarihi: durum === "taslak" ? null : rndTarih(60),
+        olusturanEmail: "seed@gezegen.com",
+      },
+    });
+
+    await prisma.teklifKalemi.createMany({
+      data: kalemler.map((k) => ({ tenantId, teklifId: teklif.id, ...k })),
+    });
+    kalemSayisi += kalemler.length;
+  }
+
   console.log(
     `✅ ${etiket}: ${firmaSayisi} firma, ${yatirimlar.length} yatırım, ` +
       `${egitimler.length} eğitim, ${hizmetler.length} hizmet, ` +
-      `${kisiler.length} kişi, ${firsatlar.length} fırsat.`
+      `${kisiler.length} kişi, ${firsatlar.length} fırsat, ` +
+      `${aktiviteler.length} aktivite, ${leadler.length} aday, ` +
+      `${teklifSayisi} teklif (${kalemSayisi} kalem).`
   );
 }
 
@@ -274,26 +385,32 @@ async function paketleriKur() {
   const paketler = [
     {
       ad: "Başlangıç",
-      aciklama: "Küçük ekipler için — yatırım, hizmet ve fırsat modülleri kapalı",
+      aciklama: "Küçük ekipler için — yatırım, hizmet, fırsat ve teklif kapalı",
       kullaniciLimiti: 3,
       firmaLimiti: 25,
       // Bilinçli olarak dar: paket kısıtının gerçekten çalıştığı bir hesapla
       // denenebilsin diye "firsat" ve "hizmet" burada kapalıdır.
-      moduller: ["firma", "egitim", "kisi", "rapor"],
+      moduller: ["firma", "egitim", "kisi", "aktivite", "rapor"],
     },
     {
       ad: "Profesyonel",
       aciklama: "Tüm modüller, orta ölçekli kuruluşlar için",
       kullaniciLimiti: 25,
       firmaLimiti: 500,
-      moduller: ["firma", "yatirim", "egitim", "hizmet", "kisi", "firsat", "rapor"],
+      moduller: [
+        "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
+        "aktivite", "lead", "teklif", "rapor",
+      ],
     },
     {
       ad: "Kurumsal",
       aciklama: "Sınırsız kullanıcı ve firma",
       kullaniciLimiti: 0,
       firmaLimiti: 0,
-      moduller: ["firma", "yatirim", "egitim", "hizmet", "kisi", "firsat", "rapor"],
+      moduller: [
+        "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
+        "aktivite", "lead", "teklif", "rapor",
+      ],
     },
   ];
 

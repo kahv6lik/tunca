@@ -51,6 +51,25 @@ export const IZIN = {
   // paket "firsat" modülünü kapattığında bu yetki de kendiliğinden düşer.
   asamaYonet: "firsat.asama",
 
+  // Faz 7 — satış derinleştirme
+  aktiviteGoruntule: "aktivite.goruntule",
+  aktiviteOlustur: "aktivite.olustur",
+  aktiviteDuzenle: "aktivite.duzenle",
+  aktiviteSil: "aktivite.sil",
+
+  leadGoruntule: "lead.goruntule",
+  leadOlustur: "lead.olustur",
+  leadDuzenle: "lead.duzenle",
+  leadSil: "lead.sil",
+  // Dönüştürme, lead'i firma + kişi (+ fırsat) hâline getirir; yani üç
+  // modülde birden kayıt açar. Bu yüzden ayrı bir izindir.
+  leadDonustur: "lead.donustur",
+
+  teklifGoruntule: "teklif.goruntule",
+  teklifOlustur: "teklif.olustur",
+  teklifDuzenle: "teklif.duzenle",
+  teklifSil: "teklif.sil",
+
   raporGoruntule: "rapor.goruntule",
 
   kullaniciYonet: "kullanici.yonet",
@@ -92,6 +111,19 @@ export const IZIN_ETIKET: Record<string, string> = {
   "firsat.duzenle": "Fırsat düzenle",
   "firsat.sil": "Fırsat sil",
   "firsat.asama": "Satış hattı aşamalarını yönet",
+  "aktivite.goruntule": "Aktiviteleri görüntüle",
+  "aktivite.olustur": "Aktivite ekle",
+  "aktivite.duzenle": "Aktivite düzenle",
+  "aktivite.sil": "Aktivite sil",
+  "lead.goruntule": "Adayları görüntüle",
+  "lead.olustur": "Aday ekle",
+  "lead.duzenle": "Aday düzenle",
+  "lead.sil": "Aday sil",
+  "lead.donustur": "Adayı firmaya dönüştür",
+  "teklif.goruntule": "Teklifleri görüntüle",
+  "teklif.olustur": "Teklif oluştur",
+  "teklif.duzenle": "Teklif düzenle",
+  "teklif.sil": "Teklif sil",
   "rapor.goruntule": "Raporları görüntüle",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
@@ -107,6 +139,9 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Hizmetler", izinler: [IZIN.hizmetGoruntule, IZIN.hizmetOlustur, IZIN.hizmetDuzenle, IZIN.hizmetSil] },
   { ad: "Kişiler", izinler: [IZIN.kisiGoruntule, IZIN.kisiOlustur, IZIN.kisiDuzenle, IZIN.kisiSil] },
   { ad: "Fırsatlar", izinler: [IZIN.firsatGoruntule, IZIN.firsatOlustur, IZIN.firsatDuzenle, IZIN.firsatSil, IZIN.asamaYonet] },
+  { ad: "Aktiviteler", izinler: [IZIN.aktiviteGoruntule, IZIN.aktiviteOlustur, IZIN.aktiviteDuzenle, IZIN.aktiviteSil] },
+  { ad: "Adaylar (Lead)", izinler: [IZIN.leadGoruntule, IZIN.leadOlustur, IZIN.leadDuzenle, IZIN.leadSil, IZIN.leadDonustur] },
+  { ad: "Teklifler", izinler: [IZIN.teklifGoruntule, IZIN.teklifOlustur, IZIN.teklifDuzenle, IZIN.teklifSil] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule] },
 ];
@@ -135,6 +170,9 @@ const GORUNTULEME: Izin[] = [
   IZIN.hizmetGoruntule,
   IZIN.kisiGoruntule,
   IZIN.firsatGoruntule,
+  IZIN.aktiviteGoruntule,
+  IZIN.leadGoruntule,
+  IZIN.teklifGoruntule,
   IZIN.raporGoruntule,
 ];
 
@@ -146,6 +184,9 @@ const IS_VERISI_TAM: Izin[] = [
   IZIN.hizmetOlustur, IZIN.hizmetDuzenle, IZIN.hizmetSil,
   IZIN.kisiOlustur, IZIN.kisiDuzenle, IZIN.kisiSil,
   IZIN.firsatOlustur, IZIN.firsatDuzenle, IZIN.firsatSil,
+  IZIN.aktiviteOlustur, IZIN.aktiviteDuzenle, IZIN.aktiviteSil,
+  IZIN.leadOlustur, IZIN.leadDuzenle, IZIN.leadSil, IZIN.leadDonustur,
+  IZIN.teklifOlustur, IZIN.teklifDuzenle, IZIN.teklifSil,
 ];
 
 /**

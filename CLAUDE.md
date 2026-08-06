@@ -35,7 +35,8 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 prisma/
   schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet,
                        # Grup, KullaniciGrup, DenetimKaydi, Plan, Davet,
-                       # Kisi, Asama, Firsat
+                       # Kisi, Asama, Firsat, Aktivite, Lead,
+                       # Teklif, TeklifKalemi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -52,6 +53,9 @@ src/
       firmalar/        # liste, detay, yeni, düzenle + actions
       kisiler/         # kişi listesi + actions (Faz 6)
       firsatlar/       # kanban + liste + asamalar/ (Faz 6)
+      adaylar/         # lead listesi + dönüştürme (Faz 7)
+      teklifler/       # liste, detay, yeni (Faz 7)
+      aktiviteler/     # görev ve aktivite akışı (Faz 7)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -67,6 +71,9 @@ src/
     dashboard/         # kpi-card, chart-card
     admin/             # KiraciForm, KullaniciSatiri, DavetPanel, PlanPanel, ...
     firsatlar/         # Kanban, FirsatPanel, AsamaPanel (Faz 6)
+    aktiviteler/       # AktivitePanel (Faz 7)
+    adaylar/           # LeadPanel, DonusturPanel (Faz 7)
+    teklifler/         # TeklifForm, TeklifIslemleri (Faz 7)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton
   lib/
     auth.ts, session.ts   # oturum ve requireSession
@@ -75,6 +82,7 @@ src/
     platform-db.ts        # kiracılar ötesi erişim — TEK KAPI (Faz 5)
     davet-db.ts           # davet akışı, oturum öncesi erişim — TEK KAPI (Faz 5)
     kiraci-ayar.ts        # kiracının markası ve paket limitleri (Faz 5)
+    timeline.ts           # firma zaman akışı — izin süzgeçli (Faz 7)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -86,7 +94,8 @@ src/
 
 `Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. Faz 4 ile `Grup`,
 `KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet`, Faz 6 ile
-`Kisi`, `Asama` ve `Firsat` eklendi.
+`Kisi`, `Asama` ve `Firsat`, Faz 7 ile `Aktivite`, `Lead`, `Teklif` ve
+`TeklifKalemi` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -175,6 +184,21 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - Sürükle-bırak için ek kütüphane yoktur; tarayıcının HTML5 API'si kullanılır
   ve her kartta ayrıca aşama seçici bulunur (dokunmatik + klavye için).
 
+### Satış Derinleştirme (Faz 7)
+
+- **Aktivite tek modeldir.** Not ile görev arasındaki fark ayrı tablo değil,
+  `sonTarih` alanının dolu olmasıdır. Timeline'ın tek sorguyla kurulmasını
+  sağlayan bilinçli bir tercih.
+- **Dönüşen aday silinmez.** Lead firma + kişi (+ fırsat) hâline geldiğinde
+  kaydı kalır; nereye dönüştüğü `donusen*` alanlarında saklanır (kaynak
+  takibi buna dayanır). Dönüşüm paket firma limitine tabidir.
+- **Teklif değiştirilmez, revize edilir.** Revizyon YENİ bir satırdır
+  (`ustTeklifId` ile zincire bağlı); eski sürüm dondurulur ve salt okunur olur.
+  Gönderilen rakamın kaydı bozulmamalıdır.
+- **Tutarlar sunucuda hesaplanır** ve saklanır; formdaki toplam önizlemedir.
+- **Timeline izin süzgecinden geçer** (`src/lib/timeline.ts`): izni olmayan
+  modül hiç sorgulanmaz.
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -195,7 +219,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**170 kontrol**.
+**203 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -203,10 +227,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (95 test, ~5 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (113 test, ~6 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 54)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 69)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -282,7 +306,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | ✅ tamamlandı |
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | ✅ tamamlandı |
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | ✅ tamamlandı |
-| 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | planlandı |
+| 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | ✅ tamamlandı |
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | planlandı |
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | planlandı |
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | planlandı |
@@ -316,3 +340,6 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 - **v1.6.0** — **Faz 6:** Satış çekirdeği. Kişi (Contact), Fırsat/Anlaşma
   (Deal) ve kiracıya özel aşamalarla sürükle-bırak kanban satış hattı.
   `Firma.yetkiliAd` verisi migration'da kişi kaydına taşındı.
+- **v1.7.0** — **Faz 7:** Satış derinleştirme. Aktivite/görev ("Bugün"
+  görünümü), aday (Lead) yönetimi ve tek işlemle firmaya dönüştürme, firma
+  zaman akışı, kalemli ve revizyonlu teklif.

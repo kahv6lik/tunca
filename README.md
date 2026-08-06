@@ -214,6 +214,9 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 - **Grup / KullaniciGrup** — izinleri toplu atama (Faz 4)
 - **DenetimKaydi** — değiştirilemez denetim günlüğü (Faz 4)
 - **Plan / Davet** — abonelik paketi ve kullanıcı daveti (Faz 5)
+- **Aktivite** — arama/toplantı/e-posta/not/görev; `sonTarih` doluysa görevdir (Faz 7)
+- **Lead** — aday kayıt; dönüştüğünde firma + kişi (+ fırsat) açılır, kaydı kalır (Faz 7)
+- **Teklif / TeklifKalemi** — kalemli teklif; revizyon yeni satırdır, eskisi dondurulur (Faz 7)
 
 Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet/kişi/fırsat kayıtları
 da silinir (cascade). İçinde fırsat olan bir aşama silinemez; bir kişi

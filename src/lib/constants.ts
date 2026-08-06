@@ -60,6 +60,53 @@ export const PARA_BIRIMI = ["TRY", "USD", "EUR"] as const;
 // sütunlarından düşer.
 export const FIRSAT_DURUM = ["acik", "kazanildi", "kaybedildi"] as const;
 
+/**
+ * Aktivite türleri (Faz 7 / C4).
+ *
+ * Not ile görev arasındaki fark ayrı bir tablo değil, `sonTarih` alanının
+ * dolu olmasıdır; tür yalnızca "ne yapıldı/yapılacak" bilgisini taşır.
+ */
+export const AKTIVITE_TUR = [
+  { deger: "arama", etiket: "Arama" },
+  { deger: "toplanti", etiket: "Toplantı" },
+  { deger: "eposta", etiket: "E-posta" },
+  { deger: "not", etiket: "Not" },
+  { deger: "gorev", etiket: "Görev" },
+] as const;
+
+export const AKTIVITE_TUR_DEGERLERI = AKTIVITE_TUR.map((t) => t.deger);
+
+// Aday (Lead) durumları (Faz 7 / C5)
+export const LEAD_DURUM = [
+  "yeni",
+  "iletisim",
+  "nitelikli",
+  "donusturuldu",
+  "elendi",
+] as const;
+
+// Aday kaynakları — serbest metin de girilebilir
+export const LEAD_KAYNAKLARI = [
+  "Web sitesi",
+  "Fuar",
+  "Referans",
+  "Telefon",
+  "Sosyal medya",
+  "E-posta kampanyası",
+  "Diğer",
+] as const;
+
+// Teklif durumları (Faz 7 / C7)
+export const TEKLIF_DURUM = [
+  "taslak",
+  "gonderildi",
+  "kabul",
+  "red",
+  "revizyon",
+] as const;
+
+export const TEKLIF_BIRIMLERI = ["adet", "saat", "gün", "ay", "paket", "kalem"] as const;
+
 // Kanban sütunları için hazır renkler (aşama düzenleme ekranında seçilir).
 export const ASAMA_RENKLERI = [
   "#6366f1", "#0ea5e9", "#f59e0b", "#a855f7", "#10b981", "#ef4444", "#64748b",
@@ -87,6 +134,18 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   acik: { label: "Açık", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
   kazanildi: { label: "Kazanıldı", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
   kaybedildi: { label: "Kaybedildi", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
+  // aday / lead (Faz 7)
+  yeni: { label: "Yeni", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  iletisim: { label: "İletişimde", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
+  nitelikli: { label: "Nitelikli", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  donusturuldu: { label: "Dönüştürüldü", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  elendi: { label: "Elendi", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
+  // teklif (Faz 7)
+  taslak: { label: "Taslak", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
+  gonderildi: { label: "Gönderildi", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  kabul: { label: "Kabul Edildi", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  red: { label: "Reddedildi", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
+  revizyon: { label: "Revize Edildi", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
 };
 
 // Kiracı (kuruluş) durumları — admin panelde kullanılır
@@ -106,6 +165,9 @@ export const PAKET_MODULLERI = [
   { deger: "hizmet", etiket: "Hizmetler", izin: "hizmet.goruntule" },
   { deger: "kisi", etiket: "Kişiler", izin: "kisi.goruntule" },
   { deger: "firsat", etiket: "Fırsatlar", izin: "firsat.goruntule" },
+  { deger: "aktivite", etiket: "Aktiviteler", izin: "aktivite.goruntule" },
+  { deger: "lead", etiket: "Adaylar (Lead)", izin: "lead.goruntule" },
+  { deger: "teklif", etiket: "Teklifler", izin: "teklif.goruntule" },
   { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
 ] as const;
 

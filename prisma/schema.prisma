@@ -44,18 +44,22 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  kullanicilar User[]
-  firmalar     Firma[]
-  yatirimlar   YatirimDestegi[]
-  egitimler    Egitim[]
-  hizmetler    Hizmet[]
-  gruplar      Grup[]
-  uyelikler    KullaniciGrup[]
-  denetim      DenetimKaydi[]
-  davetler     Davet[]
-  kisiler      Kisi[]
-  asamalar     Asama[]
-  firsatlar    Firsat[]
+  kullanicilar    User[]
+  firmalar        Firma[]
+  yatirimlar      YatirimDestegi[]
+  egitimler       Egitim[]
+  hizmetler       Hizmet[]
+  gruplar         Grup[]
+  uyelikler       KullaniciGrup[]
+  denetim         DenetimKaydi[]
+  davetler        Davet[]
+  kisiler         Kisi[]
+  asamalar        Asama[]
+  firsatlar       Firsat[]
+  aktiviteler     Aktivite[]
+  leadler         Lead[]
+  teklifler       Teklif[]
+  teklifKalemleri TeklifKalemi[]
 
   @@index([durum])
 }
@@ -99,11 +103,14 @@ model Firma {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  yatirimlar YatirimDestegi[]
-  egitimler  Egitim[]
-  hizmetler  Hizmet[]
-  kisiler    Kisi[]
-  firsatlar  Firsat[]
+  yatirimlar  YatirimDestegi[]
+  egitimler   Egitim[]
+  hizmetler   Hizmet[]
+  kisiler     Kisi[]
+  firsatlar   Firsat[]
+  aktiviteler Aktivite[]
+  leadler     Lead[]
+  teklifler   Teklif[]
 
   @@index([tenantId, ad])
   @@index([tenantId, il])
@@ -287,7 +294,8 @@ model Kisi {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firsatlar Firsat[]
+  firsatlar   Firsat[]
+  aktiviteler Aktivite[]
 
   @@index([tenantId, firmaId])
   @@index([tenantId, ad])
@@ -341,9 +349,162 @@ model Firsat {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  aktiviteler Aktivite[]
+  teklifler   Teklif[]
+
   @@index([tenantId, asamaId])
   @@index([tenantId, firmaId])
   @@index([tenantId, durum])
   @@index([tenantId, sorumluId])
   @@index([tenantId, kapanisTarihi])
+}
+
+// ── Faz 7: Satış derinleştirme ─────────────────────────────────────────────
+
+// Aktivite / görev (C4) — arama, toplantı, not, görev, e-posta.
+//
+// Bilinçli olarak TEK model: "not" ile "görev" arasındaki fark bir alan
+// (sonTarih/tamamlandi) meselesidir, ayrı tablo değil. Böylece firma
+// timeline'ında (C6) tek sorguyla hepsi listelenir.
+model Aktivite {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  tur      String // arama | toplanti | not | gorev | eposta
+  baslik   String
+  aciklama String?
+
+  // Bağlam — hepsi isteğe bağlıdır; bir aktivite yalnızca firmaya, ya da
+  // firma + kişi + fırsata birden bağlanabilir.
+  firmaId  String?
+  firma    Firma?  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  kisiId   String?
+  kisi     Kisi?   @relation(fields: [kisiId], references: [id], onDelete: SetNull)
+  firsatId String?
+  firsat   Firsat? @relation(fields: [firsatId], references: [id], onDelete: Cascade)
+
+  // Görev alanları. `sonTarih` doluysa kayıt "yapılacak iş"tir.
+  atananId   String?
+  sonTarih   DateTime?
+  tamamlandi DateTime? // doluysa tamamlanmış sayılır
+
+  olusturanId    String?
+  olusturanEmail String? // kullanıcı silinse de kimin girdiği kalsın
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, firmaId])
+  @@index([tenantId, firsatId])
+  @@index([tenantId, atananId, sonTarih])
+  @@index([tenantId, createdAt])
+}
+
+// Aday müşteri / Lead (C5).
+//
+// Lead, HENÜZ firma olmamış bir ilgidir. Nitelendiğinde tek işlemle firma +
+// kişi (+ isteğe bağlı fırsat) kayıtlarına dönüşür; dönüşen lead silinmez,
+// nereye dönüştüğü `donusen*` alanlarında saklanır — kaynak takibi
+// (hangi kanal ne kadar iş getirdi) bu bağa dayanır.
+model Lead {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  ad       String // aday kişi
+  firmaAd  String? // henüz sistemde firma kaydı yok, serbest metin
+  unvan    String?
+  email    String?
+  telefon  String?
+  il       String?
+  sektor   String?
+  kaynak   String? // web, fuar, referans, telefon, sosyal medya…
+  durum    String  @default("yeni") // yeni | iletisim | nitelikli | donusturuldu | elendi
+  notlar   String?
+  atananId String?
+
+  // Dönüşüm izleri (SetNull: hedef kayıt silinse de lead kalır)
+  donusenFirmaId  String?
+  donusenFirma    Firma?    @relation(fields: [donusenFirmaId], references: [id], onDelete: SetNull)
+  donusenKisiId   String?
+  donusenFirsatId String?
+  donusumTarihi   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, durum])
+  @@index([tenantId, kaynak])
+  @@index([tenantId, atananId])
+  @@index([tenantId, createdAt])
+}
+
+// Teklif (C7) — fırsata bağlı, kalemli, revizyonlu.
+//
+// Revizyon yeni bir Teklif satırıdır ve `ustTeklifId` ile aslına bağlanır;
+// eski sürüm DEĞİŞTİRİLMEZ. Gönderilmiş bir teklifin üzerine yazmak, "hangi
+// rakamı görüştük?" sorusunu yanıtsız bırakırdı.
+model Teklif {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  firmaId  String
+  firma    Firma   @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  firsatId String?
+  firsat   Firsat? @relation(fields: [firsatId], references: [id], onDelete: SetNull)
+  kisiId   String?
+
+  no     String // kiracı içinde benzersiz teklif numarası
+  baslik String
+  durum  String @default("taslak") // taslak | gonderildi | kabul | red | revizyon
+
+  paraBirimi    String @default("TRY")
+  indirimOrani  Float  @default(0) // % — ara toplam üzerinden
+  kdvOrani      Float  @default(20) // %
+  araToplam     Float  @default(0) // kalem toplamı (hesaplanır, saklanır)
+  indirimTutari Float  @default(0)
+  kdvTutari     Float  @default(0)
+  toplam        Float  @default(0)
+
+  gecerlilikTarihi DateTime?
+  gonderimTarihi   DateTime?
+  notlar           String?
+  sartlar          String?
+
+  // Revizyon zinciri
+  revizyonNo  Int      @default(1)
+  ustTeklifId String?
+  ustTeklif   Teklif?  @relation("TeklifRevizyon", fields: [ustTeklifId], references: [id], onDelete: SetNull)
+  revizyonlar Teklif[] @relation("TeklifRevizyon")
+
+  olusturanEmail String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kalemler TeklifKalemi[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, firsatId])
+  @@index([tenantId, durum])
+  @@index([tenantId, createdAt])
+}
+
+// Teklif kalemi — satır bazlı tutar. Teklifle birlikte silinir.
+model TeklifKalemi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teklifId String
+  teklif   Teklif @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+
+  sira       Int    @default(0)
+  aciklama   String
+  miktar     Float  @default(1)
+  birim      String @default("adet")
+  birimFiyat Float  @default(0)
+  tutar      Float  @default(0) // miktar × birimFiyat (hesaplanır, saklanır)
+
+  @@index([tenantId, teklifId])
 }

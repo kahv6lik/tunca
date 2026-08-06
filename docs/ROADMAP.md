@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.6.0` — Faz 6 tamamlandı |
-| **Sıradaki faz** | **Faz 7** — Aktivite, Lead, timeline, teklif (`v1.7.0`) |
+| **Son çıkan sürüm** | `v1.7.0` — Faz 7 tamamlandı |
+| **Sıradaki faz** | **Faz 8** — Bildirim, iş akışı otomasyonu, e-posta, takvim (`v1.8.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**170 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**203 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (95 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (113 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -140,7 +140,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | ✅ tamamlandı | — |
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | ✅ tamamlandı | — |
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | ✅ tamamlandı | — |
-| 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı | |
+| 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | ✅ tamamlandı | — |
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı | |
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı | |
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı | |
@@ -368,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **170 kontrol** ile geçiyor (95 birim test dahil).
+- `npm run dogrula` toplam **203 kontrol** ile geçiyor (113 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -471,12 +471,49 @@ dönüşü mümkün kılar.
 
 ---
 
-## Faz 7 — Satış Derinleştirme (C4–C7) → `v1.7.0`
+## Faz 7 — Satış Derinleştirme (C4–C7) → `v1.7.0` ✅
 
-- [ ] **C4 — Aktivite ve görev:** arama/toplantı/not/görev; atama, son tarih, tamamlandı; "bugün yapılacaklar" görünümü.
-- [ ] **C5 — Lead yönetimi:** aday kayıt, kaynak, durum; tek tıkla firma + kişi + fırsata dönüştürme.
-- [ ] **C6 — Timeline:** firma altında tüm modüllerin kronolojik birleşik akışı.
-- [ ] **C7 — Teklif/sözleşme:** kalemler, tutar hesabı, revizyon geçmişi, durum takibi.
+- [x] **C4 — Aktivite ve görev:** arama/toplantı/e-posta/not/görev; atama, son tarih, tamamlandı; "Bugün" görünümü.
+- [x] **C5 — Lead yönetimi:** aday kayıt, kaynak, huni durumu; tek işlemle firma + kişi (+ fırsat) hâline dönüştürme.
+- [x] **C6 — Timeline:** firma altında tüm modüllerin kronolojik birleşik akışı.
+- [x] **C7 — Teklif:** kalemler, sunucuda hesaplanan tutarlar, revizyon zinciri, durum takibi.
+
+### Nasıl kuruldu
+
+**Aktivite tek modeldir.** Not ile görev arasındaki fark ayrı bir tablo değil,
+`sonTarih` alanının dolu olmasıdır. Bu tercih timeline'ı (C6) tek sorguyla
+kurulabilir kılar ve "arama kaydı" ile "yapılacak arama" arasında yapay bir
+duvar örmez. Aktivite sayfasının varsayılan sekmesi **Bugün**'dür ve
+varsayılan süzgeç oturum sahibidir — sabah açılınca ilk görülmesi gereken
+budur.
+
+**Dönüşen aday silinmez.** Lead firma + kişi (+ fırsat) hâline geldiğinde
+kaydı yerinde kalır; nereye dönüştüğü `donusen*` alanlarında saklanır.
+"Hangi kanal ne kadar iş getirdi" sorusunun yanıtı bu bağa dayanır. Dönüşüm
+paket firma limitine de tabidir — limitin arka kapısı olmamalıdır.
+
+**Teklif değiştirilmez, revize edilir.** "Revize et" mevcut sürümü `revizyon`
+durumuna alıp dondurur ve kalemleriyle birlikte yeni bir taslak kopyalar
+(`ustTeklifId` ile zincire bağlı). Gönderilmiş bir teklifin üzerine yazmak
+"hangi rakamı görüştük?" sorusunu yanıtsız bırakırdı. Dondurulmuş sürüm
+arayüzde salt okunurdur.
+
+**Tutar hesabı sunucudadır.** Ara toplam, indirim, KDV ve genel toplam
+kalemlerden yeniden hesaplanıp saklanır; formdaki toplam yalnızca
+önizlemedir. Böylece hem istemciden gelen rakama güvenilmez, hem de KDV oranı
+sonradan değişse bile eski teklifin rakamları olduğu gibi kalır.
+
+**Timeline izin süzgecinden geçer.** İzni olmayan modül hiç sorgulanmaz —
+paketi kapalı bir modülün verisi akış üzerinden sızmamalıdır.
+
+### Kabul kriterleri
+- [x] Dört yeni tablo (Aktivite, Lead, Teklif, TeklifKalemi) RLS ile korunuyor; şemadan türeyen regresyon testi bunu doğruluyor.
+- [x] Bir kiracı diğerinin aktivitesini, adayını, teklifini veya teklif kalemini göremez.
+- [x] Aktivite bağlamı (kişi/fırsat) seçilen firmaya ait olmak zorunda; başka firmanın kaydı bağlanamaz.
+- [x] Dönüşen firma silinse bile aday kaydı ayakta kalır; fırsat silinse bile teklif kalır.
+- [x] Teklif numarası kiracı içinde benzersiz, kiracılar arasında çakışabilir.
+- [x] Revizyon sonrası eski sürümün rakamı değişmez.
+- [x] Salt okunur kullanıcı üç modülü de görür ama "Yeni Aday", "Dönüştür" ve "Yeni Teklif" düğmelerini görmez.
 
 ---
 

@@ -278,13 +278,23 @@ describe("Yetkilendirme her yazma yolunda zorunlu (Faz 4)", () => {
         ihlaller.push(`${dosya}: veri yazıyor ama yetki kontrolü yok`);
       }
 
-      // Her yazma işlemi için bir yetki kontrolü olmalı
-      const yazmaSayisi = (icerik.match(/(tenantOlustur|tenantGuncelle|tenantSil)\(/g) ?? []).length;
-      const kontrolSayisi = (icerik.match(/yetkiVarMi\(/g) ?? []).length;
-      if (kontrolSayisi < yazmaSayisi) {
-        ihlaller.push(
-          `${dosya}: ${yazmaSayisi} yazma işlemi var ama ${kontrolSayisi} yetki kontrolü`
-        );
+      /**
+       * YAZAN HER ACTION kendi içinde yetki kontrolü yapmalı.
+       *
+       * Kontrol action BAZINDA yapılır, yazma çağrısı bazında değil: tek bir
+       * action birden çok satır yazabilir (ör. aday dönüşümü firma + kişi +
+       * fırsat açar, teklif kaydı kalemlerini yazar) ve bunlar tek bir yetki
+       * kararına bağlıdır. Çağrı sayısını saymak bu meşru durumları ihlal
+       * sayardı; asıl kural "yetkisiz bir çağrıyla yazma yapılamaz"dır.
+       */
+      const govdeler = icerik.split(/export async function /).slice(1);
+      for (const govde of govdeler) {
+        const ad = govde.split("(")[0];
+        const yazar = /(tenantOlustur|tenantGuncelle|tenantSil)\(/.test(govde);
+        const kontrol = /(yetkiVarMi|yetkiZorunlu|yetkiKontrolu)\(/.test(govde);
+        if (yazar && !kontrol) {
+          ihlaller.push(`${dosya}: ${ad}() yetki kontrolü yapmadan veri yazıyor`);
+        }
       }
     }
 

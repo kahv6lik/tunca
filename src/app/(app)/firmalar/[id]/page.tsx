@@ -16,7 +16,11 @@ import { createHizmet, updateHizmet, deleteHizmet } from "../../hizmetler/action
 import { createKisi, updateKisi, deleteKisi } from "../../kisiler/actions";
 import { deleteFirsat } from "../../firsatlar/actions";
 import FirsatPanel from "@/components/firsatlar/FirsatPanel";
-import { Star } from "lucide-react";
+import { Star, Plus } from "lucide-react";
+import { etkinIzinler } from "@/lib/yetki";
+import { firmaTimeline } from "@/lib/timeline";
+import { Timeline } from "@/components/firmalar/Timeline";
+import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +40,7 @@ export default async function FirmaDetayPage({
     hizmetEkler, hizmetDuzenler, hizmetSiler,
     kisiEkler, kisiDuzenler, kisiSiler,
     firsatEkler, firsatDuzenler, firsatSiler, firsatGorur,
+    aktiviteEkler, teklifGorur, teklifEkler,
   ] = await Promise.all([
     yetkiVarMi(IZIN.firmaDuzenle), yetkiVarMi(IZIN.firmaSil),
     yetkiVarMi(IZIN.yatirimOlustur), yetkiVarMi(IZIN.yatirimDuzenle), yetkiVarMi(IZIN.yatirimSil),
@@ -44,6 +49,9 @@ export default async function FirmaDetayPage({
     yetkiVarMi(IZIN.kisiOlustur), yetkiVarMi(IZIN.kisiDuzenle), yetkiVarMi(IZIN.kisiSil),
     yetkiVarMi(IZIN.firsatOlustur), yetkiVarMi(IZIN.firsatDuzenle), yetkiVarMi(IZIN.firsatSil),
     yetkiVarMi(IZIN.firsatGoruntule),
+    yetkiVarMi(IZIN.aktiviteOlustur),
+    yetkiVarMi(IZIN.teklifGoruntule),
+    yetkiVarMi(IZIN.teklifOlustur),
   ]);
 
   const db = await getTenantDb();
@@ -78,6 +86,22 @@ export default async function FirmaDetayPage({
         }),
       ])
     : [[], []];
+
+  // Zaman akışı (Faz 7 / C6) — izni olmayan modül hiç sorgulanmaz.
+  const izinler = await etkinIzinler();
+  const [akis, teklifler] = await Promise.all([
+    firmaTimeline(db, firma.id, izinler),
+    teklifGorur
+      ? db.teklif.findMany({
+          where: { firmaId: firma.id },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true, no: true, baslik: true, durum: true, toplam: true,
+            paraBirimi: true, revizyonNo: true, gecerlilikTarihi: true,
+          },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const bugun = toDateInput(new Date());
 
@@ -231,6 +255,66 @@ export default async function FirmaDetayPage({
           </div>
         )}
       </div>
+
+      {/* Zaman akışı (Faz 7 / C6) */}
+      <div className="card mb-6 p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold text-foreground">
+            Zaman Akışı <span className="text-muted-foreground/70">({akis.length})</span>
+          </h2>
+          {aktiviteEkler && (
+            <AktivitePanel
+              kullanicilar={kullanicilar}
+              sabitFirmaId={firma.id}
+              kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
+              firsatlar={firma.firsatlar.map((f) => ({ id: f.id, ad: f.baslik }))}
+              dugmeEtiketi="Aktivite Ekle"
+            />
+          )}
+        </div>
+        <Timeline ogeler={akis} />
+      </div>
+
+      {/* Teklifler (Faz 7 / C7) */}
+      {teklifGorur && (
+        <Section
+          title="Teklifler"
+          count={teklifler.length}
+          addPanel={
+            teklifEkler ? (
+              <Link href={`/teklifler/yeni?firma=${firma.id}`} className="btn-primary">
+                <Plus className="h-4 w-4" /> Teklif Hazırla
+              </Link>
+            ) : null
+          }
+        >
+          {teklifler.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["No", "Başlık", "Toplam", "Geçerlilik", "Durum"]}
+              rows={teklifler.map((t) => (
+                <tr key={t.id} className="hover:bg-muted/40">
+                  <td className="td">
+                    <Link href={`/teklifler/${t.id}`} className="font-mono text-sm font-medium hover:text-primary">
+                      {t.no}
+                    </Link>
+                    {t.revizyonNo > 1 && (
+                      <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-400">
+                        R{t.revizyonNo}
+                      </span>
+                    )}
+                  </td>
+                  <td className="td">{t.baslik}</td>
+                  <td className="td font-medium">{formatPara(t.toplam, t.paraBirimi)}</td>
+                  <td className="td">{t.gecerlilikTarihi ? formatTarih(t.gecerlilikTarihi) : "—"}</td>
+                  <td className="td"><StatusBadge durum={t.durum} /></td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
 
       {/* Kişiler (Faz 6 / C1) */}
       <Section
