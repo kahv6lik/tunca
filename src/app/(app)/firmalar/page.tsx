@@ -8,6 +8,8 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import GorunumBar from "@/components/GorunumBar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,9 @@ export default async function FirmalarPage({
   searchParams: SearchParams;
 }) {
   await yetkiGerektir(IZIN.firmaGoruntule);
+  await varsayilanaYonlendir("firmalar", searchParams);
   const ekleyebilir = await yetkiVarMi(IZIN.firmaOlustur);
+  const gorunumler = await gorunumleriGetir("firmalar");
   const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
@@ -85,6 +89,7 @@ export default async function FirmalarPage({
         subtitle={`${toplam} firma listeleniyor`}
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <GorunumBar liste="firmalar" gorunumler={gorunumler} filtreler={{ ara, durum, il }} />
             <DisaAktarDugmesi tur="firmalar" filtreler={{ ara, durum, il }} />
             {ekleyebilir && (
             <Link href="/firmalar/yeni" className="btn-primary">

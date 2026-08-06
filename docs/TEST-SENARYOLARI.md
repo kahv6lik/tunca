@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.10.0** | **Faz 10** — Özelleştirilebilir pano, kayıtlı görünümler (kaydet/paylaş/varsayılan), kiracı yedekleri (ekleyici geri yükleme + gece yedeği) | Panoda **Panoyu Düzenle** ile kart seç; `/firmalar`da filtre kur → **Görünümler → Kaydet**; `/yedekler`de **Şimdi Yedek Al** → bir kaydı sil → **Geri Yükle** | Pano yalnızca seçilen (ve izinli) kartları gösterir; liste parametresiz açılınca varsayılan görünüm uygulanır; silinen kayıt döner, mevcutlara dokunulmaz | 296 |
 
 > **Kontrol** sütunu, o sürümde `npm run dogrula` ile geçen otomatik kontrol
 > sayısıdır. Raporun tamamı `docs/dogrulama/v<sürüm>.md` dosyasındadır.
@@ -163,6 +164,23 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 8 | Bir teklifte **Yazdır / PDF** | Kuruluş logosu ve ana rengiyle A4 belge; kenar çubuğu ve düğmeler baskıda yok |
 | 9 | `okuyucu@gezegen.com` ile `/ice-aktar` | Açılır ama listede yalnızca **Firmalar** ve **Eğitimler** (grup izinleri) |
 | 10 | Çıkış yapıp `/api/disa-aktar?tur=firmalar&bicim=csv` aç | Girişe yönlendirir |
+
+### v1.10.0 — Kişiselleştirme ve süreklilik (Faz 10)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Panoda **Panoyu Düzenle** → "Beklenen Ciro" ve "Bugünkü Görevlerim" kartlarını aç, bir KPI'yı kapat, sırala | Pano yalnızca seçtiklerini, senin sıranla gösterir; tercih kullanıcıya özeldir (başka kullanıcının panosu değişmez) |
+| 2 | **Varsayılana dön** | Faz 10 öncesi düzen geri gelir |
+| 3 | `okuyucu@gezegen.com` ile gir | İzni olmayan modülün kartı, tercih edilmiş olsa bile görünmez |
+| 4 | `/firmalar` → il+durum filtrele → **Görünümler → Görünümü Kaydet**, "Varsayılan yap" işaretle | Görünüm listeye eklenir |
+| 5 | Menüden `/firmalar`ı parametresiz aç | Varsayılan görünümün filtresi kendiliğinden uygulanır; **Tümü** bağlantısı süzgeçsiz listeye döndürür |
+| 6 | Görünümü "Paylaş" ile kaydet, başka kullanıcıyla gir | Görünüm "Paylaşılanlar" altında, sahibinin adıyla görünür |
+| 7 | `/yedekler` → **Şimdi Yedek Al** | Listede "Elle" türünde yedek; kayıt sayısı ve boyut yazar |
+| 8 | Bir hizmet kaydını sil → yedekte **Geri Yükle** (onay kutusuyla) | Silinen kayıt döner; mevcut kayıtlar İKİ KEZ oluşmaz; sonuç özeti kaç kaydın eklendiğini söyler |
+| 9 | Aynı yedeği tekrar geri yükle | "Eklenecek yeni kayıt yoktu" — idempotent |
+| 10 | Yedeği indir (`.json.gz`) → `/yedekler`de dosyadan yükle | Dosya doğrulanır, "Dosyadan" türünde kayıt olur; geri yükleme ayrı onayla |
+| 11 | `kullanici@gezegen.com` ile `/yedekler` | `/yetkisiz` — yedek bütün veriyi içerir, yalnızca kuruluş yöneticisi |
+| 12 | `/denetim` | "Yedek alındı / geri yüklendi / indirildi" kayıtları |
 
 ---
 

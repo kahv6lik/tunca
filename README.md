@@ -220,6 +220,9 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 - **Aktivite** — arama/toplantı/e-posta/not/görev; `sonTarih` doluysa görevdir (Faz 7)
 - **Lead** — aday kayıt; dönüştüğünde firma + kişi (+ fırsat) açılır, kaydı kalır (Faz 7)
 - **Teklif / TeklifKalemi** — kalemli teklif; revizyon yeni satırdır, eskisi dondurulur (Faz 7)
+- **PanoTercihi** — kullanıcının pano kart seçimi ve sırası (Faz 10)
+- **KayitliGorunum** — listelerin adlandırılmış filtreleri; paylaşım kiracı içidir (Faz 10)
+- **Yedek** — kiracının iş verisi yedeği; geri yükleme ekleyicidir (Faz 10)
 
 Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet/kişi/fırsat kayıtları
 da silinir (cascade). İçinde fırsat olan bir aşama silinemez; bir kişi

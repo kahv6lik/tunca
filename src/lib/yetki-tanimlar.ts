@@ -81,6 +81,11 @@ export const IZIN = {
 
   raporGoruntule: "rapor.goruntule",
 
+  // Faz 10 — yedekleme kuruluş çapında bir yetkidir: yedek dosyası bütün
+  // veriyi içerir, geri yükleme ise veri yazar. "yedek" ön eki hiçbir paket
+  // modülüyle eşleşmez; paket kısıtından bilinçli olarak etkilenmez.
+  yedekYonet: "yedek.yonet",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -138,6 +143,7 @@ export const IZIN_ETIKET: Record<string, string> = {
   "otomasyon.yonet": "İş akışlarını yönet",
   "otomasyon.eposta": "E-posta ayarlarını yönet",
   "rapor.goruntule": "Raporları görüntüle",
+  "yedek.yonet": "Yedekleri yönet",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -158,7 +164,7 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Takvim", izinler: [IZIN.takvimGoruntule] },
   { ad: "Otomasyon", izinler: [IZIN.otomasyonGoruntule, IZIN.otomasyonYonet, IZIN.epostaAyarYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
-  { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule] },
+  { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet] },
 ];
 
 // ── Roller ─────────────────────────────────────────────────────────────────
@@ -230,6 +236,7 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.kullaniciYonet,
     IZIN.grupYonet,
     IZIN.denetimGoruntule,
+    IZIN.yedekYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

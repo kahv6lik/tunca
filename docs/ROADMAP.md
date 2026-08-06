@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.9.0` — Faz 9 tamamlandı |
-| **Sıradaki faz** | **Faz 10** — Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (`v1.10.0`) |
+| **Son çıkan sürüm** | `v1.10.0` — Faz 10 tamamlandı |
+| **Sıradaki faz** | **Faz 11** — Kiracıya özel alanlar (`v1.11.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**273 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**296 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (156 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (171 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -143,7 +143,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | ✅ tamamlandı | — |
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | ✅ tamamlandı | — |
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | ✅ tamamlandı | — |
-| 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı | |
+| 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | ✅ tamamlandı | — |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı | |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı | |
 | 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
@@ -368,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **273 kontrol** ile geçiyor (156 birim test dahil).
+- `npm run dogrula` toplam **296 kontrol** ile geçiyor (171 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -632,11 +632,73 @@ veri veriyor. `exceljs`'e geçildi.
 
 ---
 
-## Faz 10 — Kişiselleştirme ve Süreklilik (E3, E4, E7) → `v1.10.0`
+## Faz 10 — Kişiselleştirme ve Süreklilik (E3, E4, E7) → `v1.10.0` ✅
 
-- [ ] **E3 — Özelleştirilebilir dashboard:** kart seçimi, sıralama, kullanıcı bazlı kayıt.
-- [ ] **E4 — Gelişmiş filtre + kayıtlı görünümler:** çoklu kriter, kaydet/paylaş, varsayılan görünüm.
-- [ ] **E7 — Yedekleme/geri yükleme:** kiracı bazlı yedek alma ve geri yükleme, zamanlanmış otomatik yedek.
+- [x] **E3 — Özelleştirilebilir dashboard:** kart seçimi, sıralama, kullanıcı bazlı kayıt.
+- [x] **E4 — Gelişmiş filtre + kayıtlı görünümler:** çoklu kriter, kaydet/paylaş, varsayılan görünüm.
+- [x] **E7 — Yedekleme/geri yükleme:** kiracı bazlı yedek alma ve geri yükleme, zamanlanmış otomatik yedek.
+
+### Nasıl kuruldu
+
+**Pano kartları kayıt defterinden gelir** (`src/lib/pano-tanimlar.ts`).
+11 kart (6 sayaç, 2 grafik, 3 liste) tek listede tanımlıdır ve her kartın
+kendi izin anahtarı vardır: izni olmayan kart, tercih edilmiş olsa bile
+render EDİLMEZ ve **sorgusu hiç çalıştırılmaz** — kişiselleştirme, yetki
+katmanının etrafından dolaşan bir yol değildir. Faz 10 ile gelen üç yeni
+kart (fırsat cirosu, bugünkü görevler sayacı ve listesi) bilinçli olarak
+varsayılan düzenin DIŞINDA bırakıldı: yükseltme kimsenin panosunu
+değiştirmez, yeni kartlar isteyen kullanıcı tarafından açılır. Tercih
+`PanoTercihi` tablosunda kullanıcı başına tek satırdır; bilinmeyen kart
+anahtarları (kaldırılmış bir karttan kalma) okurken sessizce ayıklanır.
+
+**Görünüm = adlandırılmış querystring** (`KayitliGorunum.sorgu`). Listeler
+zaten URL parametreleriyle filtrelendiği için görünümün gövdesi ham bir
+querystring'dir; beş liste (firmalar, kişiler, fırsatlar, adaylar,
+teklifler) için ayrı şema gerekmez ve dışa aktarım aynı parametreleri
+kullandığından kayıtlı görünümler orada da kendiliğinden geçerlidir.
+`sorguTemizle` kaydederken `g`/`sayfa` anahtarlarını (bayat sayfa numarası
+taşınmasın), biçimsiz anahtarları (`__proto__` dahil) ve boş değerleri atar.
+Varsayılan görünüm liste PARAMETRESIZ açılınca uygulanır ve yönlendirilen
+adres `g=1` işareti taşır — döngü imkânsızdır, "Tümü" bağlantısı her zaman
+süzgeçsiz listeye döner. Paylaşılan görünüm kiracı İÇİDİR; komşu kiracıya
+sızmadığını test kanıtlar.
+
+**Geri yükleme EKLEYİCİDİR, geri alma değildir.** Yedek dosyası kuruluşun
+iş verisini (11 model, FK sırasıyla) gzip'li JSON olarak saklar; geri
+yükleme `createMany({ skipDuplicates: true })` ile yalnızca var olmayan
+kayıtları ekler, mevcut veriye asla dokunmaz. "Yanlışlıkla sildim"
+durumunun ilacıdır ve iki kez çalıştırmak zararsızdır (idempotent — test
+bunu kanıtlar). Kullanıcılar ve denetim günlüğü bilinçli olarak kapsam
+dışıdır: kimlik verisi yedek dosyasında gezmemeli, değiştirilemez günlük
+ise "geri yüklenerek" yeniden yazılamamalıdır. Dosyada `tenantId` YOKTUR —
+satırlar geri yüklerken oturumun kiracısıyla damgalanır, bir kiracının
+yedeği başka kiracıya taşınamaz. Gece yedeği zamanlanmış çalıştırıcıya
+bağlıdır (23 saat eşiği, son 7 yedek saklanır) ve ekran kullanıcıya
+gerçeği söyler: **gerçek yedek, indirilip dışarıda tutulandır.**
+
+**Yedek yönetimi `yedek.yonet` iznine bağlıdır** (varsayılan: yalnızca
+kuruluş yöneticisi) çünkü yedek dosyası bütün listeleri tek dosyada
+içerir; sıradan bir kullanıcının onu indirebilmesi, dışa aktarım izin
+modelinin etrafından dolaşmak olurdu. `yedek` bilinçli olarak paket modülü
+DEĞİLDİR: paket kısıtı hangi modüllerin kullanılacağını belirler, verinin
+sürekliliği pazarlık konusu değildir.
+
+**Kişisel tercih action'ları regresyon istisnasıdır.** Pano tercihi ve
+görünüm kaydetme, kullanıcının KENDİ satırını yazar (sahiplik
+`session.userId` ile); iş verisi yazmadıkları için yetki + denetim
+zorunluluğu aranmaz. İstisna `tests/regresyon.test.ts` içinde adıyla ve
+gerekçesiyle listelidir — listeye iş verisi yazan bir dosya eklenirse test,
+gerekçesini sorar.
+
+### Kabul kriterleri
+- [x] Üç yeni tablo (PanoTercihi, KayitliGorunum, Yedek) RLS ile korunuyor; kiracı sınırı testli.
+- [x] Varsayılan pano düzeni Faz 10 öncesiyle aynı — yeni kartlar opsiyonel, yükseltme kimsenin panosunu değiştirmiyor.
+- [x] İzni olmayan kart tercih edilse bile görünmüyor ve sorgusu çalışmıyor.
+- [x] Görünüm adı kullanıcı+liste başına tekil; paylaşılan görünüm komşu kiracıya sızmıyor.
+- [x] Yedek al → sil → geri yükle: silinen kayıt dönüyor, mevcutlara dokunulmuyor, ikinci çalıştırma sıfır ekliyor.
+- [x] Yedek dosyasında `tenantId` yok; bozuk dosya hata fırlatmadan reddediliyor.
+- [x] Üye ve salt okunur `/yedekler`e URL ile de giremiyor; oturumsuz indirme girişe yönlendiriliyor.
+- [x] `npm run dogrula` toplam **296 kontrol** ile geçiyor (171 birim test dahil).
 
 ---
 

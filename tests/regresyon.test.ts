@@ -285,8 +285,24 @@ describe("RLS migration'ı yerinde", () => {
 
 
 describe("Yetkilendirme her yazma yolunda zorunlu (Faz 4)", () => {
+  /**
+   * KİŞİSEL TERCİH action'ları bu kuralın bilinçli istisnasıdır (Faz 10):
+   * yalnızca oturum sahibinin KENDİ tercih satırını yazarlar (pano düzeni,
+   * kayıtlı görünüm), iş verisi taşımazlar ve sahiplik `session.userId` ile
+   * içeride zorlanır. İzin anahtarı ve denetim kaydı bunlar için gürültü
+   * olurdu. Bu listeye İŞ VERİSİ yazan bir dosya eklemek yasaktır — ekleyen
+   * kişi bu yorumu da değiştirmek zorunda kalsın diye liste burada durur.
+   */
+  const KISISEL_TERCIH_DOSYALARI = [
+    "src/app/(app)/pano-actions.ts",
+    "src/app/(app)/gorunum-actions.ts",
+  ];
+
   const ACTION_DOSYALARI = KAYNAK_DOSYALAR.filter(
-    (d) => d.startsWith("src/app/(app)/") && d.endsWith("actions.ts")
+    (d) =>
+      d.startsWith("src/app/(app)/") &&
+      d.endsWith("actions.ts") &&
+      !KISISEL_TERCIH_DOSYALARI.includes(d)
   );
 
   it("veri yazan her action yetki kontrolü yapıyor", () => {

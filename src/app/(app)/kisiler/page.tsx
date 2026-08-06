@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import GorunumBar from "@/components/GorunumBar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -23,6 +25,8 @@ export default async function KisilerPage({
   searchParams: { ara?: string; sayfa?: string };
 }) {
   await yetkiGerektir(IZIN.kisiGoruntule);
+  await varsayilanaYonlendir("kisiler", searchParams);
+  const gorunumler = await gorunumleriGetir("kisiler");
   const db = await getTenantDb();
 
   const ara = (searchParams.ara ?? "").trim();
@@ -64,7 +68,12 @@ export default async function KisilerPage({
       <PageHeader
         title="Kişiler"
         subtitle={`${toplam} kişi`}
-        action={<DisaAktarDugmesi tur="kisiler" filtreler={{ ara }} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <GorunumBar liste="kisiler" gorunumler={gorunumler} filtreler={{ ara }} />
+            <DisaAktarDugmesi tur="kisiler" filtreler={{ ara }} />
+          </div>
+        }
       />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">

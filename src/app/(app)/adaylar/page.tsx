@@ -9,6 +9,8 @@ import LeadPanel, { DonusturPanel, LeadSilDugmesi } from "@/components/adaylar/L
 import { formatTarih } from "@/lib/format";
 import { LEAD_DURUM, durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import GorunumBar from "@/components/GorunumBar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,8 @@ export default async function AdaylarPage({
   searchParams: { ara?: string; durum?: string; kaynak?: string };
 }) {
   await yetkiGerektir(IZIN.leadGoruntule);
+  await varsayilanaYonlendir("adaylar", searchParams);
+  const gorunumler = await gorunumleriGetir("adaylar");
 
   const [ekleyebilir, duzenleyebilir, silebilir, donusturebilir, firsatGorur] =
     await Promise.all([
@@ -89,6 +93,7 @@ export default async function AdaylarPage({
         subtitle={`${toplam} aday · %${donusumOrani} dönüşüm`}
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <GorunumBar liste="adaylar" gorunumler={gorunumler} filtreler={{ ara, durum, kaynak }} />
             <DisaAktarDugmesi tur="adaylar" filtreler={{ ara, durum, kaynak }} />
             {ekleyebilir && <LeadPanel kullanicilar={kullanicilar} />}
           </div>

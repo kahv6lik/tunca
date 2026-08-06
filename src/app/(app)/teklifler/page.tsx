@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatPara, formatTarih } from "@/lib/format";
 import { TEKLIF_DURUM, durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import GorunumBar from "@/components/GorunumBar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,9 @@ export default async function TekliflerPage({
   searchParams: { ara?: string; durum?: string };
 }) {
   await yetkiGerektir(IZIN.teklifGoruntule);
+  await varsayilanaYonlendir("teklifler", searchParams);
   const ekleyebilir = await yetkiVarMi(IZIN.teklifOlustur);
+  const gorunumler = await gorunumleriGetir("teklifler");
 
   const db = await getTenantDb();
 
@@ -65,6 +69,7 @@ export default async function TekliflerPage({
         subtitle={`${ozet.reduce((s, o) => s + o._count._all, 0)} teklif`}
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <GorunumBar liste="teklifler" gorunumler={gorunumler} filtreler={{ ara, durum }} />
             <DisaAktarDugmesi tur="teklifler" filtreler={{ ara, durum }} />
             {ekleyebilir && (
               <Link href="/teklifler/yeni" className="btn-primary">

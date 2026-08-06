@@ -12,6 +12,8 @@ import { formatPara, formatTarih } from "@/lib/format";
 import { FIRSAT_DURUM } from "@/lib/constants";
 import { durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import GorunumBar from "@/components/GorunumBar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,9 @@ export default async function FirsatlarPage({
   searchParams: { gorunum?: string; ara?: string; durum?: string; sorumlu?: string };
 }) {
   await yetkiGerektir(IZIN.firsatGoruntule);
+
+  await varsayilanaYonlendir("firsatlar", searchParams);
+  const gorunumler = await gorunumleriGetir("firsatlar");
 
   const [ekleyebilir, duzenleyebilir, asamaYonetir] = await Promise.all([
     yetkiVarMi(IZIN.firsatOlustur),
@@ -128,6 +133,16 @@ export default async function FirsatlarPage({
               </Link>
             </div>
 
+            <GorunumBar
+              liste="firsatlar"
+              gorunumler={gorunumler}
+              filtreler={{
+                gorunum: liste ? "liste" : undefined,
+                ara,
+                durum: durum || undefined,
+                sorumlu,
+              }}
+            />
             <DisaAktarDugmesi
               tur="firsatlar"
               filtreler={{ ara, durum: durum || undefined, sorumlu }}

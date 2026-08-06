@@ -5,6 +5,7 @@ import { tenantClient, type TenantClient } from "./tenant-db";
 import { kiracininKurallariniCalistir } from "./is-akisi";
 import { kuyruguIsle } from "./eposta";
 import { gelenKutusuSenkron } from "./eposta-gelen";
+import { otomatikYedekAl, yedekIstemcisi } from "./yedek";
 
 /**
  * Zamanlanmış işler — Faz 8 / D1, D2, D3.
@@ -27,6 +28,7 @@ export type CalistirmaSonucu = {
   islenen: number;
   eposta: { gonderilen: number; hatali: number };
   senkron: { okunan: number; eslesen: number };
+  yedek: number; // bu çalıştırmada alınan otomatik yedek sayısı
   hata: string[];
 };
 
@@ -61,6 +63,7 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
     islenen: 0,
     eposta: { gonderilen: 0, hatali: 0 },
     senkron: { okunan: 0, eslesen: 0 },
+    yedek: 0,
     hata: [],
   };
 
@@ -81,6 +84,15 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
       sonuc.senkron.eslesen += senkron.eslesen;
     } catch (e) {
       sonuc.hata.push(`${id} gelen kutusu: ${e instanceof Error ? e.message : e}`);
+    }
+
+    // Günlük otomatik yedek (Faz 10 / E7) — son 23 saatte alınmadıysa alınır,
+    // en yeni 7 tanesi saklanır.
+    try {
+      const y = await otomatikYedekAl(yedekIstemcisi(db), id);
+      if (y.alindi) sonuc.yedek++;
+    } catch (e) {
+      sonuc.hata.push(`${id} yedek: ${e instanceof Error ? e.message : e}`);
     }
 
     // Kuyruk EN SONDA işlenir: iş akışlarının ve senkronun ürettiği

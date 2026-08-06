@@ -610,6 +610,51 @@ async function main() {
     );
   }
 
+  // 12 — Kişiselleştirme ve süreklilik (Faz 10)
+  console.log("\n12. Kişiselleştirme ve süreklilik — pano, görünümler, yedekleme");
+
+  const pano = await sayfaGetir("admin@gezegen.com", "admin123", "/");
+  kontrol("Panoda 'Panoyu Düzenle' düğmesi var", pano.govde.includes("Panoyu Düzenle"));
+
+  // GorunumBar — bölüm 11'de çekilen /firmalar sayfasında görünmeli.
+  kontrol("Listede 'Görünümler' düğmesi var", firmaListesi.govde.includes("Görünümler"));
+
+  const yedekler = await sayfaGetir("admin@gezegen.com", "admin123", "/yedekler");
+  kontrol(
+    "Yönetici yedek ekranını açabiliyor",
+    !yedekler.url.includes("/yetkisiz") && yedekler.govde.includes("Şimdi Yedek Al")
+  );
+  kontrol(
+    "Ekran geri yüklemenin ekleyici olduğunu anlatıyor",
+    yedekler.govde.includes("ekleyici") && yedekler.govde.includes("dışarıda tutulan")
+  );
+
+  // Yedek dosyası kuruluşun BÜTÜN verisini içerir — üye ve okuyucu giremez.
+  const uyeYedek = await sayfaGetir("kullanici@gezegen.com", "user123", "/yedekler");
+  kontrol("Üye yedek ekranına giremiyor", uyeYedek.url.includes("/yetkisiz"), uyeYedek.url);
+  const okuyucuYedek = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/yedekler");
+  kontrol(
+    "Salt okunur yedek ekranına giremiyor",
+    okuyucuYedek.url.includes("/yetkisiz"),
+    okuyucuYedek.url
+  );
+  // Menü kontrolü /yetkisiz'de YAPILAMAZ: o sayfa eksik izni adıyla açıklar
+  // ("Yedekleri yönet") ve bu metin "Yedekler"i içerir. Üyenin görebildiği
+  // bir sayfada (pano) kenar menüsüne bakılır.
+  const uyePano = await sayfaGetir("kullanici@gezegen.com", "user123", "/");
+  kontrol(
+    "Üyenin menüsünde 'Yedekler' bağlantısı yok",
+    !uyePano.govde.includes("Yedekler")
+  );
+
+  // İndirme ucu oturumsuz çalışmamalı (login'e yönlendirir).
+  const oturumsuzYedek = await fetch(`${BASE}/api/yedek?id=x`, { redirect: "manual" });
+  kontrol(
+    "Oturumsuz yedek indirme engelleniyor",
+    oturumsuzYedek.status >= 300 && oturumsuzYedek.status < 400,
+    `HTTP ${oturumsuzYedek.status}`
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

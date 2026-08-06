@@ -38,7 +38,8 @@ prisma/
                        # Kisi, Asama, Firsat, Aktivite, Lead,
                        # Teklif, TeklifKalemi, Bildirim, BildirimTercihi,
                        # EpostaAyari, EpostaKuyrugu, EpostaKaydi,
-                       # IsAkisi, IsAkisiCalismasi
+                       # IsAkisi, IsAkisiCalismasi,
+                       # PanoTercihi, KayitliGorunum, Yedek
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -63,10 +64,13 @@ src/
       otomasyon/       # iş akışı kuralları + eposta/ ayarları (Faz 8)
       ice-aktar/       # Excel/CSV içe aktarım sihirbazı (Faz 9)
       teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
+      yedekler/        # yedek al/indir/geri yükle — yedek.yonet (Faz 10)
+      pano-actions.ts, gorunum-actions.ts  # kişisel tercih action'ları (Faz 10)
     api/
       gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
       takvim.ics/      # takvim dışa aktarımı (oturum gerektirir)
       disa-aktar/      # Excel/CSV dışa aktarımı (izin + denetim) (Faz 9)
+      yedek/           # yedek indirme — yedek.yonet + denetim (Faz 10)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -79,7 +83,7 @@ src/
     ui/                # button, card, badge, pagination, skeleton, ...
     layout/            # sidebar, topbar, mobile-nav, theme-toggle, user-menu
     charts/            # area, bar, donut, tooltip
-    dashboard/         # kpi-card, chart-card
+    dashboard/         # kpi-card, chart-card, PanoDuzenle (Faz 10)
     admin/             # KiraciForm, KullaniciSatiri, DavetPanel, PlanPanel, ...
     firsatlar/         # Kanban, FirsatPanel, AsamaPanel (Faz 6)
     aktiviteler/       # AktivitePanel (Faz 7)
@@ -87,7 +91,9 @@ src/
     teklifler/         # TeklifForm, TeklifIslemleri (Faz 7)
     bildirimler/       # BildirimListesi, TercihFormu (Faz 8)
     otomasyon/         # KuralPanel, EpostaAyarFormu (Faz 8)
-    FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton
+    yedekler/          # YedekPanel (Faz 10)
+    FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
+    GorunumBar          # kayıtlı görünümler (Faz 10)
   lib/
     auth.ts, session.ts   # oturum ve requireSession
     constants.ts          # durum/tür sabitleri + rozet etiketleri
@@ -105,6 +111,9 @@ src/
     zamanlanmis.ts        # oturumsuz zamanlanmış işler — TEK KAPI (Faz 8)
     disa-aktar.ts         # dışa aktarım — TEK KAPI (+ -saf, -tanimlar) (Faz 9)
     ice-aktar.ts          # içe aktarım (+ -saf: ayrıştırma/doğrulama) (Faz 9)
+    pano-tanimlar.ts      # pano kart kayıt defteri — saf veri (Faz 10)
+    gorunum.ts            # kayıtlı görünümler (+ -tanimlar: sorguTemizle) (Faz 10)
+    yedek.ts              # yedekleme (+ -saf: bütün mantık, testler onu sınar) (Faz 10)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -118,7 +127,8 @@ src/
 `KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet`, Faz 6 ile
 `Kisi`, `Asama` ve `Firsat`, Faz 7 ile `Aktivite`, `Lead`, `Teklif` ve
 `TeklifKalemi`, Faz 8 ile `Bildirim`, `BildirimTercihi`, `EpostaAyari`,
-`EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi` eklendi.
+`EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
+`PanoTercihi`, `KayitliGorunum` ve `Yedek` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -258,6 +268,27 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - Ayrıştırma/doğrulama gibi saf işler `-saf.ts` dosyalarındadır; testler
   veritabanı olmadan doğrudan onları sınar.
 
+### Kişiselleştirme ve Süreklilik (Faz 10)
+
+- **Pano kartları kayıt defterinden gelir** (`src/lib/pano-tanimlar.ts`);
+  her kartın kendi izni vardır. İzinsiz/seçilmemiş kartın **sorgusu hiç
+  çalışmaz**. Yeni kartlar varsayılan düzenin DIŞINDADIR — yükseltme
+  kimsenin panosunu değiştirmez.
+- **Görünüm = adlandırılmış querystring** (`KayitliGorunum.sorgu`).
+  `sorguTemizle` `g`/`sayfa`/biçimsiz anahtarları atar. Varsayılan görünüm
+  yönlendirmesi `g=1` işareti taşır — döngü imkânsızdır. Paylaşım kiracı
+  içidir.
+- **Geri yükleme EKLEYİCİDİR:** yalnızca var olmayan kayıtlar eklenir
+  (`skipDuplicates`), mevcutlara dokunulmaz, iki kez çalıştırmak
+  zararsızdır. Yedek dosyasında `tenantId` YOKTUR; satırlar geri yüklerken
+  oturumun kiracısıyla damgalanır. Kullanıcılar ve denetim günlüğü kapsam
+  dışıdır. Gece yedeği zamanlanmış çalıştırıcıya bağlıdır (son 7 saklanır).
+- **`yedek.yonet` yalnızca kuruluş yöneticisindedir** ve `yedek` bilinçli
+  olarak paket modülü değildir — verinin sürekliliği pazarlık konusu olamaz.
+- **Kişisel tercih action'ları** (pano, görünüm) yetki+denetim
+  zorunluluğunun belgeli istisnasıdır (`tests/regresyon.test.ts` içindeki
+  `KISISEL_TERCIH_DOSYALARI`); kullanıcı yalnızca KENDİ satırını yazar.
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -278,7 +309,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**273 kontrol**.
+**296 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -286,10 +317,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (156 test, ~7 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (171 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 96)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 104)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -368,7 +399,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | ✅ tamamlandı |
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | ✅ tamamlandı |
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | ✅ tamamlandı |
-| 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | planlandı |
+| 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | ✅ tamamlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | planlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | planlandı |
 | 13 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.13.0` | planlandı |
@@ -408,3 +439,7 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 - **v1.9.0** — **Faz 9:** Veri giriş/çıkış. Dokuz liste için Excel/CSV dışa
   aktarım (filtreye saygılı), sütun eşleştirmeli ve ön izlemeli içe aktarım
   sihirbazı, kiracı markalı teklif PDF çıktısı.
+- **v1.10.0** — **Faz 10:** Kişiselleştirme ve süreklilik. İzin süzgeçli,
+  kullanıcı bazlı özelleştirilebilir pano; beş listede kaydet/paylaş/varsayılan
+  destekli kayıtlı görünümler; ekleyici (idempotent) geri yüklemeli kiracı
+  yedekleri, gece otomatik yedeği ve dosya indirme/yükleme.

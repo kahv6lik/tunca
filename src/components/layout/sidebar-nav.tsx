@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Zap,
   Upload,
+  DatabaseBackup,
   BarChart3,
   Users,
   ScrollText,
@@ -50,6 +51,7 @@ export const NAV: NavItem[] = [
   { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
   { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
+  { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet" },
 ];
 
 export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {

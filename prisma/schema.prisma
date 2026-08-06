@@ -67,6 +67,9 @@ model Tenant {
   EpostaKaydi      EpostaKaydi[]
   IsAkisi          IsAkisi[]
   IsAkisiCalismasi IsAkisiCalismasi[]
+  PanoTercihi      PanoTercihi[]
+  KayitliGorunum   KayitliGorunum[]
+  Yedek            Yedek[]
 
   @@index([durum])
 }
@@ -688,4 +691,71 @@ model IsAkisiCalismasi {
   createdAt DateTime @default(now())
 
   @@index([tenantId, isAkisiId, createdAt])
+}
+
+// ── Faz 10: Kişiselleştirme ve süreklilik ──────────────────────────────────
+
+// Kullanıcının Genel Bakış tercihi (E3).
+//
+// `kartlar` sıralı kart anahtarlarıdır; kayıt YOKSA varsayılan düzen
+// geçerlidir (bildirim tercihlerindeki desenle aynı: tablo yalnızca
+// varsayılandan sapmayı tutar).
+model PanoTercihi {
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kullaniciId String   @id
+  kartlar     String[] // sıralı kart anahtarları (src/lib/pano-tanimlar.ts)
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// Kayıtlı görünüm (E4) — bir listenin adlandırılmış filtre hâli.
+//
+// `sorgu` ham querystring'dir ("ara=tekstil&durum=aktif&il=İzmir").
+// Listeler zaten URL parametreleriyle filtrelendiği için görünüm = adlı bir
+// URL'dir; her liste için ayrı şema gerekmez ve dışa aktarım da aynı
+// parametreleri kullandığından görünümler orada da geçerlidir.
+model KayitliGorunum {
+  id          String  @id @default(cuid())
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kullaniciId String // görünümün sahibi
+  liste       String // "firmalar" | "firsatlar" | "adaylar" | ...
+  ad          String
+  sorgu       String // querystring
+  // Paylaşılan görünüm kiracıdaki herkese görünür; yalnızca sahibi (veya
+  // kuruluş yöneticisi) değiştirebilir/silebilir.
+  paylasilan  Boolean @default(false)
+  // Varsayılan görünüm: liste parametresiz açılınca uygulanır. Kişiseldir.
+  varsayilan  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, kullaniciId, liste, ad])
+  @@index([tenantId, liste])
+}
+
+// Kiracı yedeği (E7).
+//
+// İçerik gzip'li JSON olarak SAKLANIR ve ayrıca dosya olarak İNDİRİLEBİLİR.
+// Veritabanında durması "yanlışlıkla sildim" senaryosunu çözer; sunucunun
+// kendisinin kaybı senaryosu için kullanıcı dosyayı indirir (gerçek yedek
+// her zaman dışarıda tutulandır — bu, docs/DEPLOY.md'de de yazılıdır).
+model Yedek {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  tur            String  @default("elle") // elle | otomatik
+  kayitSayisi    Int     @default(0)
+  boyut          Int     @default(0) // gzip sonrası bayt
+  surum          String? // yedeği üreten uygulama sürümü
+  icerik         Bytes
+  olusturanEmail String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }
