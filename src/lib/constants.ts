@@ -55,6 +55,16 @@ export const HIZMET_TUR = [
 
 export const PARA_BIRIMI = ["TRY", "USD", "EUR"] as const;
 
+// Fırsat sonucu (Faz 6). Aşamadan AYRIDIR: aşama hattaki yeri, durum sonucu
+// anlatır. Kapanan fırsat son aşamasında kalır ama kanban'ın açık
+// sütunlarından düşer.
+export const FIRSAT_DURUM = ["acik", "kazanildi", "kaybedildi"] as const;
+
+// Kanban sütunları için hazır renkler (aşama düzenleme ekranında seçilir).
+export const ASAMA_RENKLERI = [
+  "#6366f1", "#0ea5e9", "#f59e0b", "#a855f7", "#10b981", "#ef4444", "#64748b",
+] as const;
+
 // Durum → Türkçe etiket + renk (dark uyumlu translucent ring rozetleri)
 export const DURUM_ETIKET: Record<string, { label: string; className: string }> = {
   // firma
@@ -73,6 +83,10 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   devam: { label: "Devam Ediyor", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
   // kiracı (Faz 5 / admin panel)
   askida: { label: "Askıda", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  // fırsat (Faz 6)
+  acik: { label: "Açık", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  kazanildi: { label: "Kazanıldı", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  kaybedildi: { label: "Kaybedildi", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
 };
 
 // Kiracı (kuruluş) durumları — admin panelde kullanılır
@@ -90,6 +104,8 @@ export const PAKET_MODULLERI = [
   { deger: "yatirim", etiket: "Yatırım Destekleri", izin: "yatirim.goruntule" },
   { deger: "egitim", etiket: "Eğitimler", izin: "egitim.goruntule" },
   { deger: "hizmet", etiket: "Hizmetler", izin: "hizmet.goruntule" },
+  { deger: "kisi", etiket: "Kişiler", izin: "kisi.goruntule" },
+  { deger: "firsat", etiket: "Fırsatlar", izin: "firsat.goruntule" },
   { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
 ] as const;
 

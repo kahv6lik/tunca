@@ -34,7 +34,8 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 ```
 prisma/
   schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet,
-                       # Grup, KullaniciGrup, DenetimKaydi, Plan, Davet
+                       # Grup, KullaniciGrup, DenetimKaydi, Plan, Davet,
+                       # Kisi, Asama, Firsat
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -49,6 +50,8 @@ src/
     (app)/             # oturum gerektiren panel
       page.tsx         # Genel Bakış (KPI + grafikler + son etkinlikler)
       firmalar/        # liste, detay, yeni, düzenle + actions
+      kisiler/         # kişi listesi + actions (Faz 6)
+      firsatlar/       # kanban + liste + asamalar/ (Faz 6)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -63,6 +66,7 @@ src/
     charts/            # area, bar, donut, tooltip
     dashboard/         # kpi-card, chart-card
     admin/             # KiraciForm, KullaniciSatiri, DavetPanel, PlanPanel, ...
+    firsatlar/         # Kanban, FirsatPanel, AsamaPanel (Faz 6)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton
   lib/
     auth.ts, session.ts   # oturum ve requireSession
@@ -81,11 +85,15 @@ src/
 ### Veri Modeli
 
 `Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. Faz 4 ile `Grup`,
-`KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet` eklendi.
+`KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet`, Faz 6 ile
+`Kisi`, `Asama` ve `Firsat` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
-merkezidir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya `firmaId`
-ile bağlıdır (`onDelete: Cascade`). Enum yerine `String` alan +
+merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
+firmaya `firmaId` ile bağlıdır (`onDelete: Cascade`). `Firsat` ayrıca bir
+`Asama`ya bağlıdır (`onDelete: Restrict` — içinde iş olan aşama silinemez) ve
+isteğe bağlı bir `Kisi`ye (`onDelete: SetNull` — muhatabın ayrılması işi
+ortadan kaldırmaz). Enum yerine `String` alan +
 `src/lib/constants.ts` içindeki sabitler kullanılır (Faz 11'deki kiracıya özel
 alanları kolaylaştırdığı için korunan bir tercih).
 
@@ -154,6 +162,19 @@ const db = await getPlatformDb();   // her çağrıda platform_admin doğrulanı
 - **Davet token'ının kendisi saklanmaz** — yalnızca sha256 özeti. Kiracı,
   e-posta ve rol istemciden gelmez, davet kaydından okunur.
 
+### Satış Hattı (Faz 6)
+
+`Firsat.asamaId` hattaki **yeri**, `Firsat.durum` (`acik` / `kazanildi` /
+`kaybedildi`) **sonucu** anlatır — ikisi bilinçli olarak ayrıdır. Kapanan
+fırsat son aşamasında kalır ama kanban'ın açık sütunlarından düşer.
+Beklenen ciro *tutar × olasılık* ile hesaplanır.
+
+- Aşamalar **kiracıya özeldir**; her kuruluş kendi sürecini kurar.
+- Aşama yönetimi izni `firsat.asama` anahtarıyla tanımlıdır (`firsat.` ön eki
+  bilinçlidir: paket "firsat" modülünü kapatınca aşama yönetimi de düşer).
+- Sürükle-bırak için ek kütüphane yoktur; tarayıcının HTML5 API'si kullanılır
+  ve her kartta ayrıca aşama seçici bulunur (dokunmatik + klavye için).
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -174,7 +195,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**142 kontrol**.
+**170 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -182,10 +203,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (79 test, ~5 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (95 test, ~5 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin panel, gerçek tarayıcı (sunucu çalışırken, 42)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 54)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -260,7 +281,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | ✅ tamamlandı |
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | ✅ tamamlandı |
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | ✅ tamamlandı |
-| 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | planlandı |
+| 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | ✅ tamamlandı |
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | planlandı |
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | planlandı |
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | planlandı |
@@ -292,3 +313,6 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   davet ve paket yönetimi; platform metrikleri; impersonation; kiracı
   markalaması. Kiracılar ötesi erişim iki dar kapıya (`platform-db.ts`,
   `davet-db.ts`) hapsedildi ve regresyon testiyle sabitlendi.
+- **v1.6.0** — **Faz 6:** Satış çekirdeği. Kişi (Contact), Fırsat/Anlaşma
+  (Deal) ve kiracıya özel aşamalarla sürükle-bırak kanban satış hattı.
+  `Firma.yetkiliAd` verisi migration'da kişi kaydına taşındı.

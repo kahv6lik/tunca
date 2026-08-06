@@ -9,6 +9,8 @@ import {
   Wallet,
   GraduationCap,
   Wrench,
+  Contact,
+  Target,
   BarChart3,
   Users,
   ScrollText,
@@ -26,6 +28,8 @@ type NavItem = { href: string; label: string; icon: LucideIcon; izin?: string };
 export const NAV: NavItem[] = [
   { href: "/", label: "Genel Bakış", icon: LayoutDashboard },
   { href: "/firmalar", label: "Firmalar", icon: Building2, izin: "firma.goruntule" },
+  { href: "/kisiler", label: "Kişiler", icon: Contact, izin: "kisi.goruntule" },
+  { href: "/firsatlar", label: "Fırsatlar", icon: Target, izin: "firsat.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },
   { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },

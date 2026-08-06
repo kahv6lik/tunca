@@ -13,6 +13,10 @@ import { deleteFirma } from "../actions";
 import { createYatirim, updateYatirim, deleteYatirim } from "../../yatirim-destekleri/actions";
 import { createEgitim, updateEgitim, deleteEgitim } from "../../egitimler/actions";
 import { createHizmet, updateHizmet, deleteHizmet } from "../../hizmetler/actions";
+import { createKisi, updateKisi, deleteKisi } from "../../kisiler/actions";
+import { deleteFirsat } from "../../firsatlar/actions";
+import FirsatPanel from "@/components/firsatlar/FirsatPanel";
+import { Star } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +34,16 @@ export default async function FirmaDetayPage({
     yatirimEkler, yatirimDuzenler, yatirimSiler,
     egitimEkler, egitimDuzenler, egitimSiler,
     hizmetEkler, hizmetDuzenler, hizmetSiler,
+    kisiEkler, kisiDuzenler, kisiSiler,
+    firsatEkler, firsatDuzenler, firsatSiler, firsatGorur,
   ] = await Promise.all([
     yetkiVarMi(IZIN.firmaDuzenle), yetkiVarMi(IZIN.firmaSil),
     yetkiVarMi(IZIN.yatirimOlustur), yetkiVarMi(IZIN.yatirimDuzenle), yetkiVarMi(IZIN.yatirimSil),
     yetkiVarMi(IZIN.egitimOlustur), yetkiVarMi(IZIN.egitimDuzenle), yetkiVarMi(IZIN.egitimSil),
     yetkiVarMi(IZIN.hizmetOlustur), yetkiVarMi(IZIN.hizmetDuzenle), yetkiVarMi(IZIN.hizmetSil),
+    yetkiVarMi(IZIN.kisiOlustur), yetkiVarMi(IZIN.kisiDuzenle), yetkiVarMi(IZIN.kisiSil),
+    yetkiVarMi(IZIN.firsatOlustur), yetkiVarMi(IZIN.firsatDuzenle), yetkiVarMi(IZIN.firsatSil),
+    yetkiVarMi(IZIN.firsatGoruntule),
   ]);
 
   const db = await getTenantDb();
@@ -47,10 +56,28 @@ export default async function FirmaDetayPage({
       yatirimlar: { orderBy: { tarih: "desc" } },
       egitimler: { orderBy: { tarih: "desc" } },
       hizmetler: { orderBy: { tarih: "desc" } },
+      // Faz 6 — kişiler ve fırsatlar
+      kisiler: { orderBy: [{ birincil: "desc" }, { ad: "asc" }] },
+      firsatlar: {
+        orderBy: { createdAt: "desc" },
+        include: { asama: { select: { ad: true, renk: true } }, kisi: { select: { ad: true } } },
+      },
     },
   });
 
   if (!firma) notFound();
+
+  // Fırsat panelinin ihtiyaç duyduğu seçenekler (yalnızca fırsat modülü açıksa)
+  const [asamalar, kullanicilar] = firsatGorur
+    ? await Promise.all([
+        db.asama.findMany({ orderBy: { sira: "asc" }, select: { id: true, ad: true, olasilik: true } }),
+        db.user.findMany({
+          where: { durum: "aktif" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+      ])
+    : [[], []];
 
   const bugun = toDateInput(new Date());
 
@@ -135,6 +162,23 @@ export default async function FirmaDetayPage({
     { name: "aciklama", label: "Açıklama", type: "textarea", colSpan: 2 },
   ];
 
+  const kisiFields: Field[] = [
+    { name: "ad", label: "Ad Soyad", required: true },
+    { name: "unvan", label: "Unvan / Görev" },
+    { name: "telefon", label: "Telefon" },
+    { name: "email", label: "E-posta" },
+    {
+      name: "birincil",
+      label: "Birincil Kişi",
+      type: "select",
+      options: [
+        { value: "0", label: "Hayır" },
+        { value: "1", label: "Evet" },
+      ],
+    },
+    { name: "notlar", label: "Notlar", type: "textarea", colSpan: 2 },
+  ];
+
   return (
     <div>
       <div className="mb-4">
@@ -171,7 +215,10 @@ export default async function FirmaDetayPage({
           <Info label="Vergi No" value={firma.vergiNo} />
           <Info label="Sektör" value={firma.sektor} />
           <Info label="İl / İlçe" value={[firma.il, firma.ilce].filter(Boolean).join(" / ")} />
-          <Info label="Yetkili Kişi" value={firma.yetkiliAd} />
+          <Info
+            label="Birincil Kişi"
+            value={firma.kisiler.find((k) => k.birincil)?.ad ?? firma.yetkiliAd}
+          />
           <Info label="Telefon" value={firma.telefon} />
           <Info label="E-posta" value={firma.email} />
           <Info label="Adres" value={firma.adres} />
@@ -184,6 +231,143 @@ export default async function FirmaDetayPage({
           </div>
         )}
       </div>
+
+      {/* Kişiler (Faz 6 / C1) */}
+      <Section
+        title="Kişiler"
+        count={firma.kisiler.length}
+        addPanel={
+          kisiEkler ? (
+            <AddPanel
+              buttonLabel="Kişi Ekle"
+              action={createKisi}
+              fields={kisiFields}
+              hidden={{ firmaId: firma.id }}
+            />
+          ) : null
+        }
+      >
+        {firma.kisiler.length === 0 ? (
+          <Empty />
+        ) : (
+          <TableWrap
+            head={["Ad", "Unvan", "Telefon", "E-posta", "İşlem"]}
+            rows={firma.kisiler.map((k) => (
+              <tr key={k.id} className="hover:bg-muted/40">
+                <td className="td font-medium">
+                  <span className="flex items-center gap-1.5">
+                    {k.birincil && (
+                      <Star
+                        className="h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                        aria-label="Birincil kişi"
+                      />
+                    )}
+                    {k.ad}
+                  </span>
+                </td>
+                <td className="td">{k.unvan ?? "—"}</td>
+                <td className="td">{k.telefon ?? "—"}</td>
+                <td className="td">{k.email ?? "—"}</td>
+                <td className="td text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {kisiDuzenler && (
+                      <EditRecordDialog
+                        title="Kişiyi Düzenle"
+                        fields={kisiFields}
+                        hidden={{ firmaId: firma.id }}
+                        action={updateKisi.bind(null, k.id)}
+                        values={{
+                          ad: k.ad,
+                          unvan: k.unvan ?? "",
+                          telefon: k.telefon ?? "",
+                          email: k.email ?? "",
+                          birincil: k.birincil ? "1" : "0",
+                          notlar: k.notlar ?? "",
+                        }}
+                      />
+                    )}
+                    {kisiSiler && <DeleteButton action={deleteKisi.bind(null, k.id, firma.id)} />}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          />
+        )}
+      </Section>
+
+      {/* Fırsatlar (Faz 6 / C2) */}
+      {firsatGorur && (
+        <Section
+          title="Fırsatlar"
+          count={firma.firsatlar.length}
+          addPanel={
+            firsatEkler && asamalar.length > 0 ? (
+              <FirsatPanel
+                asamalar={asamalar}
+                kullanicilar={kullanicilar}
+                kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
+                sabitFirmaId={firma.id}
+              />
+            ) : null
+          }
+        >
+          {firma.firsatlar.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["Fırsat", "Aşama", "Kişi", "Tutar", "Olasılık", "Kapanış", "Durum", "İşlem"]}
+              rows={firma.firsatlar.map((f) => (
+                <tr key={f.id} className="hover:bg-muted/40">
+                  <td className="td font-medium">{f.baslik}</td>
+                  <td className="td">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: f.asama.renk ?? "#6366f1" }}
+                        aria-hidden
+                      />
+                      {f.asama.ad}
+                    </span>
+                  </td>
+                  <td className="td">{f.kisi?.ad ?? "—"}</td>
+                  <td className="td">{formatPara(f.tutar, f.paraBirimi)}</td>
+                  <td className="td">%{f.olasilik}</td>
+                  <td className="td">{f.kapanisTarihi ? formatTarih(f.kapanisTarihi) : "—"}</td>
+                  <td className="td"><StatusBadge durum={f.durum} /></td>
+                  <td className="td text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {firsatDuzenler && (
+                        <FirsatPanel
+                          asamalar={asamalar}
+                          kullanicilar={kullanicilar}
+                          kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
+                          sabitFirmaId={firma.id}
+                          mevcut={{
+                            id: f.id,
+                            firmaId: firma.id,
+                            kisiId: f.kisiId ?? "",
+                            asamaId: f.asamaId,
+                            baslik: f.baslik,
+                            tutar: f.tutar,
+                            paraBirimi: f.paraBirimi,
+                            olasilik: f.olasilik,
+                            kapanisTarihi: f.kapanisTarihi ? toDateInput(f.kapanisTarihi) : "",
+                            sorumluId: f.sorumluId ?? "",
+                            durum: f.durum,
+                            kapanisSebebi: f.kapanisSebebi ?? "",
+                            aciklama: f.aciklama ?? "",
+                          }}
+                        />
+                      )}
+                      {firsatSiler && <DeleteButton action={deleteFirsat.bind(null, f.id, firma.id)} />}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
 
       {/* Yatırım Destekleri */}
       <Section

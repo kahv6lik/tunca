@@ -234,7 +234,20 @@ describe("RLS migration'ı yerinde", () => {
       .split("\n");
     const hepsi = yollar.map((y) => readFileSync(y, "utf8")).join("\n");
 
-    for (const tablo of ["Tenant", "User", "Firma", "YatirimDestegi", "Egitim", "Hizmet"]) {
+    /**
+     * Tablo listesi ŞEMADAN türetilir, elle yazılmaz. Elle yazılan bir listeye
+     * yeni model eklemeyi unutmak, o tabloyu sessizce RLS'siz bırakırdı —
+     * yani kiracı sınırındaki ikinci savunma hattı yalnızca o tablo için
+     * kapalı olurdu ve kimse fark etmezdi.
+     */
+    const sema = readFileSync("prisma/schema.prisma", "utf8");
+    const modeller = [...sema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]);
+
+    // Plan bilinçli olarak kiracıya ait değildir (platform geneli); yine de
+    // RLS'i vardır, o yüzden listeden çıkarılmaz.
+    expect(modeller.length).toBeGreaterThanOrEqual(12);
+
+    for (const tablo of modeller) {
       expect(hepsi, `${tablo}: RLS açılmamış`).toContain(
         `ALTER TABLE "${tablo}" ENABLE ROW LEVEL SECURITY`
       );

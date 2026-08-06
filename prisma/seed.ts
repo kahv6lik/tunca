@@ -42,6 +42,27 @@ const EGITIM_DURUMLARI = ["planlandi", "tamamlandi", "iptal"];
 const HIZMET_TURLERI = ["Danışmanlık", "Denetim", "Raporlama", "Eğitim", "Diğer"];
 const HIZMET_DURUMLARI = ["devam", "tamamlandi", "iptal"];
 
+// Faz 6 — satış çekirdeği
+const ADLAR = ["Ahmet", "Mehmet", "Ayşe", "Fatma", "Ali", "Zeynep", "Mustafa", "Elif", "Can", "Deniz"];
+const SOYADLAR = ["Yılmaz", "Demir", "Kaya", "Şahin", "Çelik", "Aydın", "Öztürk", "Arslan"];
+const UNVANLAR = [
+  "Genel Müdür", "Satın Alma Müdürü", "Mali İşler Müdürü", "Fabrika Müdürü",
+  "İnsan Kaynakları Uzmanı", "Kalite Sorumlusu", "Ar-Ge Müdürü",
+];
+const FIRSAT_BASLIKLARI = [
+  "Yıllık danışmanlık anlaşması", "Teşvik başvuru danışmanlığı",
+  "ISO belgelendirme projesi", "Dijital dönüşüm paketi",
+  "Eğitim programı anlaşması", "Ar-Ge merkezi kurulumu",
+  "İhracat danışmanlığı", "Süreç iyileştirme projesi",
+];
+const VARSAYILAN_ASAMALAR = [
+  { ad: "Yeni", sira: 0, olasilik: 10, renk: "#6366f1" },
+  { ad: "İletişim", sira: 1, olasilik: 25, renk: "#0ea5e9" },
+  { ad: "Teklif", sira: 2, olasilik: 50, renk: "#f59e0b" },
+  { ad: "Müzakere", sira: 3, olasilik: 75, renk: "#a855f7" },
+  { ad: "Sonuç", sira: 4, olasilik: 90, renk: "#10b981" },
+];
+
 const BATCH = 200;
 
 function rnd<T>(arr: T[]): T {
@@ -50,9 +71,13 @@ function rnd<T>(arr: T[]): T {
 function rndInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+/**
+ * Rastgele tarih. Pozitif değer geçmişe, negatif değer geleceğe bakar
+ * (fırsatların tahmini kapanış tarihi ileri bir gündür).
+ */
 function rndTarih(gunOnce: number): Date {
   const d = new Date();
-  d.setDate(d.getDate() - rndInt(0, gunOnce));
+  d.setDate(d.getDate() - (gunOnce >= 0 ? rndInt(0, gunOnce) : -rndInt(0, -gunOnce)));
   return d;
 }
 
@@ -165,10 +190,78 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   for (let i = 0; i < hizmetler.length; i += BATCH)
     await prisma.hizmet.createMany({ data: hizmetler.slice(i, i + BATCH) });
 
+  // ── Faz 6: kişiler ve fırsatlar ─────────────────────────────────────────
+  // Kişi her firmaya, fırsat firmaların bir kısmına üretilir. Kanban'ın boş
+  // açılmaması için fırsatlar aşamalara dağıtılır.
+  const asamalar = await asamalariKur(tenantId);
+  const kullanicilar = await prisma.user.findMany({
+    where: { tenantId },
+    select: { id: true },
+  });
+
+  const kisiler: any[] = [];
+  for (const f of firmalar) {
+    const kisiSayisi = rndInt(1, 3);
+    for (let k = 0; k < kisiSayisi; k++) {
+      kisiler.push({
+        tenantId,
+        firmaId: f.id,
+        ad: `${rnd(ADLAR)} ${rnd(SOYADLAR)}`,
+        unvan: rnd(UNVANLAR),
+        telefon: `0${rndInt(500, 555)} ${rndInt(100, 999)} ${rndInt(10, 99)} ${rndInt(10, 99)}`,
+        email: `kisi${kisiler.length + 1}@firma.com.tr`,
+        birincil: k === 0, // ilk kişi birincil muhatap
+      });
+    }
+  }
+  for (let i = 0; i < kisiler.length; i += BATCH)
+    await prisma.kisi.createMany({ data: kisiler.slice(i, i + BATCH) });
+
+  const uretilenKisiler = await prisma.kisi.findMany({
+    where: { tenantId },
+    select: { id: true, firmaId: true },
+  });
+  const firmaKisi = new Map<string, string>();
+  for (const k of uretilenKisiler) if (!firmaKisi.has(k.firmaId)) firmaKisi.set(k.firmaId, k.id);
+
+  const firsatlar: any[] = [];
+  for (const f of firmalar) {
+    if (Math.random() > 0.35) continue;
+    const asama = rnd(asamalar);
+    const durum =
+      Math.random() < 0.7 ? "acik" : Math.random() < 0.6 ? "kazanildi" : "kaybedildi";
+    firsatlar.push({
+      tenantId,
+      firmaId: f.id,
+      kisiId: firmaKisi.get(f.id) ?? null,
+      asamaId: asama.id,
+      baslik: rnd(FIRSAT_BASLIKLARI),
+      tutar: rndInt(25, 900) * 1000,
+      paraBirimi: "TRY",
+      olasilik: durum === "kazanildi" ? 100 : durum === "kaybedildi" ? 0 : asama.olasilik,
+      kapanisTarihi: rndTarih(-90),
+      sorumluId: kullanicilar.length ? rnd(kullanicilar).id : null,
+      durum,
+      kapanisSebebi: durum === "kaybedildi" ? rnd(["Fiyat", "Rakip", "Bütçe iptal"]) : null,
+    });
+  }
+  for (let i = 0; i < firsatlar.length; i += BATCH)
+    await prisma.firsat.createMany({ data: firsatlar.slice(i, i + BATCH) });
+
   console.log(
     `✅ ${etiket}: ${firmaSayisi} firma, ${yatirimlar.length} yatırım, ` +
-      `${egitimler.length} eğitim, ${hizmetler.length} hizmet.`
+      `${egitimler.length} eğitim, ${hizmetler.length} hizmet, ` +
+      `${kisiler.length} kişi, ${firsatlar.length} fırsat.`
   );
+}
+
+/** Kiracının satış hattını kurar (varsa dokunmaz). */
+async function asamalariKur(tenantId: string) {
+  for (const a of VARSAYILAN_ASAMALAR) {
+    const mevcut = await prisma.asama.findFirst({ where: { tenantId, ad: a.ad } });
+    if (!mevcut) await prisma.asama.create({ data: { tenantId, ...a } });
+  }
+  return prisma.asama.findMany({ where: { tenantId }, orderBy: { sira: "asc" } });
 }
 
 /**
@@ -181,24 +274,26 @@ async function paketleriKur() {
   const paketler = [
     {
       ad: "Başlangıç",
-      aciklama: "Küçük ekipler için — yatırım ve hizmet modülleri kapalı",
+      aciklama: "Küçük ekipler için — yatırım, hizmet ve fırsat modülleri kapalı",
       kullaniciLimiti: 3,
       firmaLimiti: 25,
-      moduller: ["firma", "egitim", "rapor"],
+      // Bilinçli olarak dar: paket kısıtının gerçekten çalıştığı bir hesapla
+      // denenebilsin diye "firsat" ve "hizmet" burada kapalıdır.
+      moduller: ["firma", "egitim", "kisi", "rapor"],
     },
     {
       ad: "Profesyonel",
       aciklama: "Tüm modüller, orta ölçekli kuruluşlar için",
       kullaniciLimiti: 25,
       firmaLimiti: 500,
-      moduller: ["firma", "yatirim", "egitim", "hizmet", "rapor"],
+      moduller: ["firma", "yatirim", "egitim", "hizmet", "kisi", "firsat", "rapor"],
     },
     {
       ad: "Kurumsal",
       aciklama: "Sınırsız kullanıcı ve firma",
       kullaniciLimiti: 0,
       firmaLimiti: 0,
-      moduller: ["firma", "yatirim", "egitim", "hizmet", "rapor"],
+      moduller: ["firma", "yatirim", "egitim", "hizmet", "kisi", "firsat", "rapor"],
     },
   ];
 
@@ -253,6 +348,9 @@ async function main() {
     where: { id: anadolu.id },
     data: { planId: paketler["Profesyonel"] },
   });
+
+  // Platform kiracısının da çalışabilir bir hattı olsun (iş verisi üretilmez).
+  await asamalariKur(platform.id);
 
   console.log("✅ Kiracılar ve kullanıcılar hazır.");
 

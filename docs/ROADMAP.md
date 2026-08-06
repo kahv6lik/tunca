@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.5.0` — Faz 5 tamamlandı |
-| **Sıradaki faz** | **Faz 6** — Kişi, Fırsat/Anlaşma, Kanban satış hattı (`v1.6.0`) |
+| **Son çıkan sürüm** | `v1.6.0` — Faz 6 tamamlandı |
+| **Sıradaki faz** | **Faz 7** — Aktivite, Lead, timeline, teklif (`v1.7.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**142 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**170 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (79 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (95 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -139,7 +139,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | ✅ tamamlandı | — |
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | ✅ tamamlandı | — |
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | ✅ tamamlandı | — |
-| 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı | |
+| 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | ✅ tamamlandı | — |
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı | |
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı | |
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı | |
@@ -368,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **142 kontrol** ile geçiyor (79 birim test dahil).
+- `npm run dogrula` toplam **170 kontrol** ile geçiyor (95 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -428,11 +428,46 @@ uygulanır. Firma limiti kayıt oluşturmadan önce sunucuda kontrol edilir.
 
 ---
 
-## Faz 6 — Satış Çekirdeği (C1, C2, C3) → `v1.6.0`
+## Faz 6 — Satış Çekirdeği (C1, C2, C3) → `v1.6.0` ✅
 
-- [ ] **C1 — Kişi (Contact):** firma başına çok kişi; ad, unvan, telefon, e-posta, birincil kişi işareti. Mevcut `Firma.yetkiliAd` verisi kişi kaydına taşınır.
-- [ ] **C2 — Fırsat/Anlaşma (Deal):** başlık, firma, kişi, tutar, para birimi, aşama, kapanış tarihi, olasılık, sorumlu kullanıcı, kazanıldı/kaybedildi + sebep. Aşamalar kiracı bazında özelleştirilebilir.
-- [ ] **C3 — Kanban satış hattı:** sürükle-bırak aşama değiştirme, aşama bazlı toplam tutar, filtre.
+- [x] **C1 — Kişi (Contact):** firma başına çok kişi; ad, unvan, telefon, e-posta, birincil kişi işareti. Mevcut `Firma.yetkiliAd` verisi migration'da kişi kaydına taşındı.
+- [x] **C2 — Fırsat/Anlaşma (Deal):** başlık, firma, kişi, tutar, para birimi, aşama, kapanış tarihi, olasılık, sorumlu kullanıcı, kazanıldı/kaybedildi + sebep. Aşamalar kiracı bazında özelleştirilebilir.
+- [x] **C3 — Kanban satış hattı:** sürükle-bırak aşama değiştirme, aşama bazlı toplam ve beklenen ciro, arama/sorumlu/durum filtreleri, liste görünümü.
+
+### Nasıl kuruldu
+
+**Aşama ile durum ayrıdır.** `Firsat.asamaId` hattaki yeri, `Firsat.durum`
+(`acik` / `kazanildi` / `kaybedildi`) sonucu anlatır. Kapanan fırsat son
+aşamasında kalır ama kanban'ın açık sütunlarından düşer; kapananlar liste
+görünümünde durum filtresiyle görülür. Beklenen ciro *tutar × olasılık* ile
+hesaplanır; kazanılan fırsatın olasılığı %100'e, kaybedilenin %0'a çekilir.
+
+**Aşamalar kiracıya özeldir.** Her kuruluş kendi satış sürecini kurar.
+Hattın biçimi kuruluş çapında bir karar olduğu için `firsat.asama` izni
+gerekir (varsayılan: kuruluş yöneticisi); üye fırsat düzenleyebilir ama hattı
+değiştiremez. İzin anahtarı bilinçli olarak `firsat.` ön ekiyle tanımlandı —
+paket "firsat" modülünü kapattığında aşama yönetimi de kendiliğinden düşer.
+
+**Sürükle-bırak için kütüphane eklenmedi.** Tarayıcının kendi HTML5
+drag-and-drop API'si kullanıldı. Dokunmatik cihazlarda sürükleme güvenilir
+olmadığı için her kartta ayrıca bir aşama seçici var; sürükleme bir
+kolaylıktır, tek yol değildir. Aşama değişikliği sunucuda ayrı bir action ile
+yapılır ve orada yetki + sahiplik yeniden doğrulanır.
+
+**Migration veri taşıdı.** Var olan her kiracıya çalışabilir bir hat
+(Yeni → İletişim → Teklif → Müzakere → Sonuç) kuruldu, `Firma.yetkiliAd`
+değerleri birincil kişi olarak `Kisi` tablosuna aktarıldı ve mevcut paketlere
+yeni modüller eklendi (aksi halde paketli kiracılar Kişiler/Fırsatlar
+modüllerini yitirirdi). `Firma.yetkiliAd` sütunu **silinmedi**: veriyi
+taşırken kaynağı yerinde bırakmak, taşımanın yanlış gitmesi hâlinde geri
+dönüşü mümkün kılar.
+
+### Kabul kriterleri
+- [x] Kişi, aşama ve fırsat tablolarının üçü de RLS ile korunuyor; regresyon testi tablo listesini artık **şemadan türetiyor**, yani yeni bir model RLS'siz kalamaz.
+- [x] Bir kiracı diğerinin kişisini, aşamasını veya fırsatını göremez, değiştiremez; başka kiracının aşamasına fırsat bağlayamaz.
+- [x] Kişi silinince fırsat silinmez, yalnızca muhatap bağlantısı boşalır.
+- [x] İçinde fırsat olan aşama silinemez (hem uygulamada hem veritabanında).
+- [x] Salt okunur kullanıcı satış hattını görür ama "Yeni Fırsat" düğmesini görmez; üye aşama yönetimine URL yazarak da giremez.
 
 ---
 

@@ -37,6 +37,20 @@ export const IZIN = {
   hizmetDuzenle: "hizmet.duzenle",
   hizmetSil: "hizmet.sil",
 
+  // Faz 6 — satış çekirdeği
+  kisiGoruntule: "kisi.goruntule",
+  kisiOlustur: "kisi.olustur",
+  kisiDuzenle: "kisi.duzenle",
+  kisiSil: "kisi.sil",
+
+  firsatGoruntule: "firsat.goruntule",
+  firsatOlustur: "firsat.olustur",
+  firsatDuzenle: "firsat.duzenle",
+  firsatSil: "firsat.sil",
+  // Satış hattı aşamalarını tanımlama. Bilinçli olarak "firsat." ön ekiyle:
+  // paket "firsat" modülünü kapattığında bu yetki de kendiliğinden düşer.
+  asamaYonet: "firsat.asama",
+
   raporGoruntule: "rapor.goruntule",
 
   kullaniciYonet: "kullanici.yonet",
@@ -69,6 +83,15 @@ export const IZIN_ETIKET: Record<string, string> = {
   "hizmet.olustur": "Hizmet ekle",
   "hizmet.duzenle": "Hizmet düzenle",
   "hizmet.sil": "Hizmet sil",
+  "kisi.goruntule": "Kişileri görüntüle",
+  "kisi.olustur": "Kişi ekle",
+  "kisi.duzenle": "Kişi düzenle",
+  "kisi.sil": "Kişi sil",
+  "firsat.goruntule": "Fırsatları görüntüle",
+  "firsat.olustur": "Fırsat ekle",
+  "firsat.duzenle": "Fırsat düzenle",
+  "firsat.sil": "Fırsat sil",
+  "firsat.asama": "Satış hattı aşamalarını yönet",
   "rapor.goruntule": "Raporları görüntüle",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
@@ -82,6 +105,8 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Yatırım Destekleri", izinler: [IZIN.yatirimGoruntule, IZIN.yatirimOlustur, IZIN.yatirimDuzenle, IZIN.yatirimSil] },
   { ad: "Eğitimler", izinler: [IZIN.egitimGoruntule, IZIN.egitimOlustur, IZIN.egitimDuzenle, IZIN.egitimSil] },
   { ad: "Hizmetler", izinler: [IZIN.hizmetGoruntule, IZIN.hizmetOlustur, IZIN.hizmetDuzenle, IZIN.hizmetSil] },
+  { ad: "Kişiler", izinler: [IZIN.kisiGoruntule, IZIN.kisiOlustur, IZIN.kisiDuzenle, IZIN.kisiSil] },
+  { ad: "Fırsatlar", izinler: [IZIN.firsatGoruntule, IZIN.firsatOlustur, IZIN.firsatDuzenle, IZIN.firsatSil, IZIN.asamaYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule] },
 ];
@@ -108,6 +133,8 @@ const GORUNTULEME: Izin[] = [
   IZIN.yatirimGoruntule,
   IZIN.egitimGoruntule,
   IZIN.hizmetGoruntule,
+  IZIN.kisiGoruntule,
+  IZIN.firsatGoruntule,
   IZIN.raporGoruntule,
 ];
 
@@ -117,6 +144,8 @@ const IS_VERISI_TAM: Izin[] = [
   IZIN.yatirimOlustur, IZIN.yatirimDuzenle, IZIN.yatirimSil,
   IZIN.egitimOlustur, IZIN.egitimDuzenle, IZIN.egitimSil,
   IZIN.hizmetOlustur, IZIN.hizmetDuzenle, IZIN.hizmetSil,
+  IZIN.kisiOlustur, IZIN.kisiDuzenle, IZIN.kisiSil,
+  IZIN.firsatOlustur, IZIN.firsatDuzenle, IZIN.firsatSil,
 ];
 
 /**
@@ -133,6 +162,9 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
   [ROL.platformAdmin]: TUM_IZINLER,
   [ROL.tenantAdmin]: [
     ...IS_VERISI_TAM,
+    // Satış hattının biçimi kuruluş çapında bir karardır; her üye
+    // değiştirebilseydi herkesin kanban'ı altından kayardı.
+    IZIN.asamaYonet,
     IZIN.kullaniciYonet,
     IZIN.grupYonet,
     IZIN.denetimGoruntule,

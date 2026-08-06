@@ -21,10 +21,10 @@ datasource db {
 // Kiracı = hizmet verilen müşteri şirketi.
 // Kiracılar birbirlerinin verisini ve varlığını göremez.
 model Tenant {
-  id     String @id @default(cuid())
-  ad     String // müşteri şirketinin adı
-  slug   String @unique // giriş ekranındaki kiracı kodu / alt alan adı
-  durum  String @default("aktif") // "aktif" | "askida" | "pasif"
+  id    String @id @default(cuid())
+  ad    String // müşteri şirketinin adı
+  slug  String @unique // giriş ekranındaki kiracı kodu / alt alan adı
+  durum String @default("aktif") // "aktif" | "askida" | "pasif"
 
   // İletişim (admin panelde müşteri kartı)
   iletisimAd    String?
@@ -37,9 +37,9 @@ model Tenant {
   plan   Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
 
   // Markalama (B7)
-  logoUrl  String?
-  anaRenk  String? // "#6366f1" gibi
-  altAlan  String? @unique // "musteri" → musteri.crm.com
+  logoUrl String?
+  anaRenk String? // "#6366f1" gibi
+  altAlan String? @unique // "musteri" → musteri.crm.com
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -53,6 +53,9 @@ model Tenant {
   uyelikler    KullaniciGrup[]
   denetim      DenetimKaydi[]
   davetler     Davet[]
+  kisiler      Kisi[]
+  asamalar     Asama[]
+  firsatlar    Firsat[]
 
   @@index([durum])
 }
@@ -99,6 +102,8 @@ model Firma {
   yatirimlar YatirimDestegi[]
   egitimler  Egitim[]
   hizmetler  Hizmet[]
+  kisiler    Kisi[]
+  firsatlar  Firsat[]
 
   @@index([tenantId, ad])
   @@index([tenantId, il])
@@ -224,7 +229,6 @@ model DenetimKaydi {
   @@index([tenantId, kullaniciId])
 }
 
-
 // ── Faz 5: Admin panel ─────────────────────────────────────────────────────
 
 // Abonelik paketi — kiracı başına limitler ve açık modüller.
@@ -245,18 +249,101 @@ model Plan {
 // Kullanıcı daveti (B3) — e-posta ile gönderilen tek kullanımlık bağlantı.
 // Token'ın kendisi saklanmaz; yalnızca özeti (hash) tutulur.
 model Davet {
-  id         String    @id @default(cuid())
-  tenantId   String
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  email      String
-  ad         String
-  rol        String    @default("uye")
-  tokenOzeti String    @unique // sha256(token)
-  sonKullanma DateTime
-  kullanildi DateTime?
+  id             String    @id @default(cuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email          String
+  ad             String
+  rol            String    @default("uye")
+  tokenOzeti     String    @unique // sha256(token)
+  sonKullanma    DateTime
+  kullanildi     DateTime?
   olusturanEmail String
-  createdAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([tenantId, email])
   @@index([tenantId, createdAt])
+}
+
+// ── Faz 6: Satış çekirdeği ─────────────────────────────────────────────────
+
+// Kişi (Contact) — firmadaki muhatap. Bir firmanın birden çok kişisi olur.
+// `Firma.yetkiliAd` alanı Faz 6 migration'ında buraya taşındı; alan geriye
+// dönük uyumluluk için duruyor ama arayüzde artık kişi kaydı kullanılır.
+model Kisi {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId   String
+  firma     Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  ad        String
+  unvan     String? // görev / pozisyon
+  telefon   String?
+  email     String?
+  // Firmanın birincil muhatabı. Firma başına en fazla bir tane olur; kural
+  // uygulama katmanında (kisiler/actions.ts) zorlanır.
+  birincil  Boolean  @default(false)
+  notlar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firsatlar Firsat[]
+
+  @@index([tenantId, firmaId])
+  @@index([tenantId, ad])
+  @@index([tenantId, email])
+}
+
+// Satış hattı aşaması — KİRACIYA ÖZELDİR. Her kiracı kendi hattını kurar.
+// `sira` kanban'daki soldan sağa sıralamayı verir.
+model Asama {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ad        String
+  sira      Int      @default(0)
+  olasilik  Int      @default(0) // %0-100, fırsata varsayılan olarak kopyalanır
+  renk      String? // "#6366f1" — kanban sütun rengi
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firsatlar Firsat[]
+
+  @@unique([tenantId, ad])
+  @@index([tenantId, sira])
+}
+
+// Fırsat / Anlaşma (Deal) — satış hattındaki bir iş.
+//
+// `durum` ile `asamaId` bilinçli olarak AYRIDIR: aşama hattaki yeri, durum ise
+// sonucu anlatır. Kazanılan/kaybedilen bir fırsat son aşamasında kalır ama
+// kanban'ın açık sütunlarından düşer.
+model Firsat {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId       String
+  firma         Firma     @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  kisiId        String?
+  kisi          Kisi?     @relation(fields: [kisiId], references: [id], onDelete: SetNull)
+  asamaId       String
+  asama         Asama     @relation(fields: [asamaId], references: [id], onDelete: Restrict)
+  baslik        String
+  tutar         Float     @default(0)
+  paraBirimi    String    @default("TRY")
+  olasilik      Int       @default(0) // %0-100
+  kapanisTarihi DateTime?
+  // Sorumlu kullanıcı. Kullanıcı silinirse fırsat sahipsiz kalır, silinmez.
+  sorumluId     String?
+  durum         String    @default("acik") // acik | kazanildi | kaybedildi
+  kapanisSebebi String? // kaybedildiyse neden
+  aciklama      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, asamaId])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, durum])
+  @@index([tenantId, sorumluId])
+  @@index([tenantId, kapanisTarihi])
 }

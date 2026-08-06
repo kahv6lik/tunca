@@ -48,6 +48,7 @@ npm run dev                   # http://localhost:3000
 | Gezegen Platform | **Platform Yöneticisi** (`/admin`) | `platform@gezegen.com` | `platform123` |
 | Gezegen Danışmanlık (800 firma) | Yönetici | `admin@gezegen.com` | `admin123` |
 | Gezegen Danışmanlık | Kullanıcı | `kullanici@gezegen.com` | `user123` |
+| Gezegen Danışmanlık | Salt Okunur | `okuyucu@gezegen.com` | `okuyucu123` |
 | Anadolu Yatırım (120 firma) | Yönetici | `admin@anadolu.com` | `anadolu123` |
 
 İki hesapla ayrı ayrı giriş yapıp listelerin tamamen ayrı olduğunu görebilirsiniz.
@@ -207,8 +208,16 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 - **YatirimDestegi** — firmaya verilen yatırım destekleri (Firma'ya bağlı)
 - **Egitim** — firmaya verilen eğitimler (Firma'ya bağlı)
 - **Hizmet** — firmaya sunulan hizmetler (Firma'ya bağlı)
+- **Kisi** — firmadaki muhataplar; biri birincil kişi olarak işaretlenir (Faz 6)
+- **Asama** — satış hattı aşamaları; **kiracıya özeldir** (Faz 6)
+- **Firsat** — satış hattındaki iş: firma + kişi + aşama + tutar + olasılık (Faz 6)
+- **Grup / KullaniciGrup** — izinleri toplu atama (Faz 4)
+- **DenetimKaydi** — değiştirilemez denetim günlüğü (Faz 4)
+- **Plan / Davet** — abonelik paketi ve kullanıcı daveti (Faz 5)
 
-Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet kayıtları da silinir (cascade).
+Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet/kişi/fırsat kayıtları
+da silinir (cascade). İçinde fırsat olan bir aşama silinemez; bir kişi
+silindiğinde fırsatları silinmez, yalnızca muhatap bağlantısı boşalır.
 
 ## Proje Yapısı
 

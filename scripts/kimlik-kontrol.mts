@@ -238,6 +238,71 @@ async function main() {
     !davetGovde.includes("Gezegen Danışmanlık") && !davetGovde.includes("Anadolu Yatırım")
   );
 
+  // 8 — Satış çekirdeği (Faz 6)
+  console.log("\n8. Satış çekirdeği — kişiler, fırsatlar, kanban");
+
+  const yoneticiKisiler = await sayfaGetir("admin@gezegen.com", "admin123", "/kisiler");
+  kontrol(
+    "Yönetici kişi listesini açabiliyor",
+    !yoneticiKisiler.url.includes("/yetkisiz") && yoneticiKisiler.govde.includes("Kişiler")
+  );
+
+  const yoneticiFirsatlar = await sayfaGetir("admin@gezegen.com", "admin123", "/firsatlar");
+  kontrol(
+    "Yönetici satış hattını açabiliyor",
+    !yoneticiFirsatlar.url.includes("/yetkisiz") && yoneticiFirsatlar.govde.includes("Fırsatlar")
+  );
+  kontrol(
+    "Kanban aşama sütunları görünüyor",
+    yoneticiFirsatlar.govde.includes("Teklif") && yoneticiFirsatlar.govde.includes("Müzakere"),
+    "varsayılan hat: Yeni → İletişim → Teklif → Müzakere → Sonuç"
+  );
+  // NOT: bu etiketler CSS'te `uppercase` ile büyütülür ve `innerText`
+  // dönüştürülmüş metni verir; o yüzden karşılaştırma küçük harfe indirilerek
+  // yapılır.
+  const firsatGovdeKucuk = yoneticiFirsatlar.govde.toLocaleLowerCase("tr");
+  kontrol(
+    "Hat özeti hesaplanıyor",
+    firsatGovdeKucuk.includes("beklenen ciro") && firsatGovdeKucuk.includes("kazanılan")
+  );
+
+  const yoneticiAsama = await sayfaGetir("admin@gezegen.com", "admin123", "/firsatlar/asamalar");
+  kontrol(
+    "Yönetici aşamaları yönetebiliyor",
+    !yoneticiAsama.url.includes("/yetkisiz") && yoneticiAsama.govde.includes("Satış Hattı")
+  );
+
+  // Aşama yönetimi kuruluş çapında bir karardır — üye erişemez.
+  const uyeAsama = await sayfaGetir("kullanici@gezegen.com", "user123", "/firsatlar/asamalar");
+  kontrol(
+    "Üye aşama yönetimine giremiyor",
+    uyeAsama.url.includes("/yetkisiz"),
+    uyeAsama.url
+  );
+
+  const uyeFirsat = await sayfaGetir("kullanici@gezegen.com", "user123", "/firsatlar");
+  kontrol("Üye fırsatları görebiliyor", !uyeFirsat.url.includes("/yetkisiz"));
+  kontrol("Üye menüde 'Aşamalar' düğmesini GÖRMÜYOR", !uyeFirsat.govde.includes("Aşamalar"));
+
+  // Salt okunur kullanıcı yazma düğmelerini görmez.
+  const okuyucuFirsat = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/firsatlar");
+  kontrol("Salt okunur fırsatları görebiliyor", !okuyucuFirsat.url.includes("/yetkisiz"));
+  kontrol(
+    "Salt okunur 'Yeni Fırsat' düğmesini GÖRMÜYOR",
+    !okuyucuFirsat.govde.includes("Yeni Fırsat")
+  );
+
+  // İkinci kiracı yalnızca kendi satış hattını görür.
+  const ikinciFirsat = await sayfaGetir("admin@anadolu.com", "anadolu123", "/firsatlar");
+  kontrol(
+    "İkinci kiracı kendi hattını görüyor",
+    !ikinciFirsat.url.includes("/yetkisiz") && ikinciFirsat.govde.includes("Fırsatlar")
+  );
+  kontrol(
+    "İkinci kiracı diğerinin firmasını fırsatlarda görmüyor",
+    !ikinciFirsat.govde.includes("Gezegen Danışmanlık")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);
