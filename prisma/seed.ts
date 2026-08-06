@@ -357,12 +357,46 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
     kalemSayisi += kalemler.length;
   }
 
+  // ── Faz 8: örnek iş akışı kuralları ─────────────────────────────────────
+  // Kurallar zamanlanmış çalışır; burada yalnızca TANIMLANIR ki otomasyon
+  // ekranı boş açılmasın ve "şimdi çalıştır" denenebilsin.
+  const kurallar = [
+    {
+      ad: "Bekleyen fırsatları hatırlat",
+      aciklama: "7 gündür hareketsiz açık fırsatların sorumlusuna bildirim gönderir.",
+      tetikleyici: "firsat.beklemede",
+      kosullar: { gun: 7 },
+      eylemler: [{ tur: "bildirim", baslik: "{kayit} 7 gündür hareketsiz" }],
+    },
+    {
+      ad: "Yaklaşan görevleri bildir",
+      aciklama: "Son tarihine 2 gün kalan görevler için bildirim gönderir.",
+      tetikleyici: "gorev.yaklasti",
+      kosullar: { gun: 2 },
+      eylemler: [{ tur: "bildirim", baslik: "Görev yaklaşıyor: {kayit}" }],
+    },
+    {
+      ad: "Süresi dolan teklifleri takip et",
+      aciklama: "Geçerliliğine 3 gün kalan tekliflerde takip görevi açar.",
+      tetikleyici: "teklif.suresiDoluyor",
+      kosullar: { gun: 3 },
+      eylemler: [
+        { tur: "bildirim", baslik: "{kayit} geçerliliği doluyor" },
+        { tur: "gorev", baslik: "Teklifi takip et: {kayit}", gun: 1 },
+      ],
+    },
+  ];
+  for (const k of kurallar) {
+    const mevcut = await prisma.isAkisi.findFirst({ where: { tenantId, ad: k.ad } });
+    if (!mevcut) await prisma.isAkisi.create({ data: { tenantId, ...k } as never });
+  }
+
   console.log(
     `✅ ${etiket}: ${firmaSayisi} firma, ${yatirimlar.length} yatırım, ` +
       `${egitimler.length} eğitim, ${hizmetler.length} hizmet, ` +
       `${kisiler.length} kişi, ${firsatlar.length} fırsat, ` +
       `${aktiviteler.length} aktivite, ${leadler.length} aday, ` +
-      `${teklifSayisi} teklif (${kalemSayisi} kalem).`
+      `${teklifSayisi} teklif (${kalemSayisi} kalem), ${kurallar.length} iş akışı.`
   );
 }
 
@@ -390,7 +424,7 @@ async function paketleriKur() {
       firmaLimiti: 25,
       // Bilinçli olarak dar: paket kısıtının gerçekten çalıştığı bir hesapla
       // denenebilsin diye "firsat" ve "hizmet" burada kapalıdır.
-      moduller: ["firma", "egitim", "kisi", "aktivite", "rapor"],
+      moduller: ["firma", "egitim", "kisi", "aktivite", "takvim", "rapor"],
     },
     {
       ad: "Profesyonel",
@@ -399,7 +433,7 @@ async function paketleriKur() {
       firmaLimiti: 500,
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
-        "aktivite", "lead", "teklif", "rapor",
+        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor",
       ],
     },
     {
@@ -409,7 +443,7 @@ async function paketleriKur() {
       firmaLimiti: 0,
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
-        "aktivite", "lead", "teklif", "rapor",
+        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor",
       ],
     },
   ];

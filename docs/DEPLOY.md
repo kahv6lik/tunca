@@ -381,6 +381,64 @@ docker exec -it gezegen-crm-app npx tsx scripts/demo-hesap.ts
 Demo yönetici hesabını (`admin@gezegen.com` / `admin123`, tam yetkili) veriye
 dokunmadan geri getirir.
 
+### Zamanlanmış işler (Faz 8) — ZORUNLU
+
+Faz 8'den itibaren üç iş **dışarıdan tetiklenir**: iş akışı kuralları, e-posta
+kuyruğunun gönderimi ve IMAP gelen kutusu taraması. Next.js'in kendi
+zamanlayıcısı yoktur, bu yüzden sunucudaki cron çağırır.
+
+**1. Anahtarı tanımlayın** (`deploy.env` içine, uygulama ile aynı dosyaya):
+
+```bash
+GOREV_ANAHTARI=$(openssl rand -hex 32)     # çıktıyı deploy.env'e yazın
+UYGULAMA_ADRESI=https://crm.screenbite.com.tr
+```
+
+`GOREV_ANAHTARI` **tanımlı değilse uç nokta tamamen kapalıdır** (401 döner).
+Bu bilinçli: "tanımsızsa serbest" davranışı, herkesin tetikleyebildiği bir
+uç nokta bırakırdı. `UYGULAMA_ADRESI` bildirim e-postalarındaki bağlantılarda
+kullanılır.
+
+**2. Konteyneri yeniden başlatın** ki değişkenler okunsun.
+
+**3. Cron kaydını açın** (sunucuda, `crontab -e`):
+
+```cron
+*/10 * * * * curl -fsS -m 300 -H "X-Gorev-Anahtari: BURAYA_ANAHTAR" https://crm.screenbite.com.tr/api/gorevler >/dev/null 2>&1
+```
+
+10 dakikalık aralık makul bir başlangıçtır: bildirimler yeterince hızlı gider,
+posta sunucusu da gereksiz yere meşgul edilmez.
+
+**4. Elle deneyin:**
+
+```bash
+curl -s -H "X-Gorev-Anahtari: BURAYA_ANAHTAR" \
+  https://crm.screenbite.com.tr/api/gorevler | head -c 400
+```
+
+Beklenen yanıt (yalnızca sayılar döner, müşteri verisi sızmaz):
+
+```json
+{"ok":true,"sureMs":812,"kiraci":2,"kural":3,"islenen":5,
+ "eposta":{"gonderilen":0,"hatali":0},"senkron":{"okunan":0,"eslesen":0},"hata":[]}
+```
+
+Anahtarsız çağrıda `401 {"hata":"Yetkisiz"}` gelmelidir — gelmiyorsa
+`GOREV_ANAHTARI` konteynere ulaşmamış demektir.
+
+### E-posta ayarları (Faz 8)
+
+SMTP bilgileri **uygulama içinden**, kuruluş bazında girilir:
+**Otomasyon → E-posta Ayarları**. Sunucuda ortam değişkeni tanımlamanıza gerek
+yoktur; her müşteri kendi posta sunucusundan gönderir.
+
+> **DİKKAT — `AUTH_SECRET` değiştirmeyin.** Posta parolaları AES-256-GCM ile
+> şifreli saklanır ve anahtar `AUTH_SECRET`'tan türetilir. Bu değeri
+> değiştirirseniz kayıtlı posta parolaları **çözülemez** hâle gelir. Uygulama
+> çökmez; ilgili kuruluşların ayar ekranından parolayı yeniden girmesi gerekir.
+> (Aynı değişiklik zaten tüm oturumları da düşürür.)
+
 ### Admin panele ilk giriş (Faz 5)
 
 `/admin` altındaki platform yönetimine yalnızca `platform_admin` rolündeki bir

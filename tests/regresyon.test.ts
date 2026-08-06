@@ -35,6 +35,7 @@ const IZINLI = [
   "src/lib/kiraci-ayar.ts", // kiracının kendi ayarları — kiraciIstemcisi kullanır
   "src/lib/platform-db.ts", // Faz 5: admin panel, yönetim bağlamı (tek kapı)
   "src/lib/davet-db.ts", // Faz 5: davet akışı, oturum öncesi (tek kapı)
+  "src/lib/zamanlanmis.ts", // Faz 8: zamanlanmış işler, oturumsuz (tek kapı)
 ];
 
 /**
@@ -46,6 +47,9 @@ const YONETIM_BAGLAMI_IZINLI = [
   "src/lib/rls.ts", // bağlamı tanımlayan dosya
   "src/lib/platform-db.ts",
   "src/lib/davet-db.ts",
+  // Faz 8: zamanlanmış işleri çalıştıran bir oturum yoktur; kiracı LİSTESİ
+  // yönetim bağlamıyla okunur, her kiracının işi kendi bağlamında yapılır.
+  "src/lib/zamanlanmis.ts",
 ];
 
 describe("Veri erişimi kiracı katmanından geçiyor", () => {
@@ -138,6 +142,27 @@ describe("Platform katmanı kiracı sınırını dar bir kapıdan aşıyor (Faz 
     const icerik = readFileSync("src/lib/yetki.ts", "utf8");
     expect(icerik).toContain("kapaliModulIzinleri");
     expect(icerik).toContain("modulKapaliMi");
+  });
+
+  it("zamanlanmış iş kapısı kiracı bağlamına iniyor (Faz 8)", () => {
+    const icerik = readFileSync("src/lib/zamanlanmis.ts", "utf8");
+    // Yönetim bağlamı YALNIZCA kiracı listesini okumak için kullanılmalı;
+    // asıl iş her kiracının kendi bağlamında (`tenantClient`) yapılmalı.
+    expect(icerik).toContain("tenantClient");
+    expect(icerik).toMatch(/yonetim\.tenant\.findMany/);
+    // Yönetim bağlamıyla iş verisine dokunulmamalı.
+    expect(icerik).not.toMatch(/yonetim\.(firma|firsat|aktivite|teklif|lead)\b/);
+  });
+
+  it("zamanlanmış iş uç noktası paylaşımlı gizle korunuyor (Faz 8)", () => {
+    const rota = readFileSync("src/app/api/gorevler/route.ts", "utf8");
+    expect(rota).toContain("anahtarGecerliMi");
+    expect(rota).toContain("401");
+
+    const kapi = readFileSync("src/lib/zamanlanmis.ts", "utf8");
+    // Anahtar tanımlı değilse uç nokta KAPALI olmalı; "tanımsızsa serbest"
+    // davranışı üretimde herkese açık bir tetikleyici bırakırdı.
+    expect(kapi).toMatch(/if \(!beklenen\) return false/);
   });
 
   it("davet sayfası ve action'ı yalnızca davet katmanını kullanıyor", () => {

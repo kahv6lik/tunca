@@ -70,6 +70,15 @@ export const IZIN = {
   teklifDuzenle: "teklif.duzenle",
   teklifSil: "teklif.sil",
 
+  // Faz 8 — otomasyon ve iletişim
+  // Bildirimler kişiseldir: herkes kendi bildirimini görür, ayrı izin yok.
+  takvimGoruntule: "takvim.goruntule",
+
+  otomasyonGoruntule: "otomasyon.goruntule",
+  otomasyonYonet: "otomasyon.yonet",
+  // E-posta ayarı kuruluşun posta kutusu bilgileridir; yönetim işidir.
+  epostaAyarYonet: "otomasyon.eposta",
+
   raporGoruntule: "rapor.goruntule",
 
   kullaniciYonet: "kullanici.yonet",
@@ -124,6 +133,10 @@ export const IZIN_ETIKET: Record<string, string> = {
   "teklif.olustur": "Teklif oluştur",
   "teklif.duzenle": "Teklif düzenle",
   "teklif.sil": "Teklif sil",
+  "takvim.goruntule": "Takvimi görüntüle",
+  "otomasyon.goruntule": "İş akışlarını görüntüle",
+  "otomasyon.yonet": "İş akışlarını yönet",
+  "otomasyon.eposta": "E-posta ayarlarını yönet",
   "rapor.goruntule": "Raporları görüntüle",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
@@ -142,6 +155,8 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Aktiviteler", izinler: [IZIN.aktiviteGoruntule, IZIN.aktiviteOlustur, IZIN.aktiviteDuzenle, IZIN.aktiviteSil] },
   { ad: "Adaylar (Lead)", izinler: [IZIN.leadGoruntule, IZIN.leadOlustur, IZIN.leadDuzenle, IZIN.leadSil, IZIN.leadDonustur] },
   { ad: "Teklifler", izinler: [IZIN.teklifGoruntule, IZIN.teklifOlustur, IZIN.teklifDuzenle, IZIN.teklifSil] },
+  { ad: "Takvim", izinler: [IZIN.takvimGoruntule] },
+  { ad: "Otomasyon", izinler: [IZIN.otomasyonGoruntule, IZIN.otomasyonYonet, IZIN.epostaAyarYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule] },
 ];
@@ -173,6 +188,7 @@ const GORUNTULEME: Izin[] = [
   IZIN.aktiviteGoruntule,
   IZIN.leadGoruntule,
   IZIN.teklifGoruntule,
+  IZIN.takvimGoruntule,
   IZIN.raporGoruntule,
 ];
 
@@ -206,6 +222,11 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     // Satış hattının biçimi kuruluş çapında bir karardır; her üye
     // değiştirebilseydi herkesin kanban'ı altından kayardı.
     IZIN.asamaYonet,
+    // Otomasyon kuralları ve posta kutusu ayarları da aynı gerekçeyle
+    // kuruluş yöneticisine aittir: bir kural bütün ekibe e-posta yollar.
+    IZIN.otomasyonGoruntule,
+    IZIN.otomasyonYonet,
+    IZIN.epostaAyarYonet,
     IZIN.kullaniciYonet,
     IZIN.grupYonet,
     IZIN.denetimGoruntule,

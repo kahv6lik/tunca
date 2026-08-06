@@ -27,7 +27,9 @@ export type DenetimVarligi =
   | "Firsat"
   | "Aktivite"
   | "Lead"
-  | "Teklif";
+  | "Teklif"
+  | "IsAkisi"
+  | "EpostaAyari";
 
 export const VARLIK_ETIKET: Record<string, string> = {
   Firma: "Firma",
@@ -42,6 +44,8 @@ export const VARLIK_ETIKET: Record<string, string> = {
   Aktivite: "Aktivite",
   Lead: "Aday",
   Teklif: "Teklif",
+  IsAkisi: "İş Akışı",
+  EpostaAyari: "E-posta Ayarı",
 };
 
 export const ISLEM_ETIKET: Record<string, { label: string; className: string }> = {

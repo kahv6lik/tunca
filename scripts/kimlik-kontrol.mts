@@ -392,6 +392,78 @@ async function main() {
     !ikinciTeklif.govde.includes("Gezegen Danışmanlık")
   );
 
+  // 10 — Otomasyon ve iletişim (Faz 8)
+  console.log("\n10. Otomasyon ve iletişim — bildirim, takvim, iş akışı");
+
+  const yoneticiBildirim = await sayfaGetir("admin@gezegen.com", "admin123", "/bildirimler");
+  kontrol(
+    "Bildirim merkezi açılıyor",
+    !yoneticiBildirim.url.includes("/yetkisiz") && yoneticiBildirim.govde.includes("Bildirimler")
+  );
+
+  const tercihler = await sayfaGetir("admin@gezegen.com", "admin123", "/bildirimler/tercihler");
+  kontrol(
+    "Bildirim tercihleri açılıyor",
+    !tercihler.url.includes("/yetkisiz") &&
+      tercihler.govde.toLocaleLowerCase("tr").includes("uygulama içi")
+  );
+
+  const takvim = await sayfaGetir("admin@gezegen.com", "admin123", "/takvim");
+  kontrol("Takvim açılıyor", !takvim.url.includes("/yetkisiz") && takvim.govde.includes("Takvim"));
+  // NOT: gün başlıkları CSS'te `uppercase` ile büyütülür ve `innerText`
+  // dönüştürülmüş metni verir; karşılaştırma büyük harfe çevrilerek yapılır.
+  const takvimGovdeBuyuk = takvim.govde.toLocaleUpperCase("tr");
+  kontrol(
+    "Takvim ızgarası gün başlıklarıyla çiziliyor",
+    takvimGovdeBuyuk.includes("PZT") && takvimGovdeBuyuk.includes("PAZ")
+  );
+
+  const otomasyon = await sayfaGetir("admin@gezegen.com", "admin123", "/otomasyon");
+  kontrol(
+    "Yönetici otomasyon ekranını açabiliyor",
+    !otomasyon.url.includes("/yetkisiz") && otomasyon.govde.includes("Otomasyon")
+  );
+  kontrol(
+    "Seed'deki örnek kurallar görünüyor",
+    otomasyon.govde.includes("Bekleyen fırsatları hatırlat")
+  );
+
+  const epostaAyar = await sayfaGetir("admin@gezegen.com", "admin123", "/otomasyon/eposta");
+  kontrol(
+    "E-posta ayar ekranı açılıyor",
+    !epostaAyar.url.includes("/yetkisiz") && epostaAyar.govde.includes("SMTP")
+  );
+  kontrol(
+    "Parolaların şifreli saklandığı ekranda yazıyor",
+    epostaAyar.govde.includes("şifreli saklanır")
+  );
+
+  // Otomasyon kuruluş çapında bir karardır — üye erişemez.
+  const uyeOtomasyon = await sayfaGetir("kullanici@gezegen.com", "user123", "/otomasyon");
+  kontrol(
+    "Üye otomasyon ekranına giremiyor",
+    uyeOtomasyon.url.includes("/yetkisiz"),
+    uyeOtomasyon.url
+  );
+  const uyeEposta = await sayfaGetir("kullanici@gezegen.com", "user123", "/otomasyon/eposta");
+  kontrol(
+    "Üye e-posta ayarlarına giremiyor",
+    uyeEposta.url.includes("/yetkisiz"),
+    uyeEposta.url
+  );
+
+  // Salt okunur kullanıcı takvimi görür (izleme yetkisi herkeste).
+  const okuyucuTakvim = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/takvim");
+  kontrol("Salt okunur takvimi görebiliyor", !okuyucuTakvim.url.includes("/yetkisiz"));
+
+  // Zamanlanmış iş uç noktası anahtarsız çalışmamalı.
+  const gorevYanit = await fetch(`${BASE}/api/gorevler`);
+  kontrol(
+    "Zamanlanmış iş uç noktası anahtarsız reddediyor",
+    gorevYanit.status === 401,
+    `HTTP ${gorevYanit.status}`
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

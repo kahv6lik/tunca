@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.7.0` — Faz 7 tamamlandı |
-| **Sıradaki faz** | **Faz 8** — Bildirim, iş akışı otomasyonu, e-posta, takvim (`v1.8.0`) |
+| **Son çıkan sürüm** | `v1.8.0` — Faz 8 tamamlandı |
+| **Sıradaki faz** | **Faz 9** — Excel/CSV dışa-içe aktarım, PDF (`v1.9.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**203 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**235 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (113 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (133 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -141,7 +141,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | ✅ tamamlandı | — |
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | ✅ tamamlandı | — |
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | ✅ tamamlandı | — |
-| 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı | |
+| 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | ✅ tamamlandı | — |
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | planlandı | |
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | planlandı | |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı | |
@@ -368,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **203 kontrol** ile geçiyor (113 birim test dahil).
+- `npm run dogrula` toplam **235 kontrol** ile geçiyor (133 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -517,13 +517,61 @@ paketi kapalı bir modülün verisi akış üzerinden sızmamalıdır.
 
 ---
 
-## Faz 8 — Otomasyon ve İletişim (D1–D5) → `v1.8.0`
+## Faz 8 — Otomasyon ve İletişim (D1–D5) → `v1.8.0` ✅
 
-- [ ] **D1 — E-posta bildirimleri:** SMTP yapılandırması, şablonlar, kullanıcı bazlı tercih.
-- [ ] **D2 — İş akışı otomasyonu:** tetikleyici (durum değişti / tarih yaklaştı) → eylem (görev aç, e-posta gönder, alan güncelle); kiracı bazlı kural tanımı.
-- [ ] **D3 — E-posta entegrasyonu:** IMAP/Gmail/Outlook ile iki yönlü senkron; yazışmanın ilgili kayda düşmesi.
-- [ ] **D4 — Takvim:** aylık/haftalık görünüm, hatırlatma, `.ics` dışa aktarım.
-- [ ] **D5 — Bildirim merkezi:** uygulama içi bildirim listesi, okundu işaretleme.
+- [x] **D1 — E-posta bildirimleri:** kiracı bazlı SMTP yapılandırması (parolalar şifreli), gönderim kuyruğu, kullanıcı bazlı kanal tercihi.
+- [x] **D2 — İş akışı otomasyonu:** tetikleyici → eylem kuralları, kiracı bazlı tanım, zamanlanmış çalıştırma, çalışma günlüğü.
+- [x] **D3 — E-posta entegrasyonu:** IMAP ile gelen kutusu taraması; gönderen adresi kişiyle eşleşen iletiler firmanın zaman akışına düşer.
+- [x] **D4 — Takvim:** aylık ızgara görünümü, kişisel/ekip süzgeci, `.ics` dışa aktarım.
+- [x] **D5 — Bildirim merkezi:** uygulama içi bildirim listesi, okundu işaretleme, üst çubukta okunmamış rozeti.
+
+### Nasıl kuruldu
+
+**Kurallar zamanlanmış çalışır, olay anında değil.** Buradaki tetikleyicilerin
+çoğu bir olay değil, zamanın geçmesiyle oluşan bir DURUMDUR: "3 gündür
+hareketsiz fırsat", "son tarihi yaklaşan görev", "geçerliliği dolan teklif".
+Bunlar kimsenin bir düğmeye basmasıyla oluşmaz; olay anında çalışan bir kural
+bunları asla yakalayamazdı. Çalıştırma `/api/gorevler` uç noktasından yapılır
+ve **aynı kayıt için aynı uyarı iki kez gönderilmez**.
+
+**Üçüncü dar kapı.** Faz 5'te iki bilinçli istisna vardı (admin panel, davet
+kabulü); zamanlanmış işler üçüncüsüdür, çünkü çalıştıran bir OTURUM yoktur.
+Kapsam dar tutuldu: yönetim bağlamı yalnızca **kiracı listesini** okur, her
+kiracının işi kendi bağlamında yapılır. Regresyon testi bunu ayrıca denetler —
+`zamanlanmis.ts` içinde yönetim bağlamıyla iş verisine dokunulamaz.
+
+**Uç nokta anahtar tanımsızsa KAPALIDIR.** "Tanımsızsa serbest" davranışı
+üretimde yanlışlıkla herkese açık bir tetikleyici bırakırdı. Anahtar başlıkta
+taşınır, sorgu dizesinde değil — sorgu dizesi erişim günlüklerine düz metin
+yazılır.
+
+**Posta parolaları şifreli saklanır** (AES-256-GCM, `src/lib/sifreleme.ts`).
+Veritabanı yedeğini eline geçiren biri müşterinin posta kutusuna erişememeli.
+Anahtar `AUTH_SECRET`'tan türetilir; bunun sonucu `docs/DEPLOY.md` içinde de
+yazılıdır: **AUTH_SECRET değişirse kayıtlı posta parolaları çözülemez** (uygulama
+çökmez, ayar "yeniden girin" durumuna düşer).
+
+**Gönderim kuyruktan yapılır.** Bildirim yazılır, çalıştırıcı gönderir. Posta
+sunucusu yavaşsa kullanıcının işlemi beklemez; başarısız gönderim üç kez
+denenir ve her denemenin izi kalır.
+
+**İletinin gövdesi saklanmaz.** IMAP senkronu yalnızca kim, ne zaman, hangi
+konu bilgisini tutar. Amaç posta istemcisi olmak değil, yazışmanın CRM'de izini
+bırakmak; müşteri yazışmasının tamamını kopyalamak gereksiz bir yük olurdu.
+
+**Takvimin kendi kaydı yoktur.** Gösterilen her şey zaten var olan kayıtların
+tarihli hâlidir. Ayrı bir "etkinlik" tablosu, aynı bilginin iki yerde tutulması
+demek olurdu. `.ics` dışa aktarımı oturum gerektirir — token'lı herkese açık
+akış bilinçli olarak yapılmadı, çünkü sızan bir bağlantı müşteri verisini
+kimlik doğrulaması olmadan okunabilir kılardı.
+
+### Kabul kriterleri
+- [x] Yedi yeni tablo da RLS ile korunuyor; şemadan türeyen regresyon testi doğruluyor.
+- [x] Posta parolası veritabanında açık durmuyor; kurcalanan şifreli metin çözülmüyor (GCM bütünlük).
+- [x] Bir kiracı diğerinin bildirimini, e-posta kuyruğunu ya da iş akışı kuralını göremiyor.
+- [x] Zamanlanmış iş uç noktası anahtarsız istekte 401 döndürüyor.
+- [x] Üye otomasyon ve e-posta ayarlarına URL yazarak da giremiyor.
+- [x] SMTP tanımlı değilken sistem sessizce yalnızca uygulama içi bildirime düşüyor.
 
 ---
 

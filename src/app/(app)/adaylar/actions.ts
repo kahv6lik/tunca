@@ -15,6 +15,7 @@ import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { LEAD_DURUM } from "@/lib/constants";
 import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
+import { bildirimGonder } from "@/lib/bildirim";
 
 /**
  * Aday (Lead) işlemleri — Faz 7 / C5.
@@ -70,7 +71,7 @@ export async function leadOlustur(
 ): Promise<FormState> {
   if (!(await yetkiVarMi(IZIN.leadOlustur))) return { error: YETKISIZ };
 
-  const { db } = await getTenantContext();
+  const { db, session } = await getTenantContext();
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
@@ -78,6 +79,16 @@ export async function leadOlustur(
 
   const veri = veriHazirla(parsed.data);
   const kayit = await tenantOlustur(db, "lead", veri);
+
+  if (veri.atananId && veri.atananId !== session.userId) {
+    await bildirimGonder(db, {
+      kullaniciId: veri.atananId,
+      tur: "lead.atandi",
+      baslik: `Size bir aday atandı: ${veri.ad}`,
+      mesaj: veri.firmaAd ?? undefined,
+      link: "/adaylar",
+    });
+  }
 
   await denetimYaz({
     islem: "olustur",

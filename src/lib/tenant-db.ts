@@ -41,6 +41,13 @@ const KIRACI_MODELLERI = new Set([
   "Lead",
   "Teklif",
   "TeklifKalemi",
+  "Bildirim",
+  "BildirimTercihi",
+  "EpostaAyari",
+  "EpostaKuyrugu",
+  "EpostaKaydi",
+  "IsAkisi",
+  "IsAkisiCalismasi",
 ]);
 
 // where filtresi eklenerek güvene alınabilen işlemler
@@ -153,7 +160,14 @@ export type KiraciModeli =
   | "aktivite"
   | "lead"
   | "teklif"
-  | "teklifKalemi";
+  | "teklifKalemi"
+  | "bildirim"
+  | "bildirimTercihi"
+  | "epostaAyari"
+  | "epostaKuyrugu"
+  | "epostaKaydi"
+  | "isAkisi"
+  | "isAkisiCalismasi";
 
 export async function sahiplikDogrula(
   db: TenantClient,

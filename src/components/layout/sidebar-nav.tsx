@@ -14,6 +14,8 @@ import {
   UserPlus,
   CheckSquare,
   FileText,
+  CalendarDays,
+  Zap,
   BarChart3,
   Users,
   ScrollText,
@@ -39,7 +41,9 @@ export const NAV: NavItem[] = [
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },
   { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },
+  { href: "/takvim", label: "Takvim", icon: CalendarDays, izin: "takvim.goruntule" },
   { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
+  { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule" },
   { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
 ];

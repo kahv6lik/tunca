@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ShieldCheck } from "lucide-react";
+import { Search, ShieldCheck, Bell } from "lucide-react";
 import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
@@ -14,6 +14,7 @@ export function Topbar({
   izinler,
   logout,
   platformAdmin = false,
+  okunmamisBildirim = 0,
 }: {
   name: string;
   email: string;
@@ -22,6 +23,7 @@ export function Topbar({
   izinler: string[];
   logout: () => Promise<void>;
   platformAdmin?: boolean;
+  okunmamisBildirim?: number;
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl md:px-6">
@@ -47,6 +49,24 @@ export function Topbar({
             <span className="hidden sm:inline">Platform</span>
           </Link>
         )}
+
+        {/* Bildirim zili (Faz 8 / D5) */}
+        <Link
+          href="/bildirimler"
+          title={
+            okunmamisBildirim > 0
+              ? `${okunmamisBildirim} okunmamış bildirim`
+              : "Bildirimler"
+          }
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+          {okunmamisBildirim > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+              {okunmamisBildirim > 9 ? "9+" : okunmamisBildirim}
+            </span>
+          )}
+        </Link>
 
         {/* Aktif kiracı — kullanıcı hangi kuruluşun verisine baktığını her an görür */}
         <span

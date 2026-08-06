@@ -44,22 +44,29 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  kullanicilar    User[]
-  firmalar        Firma[]
-  yatirimlar      YatirimDestegi[]
-  egitimler       Egitim[]
-  hizmetler       Hizmet[]
-  gruplar         Grup[]
-  uyelikler       KullaniciGrup[]
-  denetim         DenetimKaydi[]
-  davetler        Davet[]
-  kisiler         Kisi[]
-  asamalar        Asama[]
-  firsatlar       Firsat[]
-  aktiviteler     Aktivite[]
-  leadler         Lead[]
-  teklifler       Teklif[]
-  teklifKalemleri TeklifKalemi[]
+  kullanicilar     User[]
+  firmalar         Firma[]
+  yatirimlar       YatirimDestegi[]
+  egitimler        Egitim[]
+  hizmetler        Hizmet[]
+  gruplar          Grup[]
+  uyelikler        KullaniciGrup[]
+  denetim          DenetimKaydi[]
+  davetler         Davet[]
+  kisiler          Kisi[]
+  asamalar         Asama[]
+  firsatlar        Firsat[]
+  aktiviteler      Aktivite[]
+  leadler          Lead[]
+  teklifler        Teklif[]
+  teklifKalemleri  TeklifKalemi[]
+  Bildirim         Bildirim[]
+  BildirimTercihi  BildirimTercihi[]
+  EpostaAyari      EpostaAyari[]
+  EpostaKuyrugu    EpostaKuyrugu[]
+  EpostaKaydi      EpostaKaydi[]
+  IsAkisi          IsAkisi[]
+  IsAkisiCalismasi IsAkisiCalismasi[]
 
   @@index([durum])
 }
@@ -507,4 +514,178 @@ model TeklifKalemi {
   tutar      Float  @default(0) // miktar × birimFiyat (hesaplanır, saklanır)
 
   @@index([tenantId, teklifId])
+}
+
+// ── Faz 8: Bildirim, otomasyon, e-posta, takvim ────────────────────────────
+
+// Uygulama içi bildirim (D5).
+//
+// E-postadan AYRI tutulur: e-posta gönderilemese bile (SMTP tanımsız, sunucu
+// erişilemez) kullanıcı olan biteni panelde görebilmelidir.
+model Bildirim {
+  id          String @id @default(cuid())
+  tenantId    String
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kullaniciId String // bildirimin sahibi
+
+  tur    String // gorev.atandi | gorev.yaklasti | firsat.asama | teklif.durum | ...
+  baslik String
+  mesaj  String?
+  link   String? // tıklanınca gidilecek yol
+
+  okundu    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, kullaniciId, okundu])
+  @@index([tenantId, createdAt])
+}
+
+// Kullanıcı bildirim tercihi (D1).
+//
+// Kayıt YOKSA varsayılan geçerlidir (uygulama içi açık, e-posta açık); yani
+// tercih tablosu yalnızca "varsayılandan sapma"yı tutar. Yeni bir bildirim
+// türü eklendiğinde herkes için satır açmak gerekmez.
+model BildirimTercihi {
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kullaniciId String
+  tur         String // bildirim türü anahtarı
+  uygulama    Boolean @default(true)
+  eposta      Boolean @default(true)
+
+  @@id([kullaniciId, tur])
+  @@index([tenantId, kullaniciId])
+}
+
+// Kiracının e-posta ayarları (D1 gönderim, D3 gelen kutusu).
+//
+// Parolalar AES-256-GCM ile şifreli saklanır (`src/lib/sifreleme.ts`);
+// veritabanını okuyan biri müşterinin posta kutusuna erişememelidir.
+model EpostaAyari {
+  tenantId String @id
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Giden (SMTP)
+  smtpHost      String?
+  smtpPort      Int     @default(587)
+  smtpGuvenli   Boolean @default(false) // true = 465/SSL, false = STARTTLS
+  smtpKullanici String?
+  smtpParola    String? // şifreli
+  gonderenAd    String?
+  gonderenAdres String?
+
+  // Gelen (IMAP)
+  imapHost      String?
+  imapPort      Int       @default(993)
+  imapKullanici String?
+  imapParola    String? // şifreli
+  imapKlasor    String    @default("INBOX")
+  sonSenkron    DateTime?
+  sonHata       String?
+
+  aktif     Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// Giden e-posta kuyruğu ve kaydı (D1).
+//
+// Gönderim ANINDA denenmez: kayıt yazılır, zamanlanmış çalıştırıcı gönderir.
+// Böylece SMTP yavaş ya da erişilemez olduğunda kullanıcının işlemi
+// beklemez ve başarısız gönderim yeniden denenebilir.
+model EpostaKuyrugu {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  alici String
+  konu  String
+  govde String
+  tur   String? // hangi bildirim türünden doğdu
+
+  durum          String    @default("bekliyor") // bekliyor | gonderildi | hata
+  denemeSayisi   Int       @default(0)
+  hata           String?
+  gonderimZamani DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([tenantId, durum])
+  @@index([tenantId, createdAt])
+}
+
+// Senkronize edilen gelen e-posta (D3).
+//
+// Mesajın kendisi değil, ÖZETİ saklanır: kim, ne zaman, hangi konu. Gövde
+// yalnızca ilgili kayda düşen aktivitede özet olarak durur. Amaç posta
+// istemcisi olmak değil, yazışmanın CRM'de izini bırakmak.
+model EpostaKaydi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  mesajId  String // IMAP Message-ID — aynı posta iki kez işlenmesin
+  yon      String   @default("gelen") // gelen | giden
+  gonderen String
+  alici    String
+  konu     String
+  ozet     String?
+  tarih    DateTime
+
+  // Eşleşme (bulunabildiyse)
+  firmaId String?
+  kisiId  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, mesajId])
+  @@index([tenantId, tarih])
+  @@index([tenantId, firmaId])
+}
+
+// İş akışı kuralı (D2).
+//
+// "Tetikleyici olduğunda şu eylemleri yap." Kural KİRACIYA ÖZELDİR.
+// Koşullar ve eylemler JSON olarak saklanır; her kural tipi için ayrı sütun
+// açmak, yeni tetikleyici eklendiğinde şema değişikliği gerektirirdi.
+model IsAkisi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  ad       String
+  aciklama String?
+  aktif    Boolean @default(true)
+
+  tetikleyici String // firsat.asamaDegisti | gorev.yaklasti | teklif.durumDegisti | firsat.beklemede
+  kosullar    Json? // { asamaId, gunSayisi, durum, ... }
+  eylemler    Json // [{ tur: "bildirim"|"eposta"|"gorev", ... }]
+
+  sonCalisma    DateTime?
+  calismaSayisi Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  calismalar IsAkisiCalismasi[]
+
+  @@unique([tenantId, ad])
+  @@index([tenantId, aktif])
+}
+
+// İş akışı çalışma kaydı (D2) — neyin neden tetiklendiğinin izi.
+model IsAkisiCalismasi {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  isAkisiId String
+  isAkisi   IsAkisi @relation(fields: [isAkisiId], references: [id], onDelete: Cascade)
+
+  hedefTur  String? // Firsat | Aktivite | Teklif
+  hedefId   String?
+  sonuc     String // basarili | hata
+  ozet      String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, isAkisiId, createdAt])
 }

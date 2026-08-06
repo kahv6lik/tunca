@@ -15,6 +15,7 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { AKTIVITE_TUR_DEGERLERI } from "@/lib/constants";
+import { bildirimGonder } from "@/lib/bildirim";
 
 /**
  * Aktivite ve görev işlemleri — Faz 7 / C4.
@@ -126,6 +127,20 @@ export async function aktiviteOlustur(
     yeni: veri,
   });
 
+  // Görev BAŞKASINA atandıysa haber ver (Faz 8 / D1). Kendine atadığın işi
+  // sana bildirmek gürültüden başka bir şey olmaz.
+  if (veri.atananId && veri.atananId !== session.userId) {
+    await bildirimGonder(db, {
+      kullaniciId: veri.atananId,
+      tur: "gorev.atandi",
+      baslik: `Size bir görev atandı: ${veri.baslik}`,
+      mesaj: veri.sonTarih
+        ? `Son tarih: ${veri.sonTarih.toLocaleDateString("tr-TR")}`
+        : undefined,
+      link: "/aktiviteler",
+    });
+  }
+
   revalidate(veri.firmaId);
   return { ok: true };
 }
@@ -137,7 +152,7 @@ export async function aktiviteGuncelle(
 ): Promise<FormState> {
   if (!(await yetkiVarMi(IZIN.aktiviteDuzenle))) return { error: YETKISIZ };
 
-  const { db } = await getTenantContext();
+  const { db, session } = await getTenantContext();
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
@@ -147,6 +162,16 @@ export async function aktiviteGuncelle(
   const veri = veriHazirla(parsed.data);
   const oncesi = await kayitOku(db, "aktivite", id);
   await tenantGuncelle(db, "aktivite", id, veri);
+
+  // Atama DEĞİŞTİYSE yeni sorumluya haber ver.
+  if (veri.atananId && veri.atananId !== oncesi?.atananId && veri.atananId !== session.userId) {
+    await bildirimGonder(db, {
+      kullaniciId: veri.atananId,
+      tur: "gorev.atandi",
+      baslik: `Size bir görev atandı: ${veri.baslik}`,
+      link: "/aktiviteler",
+    });
+  }
 
   await denetimYaz({
     islem: "guncelle",

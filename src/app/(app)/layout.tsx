@@ -4,6 +4,7 @@ import { ImpersonationBandi } from "@/components/layout/impersonation-bandi";
 import { requireSession } from "@/lib/auth";
 import { etkinIzinler, rolNormalize, ROL_ETIKET } from "@/lib/yetki";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
+import { getTenantDb } from "@/lib/tenant-db";
 import { hexToHslDegerleri } from "@/lib/utils";
 import { logoutAction } from "./actions";
 
@@ -22,6 +23,12 @@ export default async function AppLayout({
   // renk değeri yok sayılır ve varsayılan tema korunur.
   const ayar = await kiraciAyari();
   const marka = ayar.anaRenk ? hexToHslDegerleri(ayar.anaRenk) : null;
+
+  // Okunmamış bildirim sayısı (Faz 8 / D5) — üst çubuktaki zil rozeti.
+  const db = await getTenantDb();
+  const okunmamisBildirim = await db.bildirim.count({
+    where: { kullaniciId: session.userId, okundu: null },
+  });
 
   return (
     <div
@@ -45,6 +52,7 @@ export default async function AppLayout({
           izinler={izinler}
           logout={logoutAction}
           platformAdmin={rolNormalize(session.role) === "platform_admin"}
+          okunmamisBildirim={okunmamisBildirim}
         />
         <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
           {children}

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import {
   getTenantDb,
+  getTenantContext,
   firmaSahipligiDogrula,
   sahiplikDogrula,
   tenantOlustur,
@@ -16,6 +17,7 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { FIRSAT_DURUM } from "@/lib/constants";
+import { bildirimGonder } from "@/lib/bildirim";
 
 /**
  * Fırsat / Anlaşma işlemleri — Faz 6 / C2, C3.
@@ -190,7 +192,7 @@ export async function firsatAsamaDegistir(
 ): Promise<void> {
   if (!(await yetkiVarMi(IZIN.firsatDuzenle))) throw new Error(YETKISIZ);
 
-  const db = await getTenantDb();
+  const { db, session } = await getTenantContext();
   await sahiplikDogrula(db, "asama", asamaId);
 
   const oncesi = await kayitOku(db, "firsat", id);
@@ -212,6 +214,18 @@ export async function firsatAsamaDegistir(
     eski: { asama: eskiAsama?.ad },
     yeni: { asama: yeniAsama?.ad },
   });
+
+  // Fırsatın sorumlusu BAŞKASIYSA haber ver (Faz 8 / D1).
+  const sorumlu = oncesi.sorumluId as string | null;
+  if (sorumlu && sorumlu !== session.userId) {
+    await bildirimGonder(db, {
+      kullaniciId: sorumlu,
+      tur: "firsat.asama",
+      baslik: `${oncesi.baslik as string} aşama değiştirdi`,
+      mesaj: `${eskiAsama?.ad ?? "?"} → ${yeniAsama?.ad ?? "?"}`,
+      link: "/firsatlar",
+    });
+  }
 
   revalidate(oncesi.firmaId as string);
 }

@@ -36,7 +36,9 @@ prisma/
   schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet,
                        # Grup, KullaniciGrup, DenetimKaydi, Plan, Davet,
                        # Kisi, Asama, Firsat, Aktivite, Lead,
-                       # Teklif, TeklifKalemi
+                       # Teklif, TeklifKalemi, Bildirim, BildirimTercihi,
+                       # EpostaAyari, EpostaKuyrugu, EpostaKaydi,
+                       # IsAkisi, IsAkisiCalismasi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -56,6 +58,12 @@ src/
       adaylar/         # lead listesi + dönüştürme (Faz 7)
       teklifler/       # liste, detay, yeni (Faz 7)
       aktiviteler/     # görev ve aktivite akışı (Faz 7)
+      bildirimler/     # bildirim merkezi + tercihler (Faz 8)
+      takvim/          # aylık ızgara (Faz 8)
+      otomasyon/       # iş akışı kuralları + eposta/ ayarları (Faz 8)
+    api/
+      gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
+      takvim.ics/      # takvim dışa aktarımı (oturum gerektirir)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -74,6 +82,8 @@ src/
     aktiviteler/       # AktivitePanel (Faz 7)
     adaylar/           # LeadPanel, DonusturPanel (Faz 7)
     teklifler/         # TeklifForm, TeklifIslemleri (Faz 7)
+    bildirimler/       # BildirimListesi, TercihFormu (Faz 8)
+    otomasyon/         # KuralPanel, EpostaAyarFormu (Faz 8)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton
   lib/
     auth.ts, session.ts   # oturum ve requireSession
@@ -83,6 +93,13 @@ src/
     davet-db.ts           # davet akışı, oturum öncesi erişim — TEK KAPI (Faz 5)
     kiraci-ayar.ts        # kiracının markası ve paket limitleri (Faz 5)
     timeline.ts           # firma zaman akışı — izin süzgeçli (Faz 7)
+    bildirim.ts           # bildirim gönderimi — TEK GİRİŞ (Faz 8)
+    eposta.ts             # SMTP gönderimi ve kuyruk (Faz 8)
+    eposta-gelen.ts       # IMAP gelen kutusu senkronu (Faz 8)
+    is-akisi.ts           # otomasyon motoru (+ -tanimlar.ts saf veri)
+    takvim.ts             # takvim öğeleri + .ics üretimi (Faz 8)
+    sifreleme.ts          # AES-256-GCM — posta parolaları (Faz 8)
+    zamanlanmis.ts        # oturumsuz zamanlanmış işler — TEK KAPI (Faz 8)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -95,7 +112,8 @@ src/
 `Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. Faz 4 ile `Grup`,
 `KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet`, Faz 6 ile
 `Kisi`, `Asama` ve `Firsat`, Faz 7 ile `Aktivite`, `Lead`, `Teklif` ve
-`TeklifKalemi` eklendi.
+`TeklifKalemi`, Faz 8 ile `Bildirim`, `BildirimTercihi`, `EpostaAyari`,
+`EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -157,6 +175,7 @@ kullanılmadığını sürekli denetler:
 |------|-------|-----------|---------------|
 | Admin panel | `src/lib/platform-db.ts` | `platform_admin` | Platform sahibi bütün müşterileri yönetir |
 | Davet kabulü | `src/lib/davet-db.ts` | token sahibi | Davet edilen kişinin henüz hesabı yok |
+| Zamanlanmış iş | `src/lib/zamanlanmis.ts` | `GOREV_ANAHTARI` | Cron'un oturumu olamaz (Faz 8) |
 
 ```ts
 const db = await getPlatformDb();   // her çağrıda platform_admin doğrulanır
@@ -199,6 +218,25 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Timeline izin süzgecinden geçer** (`src/lib/timeline.ts`): izni olmayan
   modül hiç sorgulanmaz.
 
+### Otomasyon ve İletişim (Faz 8)
+
+- **Bildirim tek kapıdan geçer** (`src/lib/bildirim.ts`): kullanıcının
+  tercihine bakıp uygulama içi kayda ve/veya e-posta kuyruğuna yazar. Tercih
+  kaydı YOKSA varsayılan geçerlidir — yeni bir bildirim türü eklendiğinde
+  herkes için satır açmak gerekmez.
+- **E-posta anında gönderilmez, kuyruğa yazılır.** Zamanlanmış çalıştırıcı
+  gönderir; üç deneme sonunda kayıt "hata" durumunda dondurulur.
+- **Kurallar zamanlanmış çalışır** çünkü tetikleyicilerin çoğu olay değil,
+  zamanla oluşan bir durumdur. Aynı kayda aynı uyarı iki kez gitmez
+  (`IsAkisiCalismasi` kaydına bakılır).
+- **Posta parolaları AES-256-GCM ile şifreli saklanır.** Anahtar
+  `AUTH_SECRET`'tan türetilir — **AUTH_SECRET değişirse kayıtlı parolalar
+  çözülemez** (uygulama çökmez, ayar yeniden girilir).
+- **`/api/gorevler` anahtar tanımsızsa KAPALIDIR.** "Tanımsızsa serbest"
+  davranışı üretimde açık kapı bırakırdı. Anahtar başlıkta taşınır.
+- **Takvimin kendi kaydı yoktur**; var olan kayıtların tarihli hâlidir.
+  `.ics` dışa aktarımı oturum gerektirir (token'lı açık akış yok).
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -219,7 +257,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**203 kontrol**.
+**235 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -227,10 +265,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (113 test, ~6 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (133 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 69)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 81)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -307,7 +345,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | ✅ tamamlandı |
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | ✅ tamamlandı |
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | ✅ tamamlandı |
-| 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | planlandı |
+| 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | ✅ tamamlandı |
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | planlandı |
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | planlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | planlandı |
@@ -343,3 +381,6 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 - **v1.7.0** — **Faz 7:** Satış derinleştirme. Aktivite/görev ("Bugün"
   görünümü), aday (Lead) yönetimi ve tek işlemle firmaya dönüştürme, firma
   zaman akışı, kalemli ve revizyonlu teklif.
+- **v1.8.0** — **Faz 8:** Otomasyon ve iletişim. Bildirim merkezi, kiracı
+  bazlı SMTP (şifreli parolalar) ve gönderim kuyruğu, zamanlanmış iş akışı
+  kuralları, IMAP gelen kutusu senkronu, takvim ve `.ics` dışa aktarım.

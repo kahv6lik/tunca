@@ -16,6 +16,7 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { TEKLIF_DURUM } from "@/lib/constants";
+import { bildirimGonder } from "@/lib/bildirim";
 
 /**
  * Teklif işlemleri — Faz 7 / C7.
@@ -280,7 +281,7 @@ export async function teklifDurumDegistir(id: string, durum: string): Promise<vo
   if (!(await yetkiVarMi(IZIN.teklifDuzenle))) throw new Error(YETKISIZ);
   if (!TEKLIF_DURUM.includes(durum as never)) throw new Error("Geçersiz durum.");
 
-  const { db } = await getTenantContext();
+  const { db, session } = await getTenantContext();
   const oncesi = await kayitOku(db, "teklif", id);
   if (!oncesi) notFound();
 
@@ -300,6 +301,24 @@ export async function teklifDurumDegistir(id: string, durum: string): Promise<vo
     eski: { durum: oncesi.durum },
     yeni: { durum },
   });
+
+  // Teklifi hazırlayan kişi sonucu öğrenmeli (Faz 8 / D1).
+  const olusturan = oncesi.olusturanEmail as string | null;
+  if (olusturan && olusturan !== session.email) {
+    const kullanici = await db.user.findFirst({
+      where: { email: olusturan },
+      select: { id: true },
+    });
+    if (kullanici) {
+      await bildirimGonder(db, {
+        kullaniciId: kullanici.id,
+        tur: "teklif.durum",
+        baslik: `${oncesi.no as string} teklifinin durumu değişti`,
+        mesaj: `Yeni durum: ${durum}`,
+        link: `/teklifler/${id}`,
+      });
+    }
+  }
 
   revalidate(id, oncesi.firmaId as string);
 }

@@ -168,6 +168,8 @@ export const PAKET_MODULLERI = [
   { deger: "aktivite", etiket: "Aktiviteler", izin: "aktivite.goruntule" },
   { deger: "lead", etiket: "Adaylar (Lead)", izin: "lead.goruntule" },
   { deger: "teklif", etiket: "Teklifler", izin: "teklif.goruntule" },
+  { deger: "takvim", etiket: "Takvim", izin: "takvim.goruntule" },
+  { deger: "otomasyon", etiket: "İş Akışı Otomasyonu", izin: "otomasyon.goruntule" },
   { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
 ] as const;
 
