@@ -21,10 +21,26 @@ datasource db {
 // Kiracı = hizmet verilen müşteri şirketi.
 // Kiracılar birbirlerinin verisini ve varlığını göremez.
 model Tenant {
-  id        String   @id @default(cuid())
-  ad        String // müşteri şirketinin adı
-  slug      String   @unique // giriş ekranındaki kiracı kodu / ileride alt alan adı
-  durum     String   @default("aktif") // "aktif" | "askida" | "pasif"
+  id     String @id @default(cuid())
+  ad     String // müşteri şirketinin adı
+  slug   String @unique // giriş ekranındaki kiracı kodu / alt alan adı
+  durum  String @default("aktif") // "aktif" | "askida" | "pasif"
+
+  // İletişim (admin panelde müşteri kartı)
+  iletisimAd    String?
+  iletisimEmail String?
+  iletisimTel   String?
+  notlar        String?
+
+  // Paket ve limitler (B4)
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  // Markalama (B7)
+  logoUrl  String?
+  anaRenk  String? // "#6366f1" gibi
+  altAlan  String? @unique // "musteri" → musteri.crm.com
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -36,6 +52,7 @@ model Tenant {
   gruplar      Grup[]
   uyelikler    KullaniciGrup[]
   denetim      DenetimKaydi[]
+  davetler     Davet[]
 
   @@index([durum])
 }
@@ -205,4 +222,41 @@ model DenetimKaydi {
   @@index([tenantId, createdAt])
   @@index([tenantId, varlik, varlikId])
   @@index([tenantId, kullaniciId])
+}
+
+
+// ── Faz 5: Admin panel ─────────────────────────────────────────────────────
+
+// Abonelik paketi — kiracı başına limitler ve açık modüller.
+// Kiracıya ait DEĞİLDİR: platform genelinde tanımlanır, kiracılar atanır.
+model Plan {
+  id              String   @id @default(cuid())
+  ad              String   @unique
+  aciklama        String?
+  kullaniciLimiti Int      @default(0) // 0 = sınırsız
+  firmaLimiti     Int      @default(0) // 0 = sınırsız
+  moduller        String[] // "firma" | "yatirim" | "egitim" | "hizmet" | "rapor"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  kiracilar Tenant[]
+}
+
+// Kullanıcı daveti (B3) — e-posta ile gönderilen tek kullanımlık bağlantı.
+// Token'ın kendisi saklanmaz; yalnızca özeti (hash) tutulur.
+model Davet {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email      String
+  ad         String
+  rol        String    @default("uye")
+  tokenOzeti String    @unique // sha256(token)
+  sonKullanma DateTime
+  kullanildi DateTime?
+  olusturanEmail String
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, email])
+  @@index([tenantId, createdAt])
 }

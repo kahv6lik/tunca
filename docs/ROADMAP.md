@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.4.0` — Faz 4 tamamlandı |
-| **Sıradaki faz** | **Faz 5** — Admin panel: tenant/kullanıcı/paket/impersonation (`v1.5.0`) |
+| **Son çıkan sürüm** | `v1.5.0` — Faz 5 tamamlandı |
+| **Sıradaki faz** | **Faz 6** — Kişi, Fırsat/Anlaşma, Kanban satış hattı (`v1.6.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**114 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**142 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (61 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (79 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -138,7 +138,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | ✅ tamamlandı | — |
 | 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | ✅ tamamlandı | — |
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | ✅ tamamlandı | — |
-| 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı | |
+| 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | ✅ tamamlandı | — |
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı | |
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı | |
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | planlandı | |
@@ -167,6 +167,7 @@ Demo hesaplar (Faz 4'ten itibaren her rolden bir tane):
 
 | Kiracı | Rol | Giriş |
 |---|---|---|
+| Gezegen Platform | Platform Yöneticisi (`/admin`) | `platform@gezegen.com` / `platform123` |
 | Gezegen (800 firma) | Kuruluş Yöneticisi | `admin@gezegen.com` / `admin123` |
 | Gezegen | Üye | `kullanici@gezegen.com` / `user123` |
 | Gezegen | Salt Okunur | `okuyucu@gezegen.com` / `okuyucu123` |
@@ -367,7 +368,7 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 - Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
   ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
   salt okunur kullanıcı yazma düğmelerini görmüyor.
-- `npm run dogrula` toplam **114 kontrol** ile geçiyor (61 birim test dahil).
+- `npm run dogrula` toplam **142 kontrol** ile geçiyor (79 birim test dahil).
 
 ### Uygulama notları
 - **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
@@ -389,21 +390,41 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 
 ---
 
-## Faz 5 — Admin Panel (B1–B7) → `v1.5.0`
+## Faz 5 — Admin Panel (B1–B7) → `v1.5.0` ✅
 
 Yalnızca `platform_admin` erişimli `/admin` alanı.
 
-- [ ] **B1 — Müşteri yönetimi:** tenant ekle/düzenle/askıya al/sil, durum, iletişim bilgileri.
-- [ ] **B2 — Kullanıcı yönetimi:** tenant içi kullanıcı ekle, rol/grup ata, pasifleştir, şifre sıfırla.
-- [ ] **B3 — Davet akışı:** e-posta daveti, süreli tek kullanımlık token, kullanıcı kendi şifresini belirler.
-- [ ] **B4 — Paket ve limitler:** `Plan` modeli; kullanıcı/kayıt limiti, modül açma-kapama; limit aşımında engelleme.
-- [ ] **B5 — Impersonation:** "kiracı olarak görüntüle"; oturumda `impersonatedBy` taşınır, tüm oturum denetim günlüğüne yazılır, arayüzde kalıcı uyarı bandı, tek tıkla çıkış.
-- [ ] **B6 — Platform metrikleri:** tenant sayısı, aktif kullanıcı, kayıt hacmi, son girişler.
-- [ ] **B7 — Tenant markalama:** logo, ana renk, alt alan adı (`musteri.crm.com`) çözümlemesi.
+- [x] **B1 — Müşteri yönetimi:** tenant ekle/düzenle/askıya al/sil, durum, iletişim bilgileri.
+- [x] **B2 — Kullanıcı yönetimi:** tenant içi kullanıcı ekle, rol/grup ata, pasifleştir, şifre sıfırla.
+- [x] **B3 — Davet akışı:** süreli tek kullanımlık token, kullanıcı kendi şifresini belirler. (E-posta gönderimi Faz 8/D1'de; şu an bağlantı panelde gösteriliyor.)
+- [x] **B4 — Paket ve limitler:** `Plan` modeli; kullanıcı/firma limiti, modül açma-kapama; limit aşımında engelleme.
+- [x] **B5 — Impersonation:** "kiracı olarak görüntüle"; oturumda `impersonatorId`/`impersonatorEmail` taşınır, işlemler denetim günlüğüne gerçek yönetici kimliğiyle yazılır, arayüzde kalıcı uyarı bandı ve tek tıkla çıkış.
+- [x] **B6 — Platform metrikleri:** kuruluş sayısı (duruma göre), toplam kullanıcı ve firma, paket dağılımı, son eklenen kuruluşlar.
+- [x] **B7 — Tenant markalama:** logo ve ana renk arayüzde uygulanır; alt alan adı alanı kaydedilir. (Alt alan adının DNS/host çözümlemesi dağıtım işidir, uygulama tarafı hazır.)
+
+### Nasıl kuruldu
+
+**Platform katmanı — tek kapı.** Kiracılar ötesi erişimin tamamı
+`src/lib/platform-db.ts` içinden geçer; `getPlatformDb()` her çağrıda oturumun
+`platform_admin` olduğunu doğrular. Bu, kiracı izolasyonunun **bilinçli**
+istisnasıdır ve regresyon testi (`tests/regresyon.test.ts`) yönetim bağlamının
+başka hiçbir dosyada kullanılmadığını sürekli denetler.
+
+**Davet akışı — ikinci dar kapı.** Davet edilen kişinin henüz oturumu yoktur;
+bu yüzden `src/lib/davet-db.ts` ayrı bir kapı olarak durur. Kiracı, e-posta ve
+rol istemciden gelmez, davet kaydından okunur. Token'ın kendisi veritabanına
+yazılmaz — yalnızca sha256 özeti saklanır.
+
+**Paket kısıtı izin hesabının içinde.** Paketi kapalı olan modülün izinleri
+`etkinIzinler()` içinde düşürülür. Böylece kısıt yalnızca menüyü gizlemekle
+kalmaz; mevcut ve gelecekteki bütün sayfa/action korumalarında otomatik
+uygulanır. Firma limiti kayıt oluşturmadan önce sunucuda kontrol edilir.
 
 ### Kabul kriterleri
-- `platform_admin` olmayan bir kullanıcı `/admin` altındaki hiçbir yola erişemez (sunucu tarafı).
-- Impersonation ile yapılan her işlem, gerçek yönetici kimliğiyle loglanır.
+- [x] `platform_admin` olmayan bir kullanıcı `/admin` altındaki hiçbir yola erişemez (sunucu tarafı; gerçek tarayıcıyla doğrulandı).
+- [x] Impersonation ile yapılan her işlem, gerçek yönetici kimliğiyle loglanır.
+- [x] Paket limiti aşıldığında yeni kullanıcı daveti ve yeni firma engellenir.
+- [x] Geçersiz davet bağlantısı hiçbir kuruluşun varlığını sızdırmaz.
 
 ---
 

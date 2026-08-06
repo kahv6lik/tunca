@@ -171,8 +171,66 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   );
 }
 
+/**
+ * Örnek paketler (Faz 5 / B4).
+ *
+ * "Başlangıç" bilinçli olarak dar tutulmuştur: limit ve modül kısıtlarının
+ * gerçekten çalıştığı, hiç kod okumadan bir hesapla denenebilsin.
+ */
+async function paketleriKur() {
+  const paketler = [
+    {
+      ad: "Başlangıç",
+      aciklama: "Küçük ekipler için — yatırım ve hizmet modülleri kapalı",
+      kullaniciLimiti: 3,
+      firmaLimiti: 25,
+      moduller: ["firma", "egitim", "rapor"],
+    },
+    {
+      ad: "Profesyonel",
+      aciklama: "Tüm modüller, orta ölçekli kuruluşlar için",
+      kullaniciLimiti: 25,
+      firmaLimiti: 500,
+      moduller: ["firma", "yatirim", "egitim", "hizmet", "rapor"],
+    },
+    {
+      ad: "Kurumsal",
+      aciklama: "Sınırsız kullanıcı ve firma",
+      kullaniciLimiti: 0,
+      firmaLimiti: 0,
+      moduller: ["firma", "yatirim", "egitim", "hizmet", "rapor"],
+    },
+  ];
+
+  const sonuc: Record<string, string> = {};
+  for (const p of paketler) {
+    const mevcut = await prisma.plan.findUnique({ where: { ad: p.ad } });
+    const kayit = mevcut
+      ? await prisma.plan.update({ where: { id: mevcut.id }, data: p })
+      : await prisma.plan.create({ data: p });
+    sonuc[p.ad] = kayit.id;
+  }
+  console.log("✅ Paketler hazır: Başlangıç, Profesyonel, Kurumsal");
+  return sonuc;
+}
+
 async function main() {
   console.log("🌱 Seed başlıyor…");
+
+  const paketler = await paketleriKur();
+
+  // --- Platform kiracısı (Faz 5) ---
+  // Platform yöneticisi de bir User'dır, dolayısıyla bir kiracıya bağlıdır.
+  // Bu kiracı yalnızca platform ekibi içindir; içinde iş verisi tutulmaz ve
+  // admin panelde diğer müşterilerle aynı listede görünür.
+  const platform = await kiraciOlustur("Gezegen Platform", "platform");
+  await kullaniciOlustur(
+    platform.id,
+    "platform@gezegen.com",
+    "Platform Yöneticisi",
+    "platform123",
+    "platform_admin"
+  );
 
   // --- Kiracı 1 ---
   // Faz 4'ten itibaren dört rol var; seed her rolden bir hesap üretir ki
@@ -185,6 +243,16 @@ async function main() {
   // --- Kiracı 2 (izolasyon doğrulaması için) ---
   const anadolu = await kiraciOlustur("Anadolu Yatırım", "anadolu");
   await kullaniciOlustur(anadolu.id, "admin@anadolu.com", "Anadolu Yöneticisi", "anadolu123", "tenant_admin");
+
+  // Paket ataması: Gezegen sınırsız (800 firma üretiliyor), Anadolu profesyonel.
+  await prisma.tenant.update({
+    where: { id: gezegen.id },
+    data: { planId: paketler["Kurumsal"] },
+  });
+  await prisma.tenant.update({
+    where: { id: anadolu.id },
+    data: { planId: paketler["Profesyonel"] },
+  });
 
   console.log("✅ Kiracılar ve kullanıcılar hazır.");
 
@@ -217,6 +285,7 @@ async function main() {
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");
+  console.log("   Platform · Platform Yöneticisi → platform@gezegen.com / platform123");
   console.log("   Gezegen · Kuruluş Yöneticisi → admin@gezegen.com / admin123");
   console.log("   Gezegen · Üye                → kullanici@gezegen.com / user123");
   console.log("   Gezegen · Salt Okunur        → okuyucu@gezegen.com / okuyucu123");

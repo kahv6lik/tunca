@@ -45,6 +45,7 @@ npm run dev                   # http://localhost:3000
 
 | Kiracı | Rol | E-posta | Şifre |
 |--------|-----|---------|-------|
+| Gezegen Platform | **Platform Yöneticisi** (`/admin`) | `platform@gezegen.com` | `platform123` |
 | Gezegen Danışmanlık (800 firma) | Yönetici | `admin@gezegen.com` | `admin123` |
 | Gezegen Danışmanlık | Kullanıcı | `kullanici@gezegen.com` | `user123` |
 | Anadolu Yatırım (120 firma) | Yönetici | `admin@anadolu.com` | `anadolu123` |
@@ -193,6 +194,7 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 | `npm test` | Kiracı izolasyonu, RLS ve regresyon testleri |
 | `npm run dogrula` | Tam doğrulama + rapor (`docs/dogrulama/v<sürüm>.md`) |
 | `npm run demo:kur` | Demo yönetici hesabını geri getir (veriye dokunmaz) |
+| `npm run platform:kur` | Platform yöneticisi oluştur/şifresini sıfırla (`/admin` erişimi) |
 | `npm run gecis:postgres` | SQLite → PostgreSQL veri taşıma (tek seferlik) |
 | `./deploy.sh` | Docker + Nginx + HTTPS ile sunucuya dağıt |
 

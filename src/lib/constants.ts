@@ -71,7 +71,41 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   iptal: { label: "İptal", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
   // hizmet
   devam: { label: "Devam Ediyor", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
+  // kiracı (Faz 5 / admin panel)
+  askida: { label: "Askıda", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
 };
+
+// Kiracı (kuruluş) durumları — admin panelde kullanılır
+export const KIRACI_DURUM = ["aktif", "askida", "pasif"] as const;
+
+/**
+ * Paket modülleri (Faz 5 / B4).
+ *
+ * Bir pakette listelenmeyen modül, o kiracının arayüzünde görünmez ve sayfası
+ * açılmaz. Paketi olmayan kiracıda kısıtlama uygulanmaz (tüm modüller açıktır)
+ * — böylece paket tanımlanmadan da sistem çalışır.
+ */
+export const PAKET_MODULLERI = [
+  { deger: "firma", etiket: "Firmalar", izin: "firma.goruntule" },
+  { deger: "yatirim", etiket: "Yatırım Destekleri", izin: "yatirim.goruntule" },
+  { deger: "egitim", etiket: "Eğitimler", izin: "egitim.goruntule" },
+  { deger: "hizmet", etiket: "Hizmetler", izin: "hizmet.goruntule" },
+  { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
+] as const;
+
+export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];
+
+/**
+ * Bir izin anahtarı ("firma.olustur"), paketi kapalı bir modüle mi ait?
+ *
+ * İzin anahtarları "<modül>.<işlem>" biçiminde olduğu için modül adı ön ekten
+ * okunur. Paket modülüyle eşleşmeyen ön ekler (ör. "kullanici", "kiraci")
+ * hiçbir zaman kapatılmaz — paket iş verisi modüllerini kısıtlar, yönetim
+ * yetkilerini değil.
+ */
+export function modulKapaliMi(izin: string, kapaliModuller: Set<string>): boolean {
+  return kapaliModuller.has(izin.split(".")[0]);
+}
 
 export function durumBadge(durum: string) {
   return (

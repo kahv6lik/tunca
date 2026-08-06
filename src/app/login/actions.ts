@@ -64,6 +64,14 @@ export async function loginAction(
 
   const user = eslesenler[0];
 
+  // Pasifleştirilen kullanıcı giriş yapamaz (Faz 5 / B2). Verisi ve geçmişi
+  // silinmediği için hesabı yeniden açıldığında her şey yerinde kalır.
+  if (user.durum !== "aktif") {
+    return {
+      error: "Hesabınız devre dışı bırakılmış. Yöneticinizle görüşün.",
+    };
+  }
+
   if (user.tenant.durum !== "aktif") {
     return {
       error:

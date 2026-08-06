@@ -14,6 +14,16 @@ export type SessionPayload = {
   tenantId: string;
   tenantSlug: string;
   tenantAd: string;
+
+  /**
+   * Impersonation (Faz 5 / B5) — "kiracı olarak görüntüle".
+   *
+   * Doluysa oturum, platform yöneticisinin bir müşteriyi görüntülediği
+   * anlamına gelir. Arayüzde kalıcı uyarı bandı çıkar ve yapılan HER işlem
+   * denetim günlüğüne GERÇEK yönetici kimliğiyle yazılır.
+   */
+  impersonatorId?: string;
+  impersonatorEmail?: string;
 };
 
 function getSecret(): Uint8Array {
@@ -58,6 +68,8 @@ export async function getSession(): Promise<SessionPayload | null> {
       tenantId: payload.tenantId as string,
       tenantSlug: payload.tenantSlug as string,
       tenantAd: payload.tenantAd as string,
+      impersonatorId: (payload.impersonatorId as string) || undefined,
+      impersonatorEmail: (payload.impersonatorEmail as string) || undefined,
     };
   } catch {
     return null;

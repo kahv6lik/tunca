@@ -32,6 +32,20 @@ const IZINLI = [
   "src/lib/tenant-db.ts", // kiracı kapsamlı erişim katmanı
   "src/lib/yetki.ts", // izin hesabı — kiraciIstemcisi kullanır
   "src/lib/denetim.ts", // denetim günlüğü — kiraciIstemcisi kullanır
+  "src/lib/kiraci-ayar.ts", // kiracının kendi ayarları — kiraciIstemcisi kullanır
+  "src/lib/platform-db.ts", // Faz 5: admin panel, yönetim bağlamı (tek kapı)
+  "src/lib/davet-db.ts", // Faz 5: davet akışı, oturum öncesi (tek kapı)
+];
+
+/**
+ * Yönetim bağlamı (`yonetimIstemcisi`) kiracı sınırını AŞAR. Uygulama kodunda
+ * kullanılmasına izin verilen dosyalar bunlardır ve her biri kendi içinde
+ * yetki kontrolü yapar. Liste büyüyorsa durup düşünmek gerekir.
+ */
+const YONETIM_BAGLAMI_IZINLI = [
+  "src/lib/rls.ts", // bağlamı tanımlayan dosya
+  "src/lib/platform-db.ts",
+  "src/lib/davet-db.ts",
 ];
 
 describe("Veri erişimi kiracı katmanından geçiyor", () => {
@@ -42,8 +56,9 @@ describe("Veri erişimi kiracı katmanından geçiyor", () => {
       if (IZINLI.includes(dosya)) continue;
       const icerik = readFileSync(dosya, "utf8");
 
-      if (/from ["']@\/lib\/db["']/.test(icerik)) {
-        ihlaller.push(`${dosya}: @/lib/db doğrudan import ediliyor`);
+      // Hem "@/lib/db" hem de src/lib içinden göreli "./db" yakalanır.
+      if (/from ["'](@\/lib\/db|\.\/db|\.\.\/lib\/db)["']/.test(icerik)) {
+        ihlaller.push(`${dosya}: Prisma istemcisi doğrudan import ediliyor`);
       }
       // `prisma.model.` kalıbı — yorum satırları dışında
       const satirlar = icerik.split("\n");
@@ -69,6 +84,68 @@ describe("Veri erişimi kiracı katmanından geçiyor", () => {
     // `kimlikIstemcisi` ile yapmalıdır (salt okuma, iş verisine erişimsiz).
     expect(icerik).toContain("kimlikIstemcisi");
     expect(icerik).not.toMatch(/from ["']@\/lib\/db["']/);
+  });
+});
+
+describe("Platform katmanı kiracı sınırını dar bir kapıdan aşıyor (Faz 5)", () => {
+  it("yönetim bağlamı yalnızca izinli lib dosyalarında kullanılıyor", () => {
+    const ihlaller = KAYNAK_DOSYALAR.filter(
+      (d) =>
+        !YONETIM_BAGLAMI_IZINLI.includes(d) &&
+        /\byonetimIstemcisi\s*\(/.test(readFileSync(d, "utf8"))
+    );
+
+    expect(
+      ihlaller,
+      "Yönetim bağlamı kiracı sınırını aşar; yalnızca platform-db.ts ve\n" +
+        "davet-db.ts üzerinden kullanılmalıdır.\nİhlaller:\n" + ihlaller.join("\n")
+    ).toEqual([]);
+  });
+
+  it("admin panelinin her sayfası platform kapısından geçiyor", () => {
+    const adminSayfalari = KAYNAK_DOSYALAR.filter(
+      (d) => d.startsWith("src/app/admin/") && d.endsWith("page.tsx")
+    );
+    expect(adminSayfalari.length).toBeGreaterThanOrEqual(4);
+
+    const ihlaller = adminSayfalari.filter(
+      (d) => !readFileSync(d, "utf8").includes("@/lib/platform-db")
+    );
+    expect(ihlaller, "İhlaller:\n" + ihlaller.join("\n")).toEqual([]);
+  });
+
+  it("admin action'larının tamamı platform kapısını çağırıyor", () => {
+    const icerik = readFileSync("src/app/admin/actions.ts", "utf8");
+    const actionlar = [...icerik.matchAll(/export async function (\w+)/g)].map((m) => m[1]);
+    expect(actionlar.length).toBeGreaterThanOrEqual(10);
+
+    // Her action gövdesi getPlatformDb ya da platformOturumu çağırmalı.
+    // Tek istisna impersonationBitir'dir: o bağlamda oturum artık
+    // platform_admin değildir, gerekçesi platform-db.ts içinde yazılıdır.
+    const govdeler = icerik.split(/export async function /).slice(1);
+    const ihlaller = govdeler
+      .filter((g) => !/(getPlatformDb|platformOturumu|impersonatorOku)\(/.test(g))
+      .map((g) => g.split("(")[0]);
+
+    expect(ihlaller, "Platform kapısını çağırmayan action'lar:\n" + ihlaller.join("\n")).toEqual(
+      []
+    );
+  });
+
+  it("paket kısıtı izin hesabının içinde uygulanıyor", () => {
+    // Paketi kapalı bir modülün izinleri `etkinIzinler()` içinde düşürülür;
+    // böylece bütün sayfa ve action korumaları paketi otomatik uygular.
+    const icerik = readFileSync("src/lib/yetki.ts", "utf8");
+    expect(icerik).toContain("kapaliModulIzinleri");
+    expect(icerik).toContain("modulKapaliMi");
+  });
+
+  it("davet sayfası ve action'ı yalnızca davet katmanını kullanıyor", () => {
+    for (const dosya of ["src/app/davet/actions.ts", "src/app/davet/[token]/page.tsx"]) {
+      const icerik = readFileSync(dosya, "utf8");
+      expect(icerik).toContain("@/lib/davet-db");
+      expect(icerik).not.toMatch(/from ["']@\/lib\/db["']/);
+    }
   });
 });
 

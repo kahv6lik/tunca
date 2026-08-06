@@ -174,6 +174,70 @@ async function main() {
   const okuyucuRapor = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/raporlar");
   kontrol("Salt okunur raporları görebiliyor", !okuyucuRapor.url.includes("/yetkisiz"));
 
+  // 7 — Admin panel (Faz 5)
+  console.log("\n7. Admin panel — platform sınırı");
+
+  const platformKullanici = await prisma.user.findFirst({
+    where: { email: "platform@gezegen.com" },
+    include: { tenant: true },
+  });
+  kontrol(
+    "Platform yöneticisi hesabı var ve rolü doğru",
+    rolNormalize(platformKullanici?.role ?? "") === ROL.platformAdmin,
+    `rol=${platformKullanici?.role}`
+  );
+
+  const platformPanel = await sayfaGetir("platform@gezegen.com", "platform123", "/admin/kiracilar");
+  kontrol(
+    "Platform yöneticisi admin paneli açabiliyor",
+    !platformPanel.url.includes("/yetkisiz") && platformPanel.govde.includes("Kuruluşlar")
+  );
+  kontrol(
+    "Admin panelde bütün kuruluşlar görünüyor",
+    platformPanel.govde.includes("Gezegen Danışmanlık") &&
+      platformPanel.govde.includes("Anadolu Yatırım"),
+    "kiracılar ötesi görünüm yalnızca burada"
+  );
+
+  const platformPaket = await sayfaGetir("platform@gezegen.com", "platform123", "/admin/paketler");
+  kontrol(
+    "Platform yöneticisi paketleri yönetebiliyor",
+    !platformPaket.url.includes("/yetkisiz") && platformPaket.govde.includes("Profesyonel")
+  );
+
+  // Kuruluş yöneticisi platform paneline GİREMEZ — doğrudan URL yazsa bile.
+  const yoneticiAdmin = await sayfaGetir("admin@gezegen.com", "admin123", "/admin/kiracilar");
+  kontrol(
+    "Kuruluş yöneticisi admin paneline giremiyor",
+    yoneticiAdmin.url.includes("/yetkisiz"),
+    yoneticiAdmin.url
+  );
+  kontrol(
+    "Kuruluş yöneticisi başka kuruluşun adını görmüyor",
+    !yoneticiAdmin.govde.includes("Anadolu Yatırım")
+  );
+
+  const uyeAdmin = await sayfaGetir("kullanici@gezegen.com", "user123", "/admin");
+  kontrol("Üye admin paneline giremiyor", uyeAdmin.url.includes("/yetkisiz"), uyeAdmin.url);
+
+  // Davet sayfası giriş gerektirmez ama geçersiz token bilgi sızdırmaz.
+  const ctxDavet = await browser.newContext();
+  const davetSayfa = await ctxDavet.newPage();
+  await davetSayfa.goto(`${BASE}/davet/gecersiz-token-denemesi`, {
+    waitUntil: "domcontentloaded",
+  });
+  await davetSayfa.waitForTimeout(800);
+  const davetUrl = davetSayfa.url();
+  const davetGovde = await davetSayfa.locator("body").innerText();
+  await ctxDavet.close();
+
+  kontrol("Davet sayfası girişsiz açılıyor", !davetUrl.includes("/login"), davetUrl);
+  kontrol("Geçersiz davet reddediliyor", davetGovde.includes("Davet geçersiz"));
+  kontrol(
+    "Geçersiz davette hiçbir kuruluş adı sızmıyor",
+    !davetGovde.includes("Gezegen Danışmanlık") && !davetGovde.includes("Anadolu Yatırım")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

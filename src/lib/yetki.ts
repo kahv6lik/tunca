@@ -5,6 +5,7 @@ import { requireSession } from "./auth";
 import { kiraciIstemcisi } from "./rls";
 import { prisma } from "./db";
 import { ROL_IZINLERI, rolNormalize, type Izin } from "./yetki-tanimlar";
+import { kapaliModulIzinleri, modulKapaliMi } from "./kiraci-ayar";
 
 /**
  * Rol tabanlı yetkilendirme — SUNUCU TARAFI (Faz 4 / A6, A7).
@@ -25,7 +26,14 @@ export * from "./yetki-tanimlar";
 // ── Etkin izinler ──────────────────────────────────────────────────────────
 
 /**
- * Oturumdaki kullanıcının etkin izinleri: rol izinleri ∪ grup izinleri.
+ * Oturumdaki kullanıcının etkin izinleri:
+ *
+ *     (rol izinleri ∪ grup izinleri) ∖ paketi kapalı modüllerin izinleri
+ *
+ * Paket (Faz 5 / B4) yalnızca KISITLAR; hiçbir zaman izin eklemez. Kısıtın
+ * burada uygulanması bilinçlidir: bütün sayfalar ve action'lar zaten
+ * `yetkiGerektir` / `yetkiVarMi` üzerinden geçtiği için paket sınırı tek bir
+ * yerde, otomatik olarak zorlanır.
  *
  * `cache()` ile istek başına bir kez hesaplanır — aynı sayfada onlarca kez
  * çağrılsa bile veritabanına tek sorgu gider.
@@ -44,6 +52,14 @@ export const etkinIzinler = cache(async (): Promise<Set<string>> => {
   });
   for (const u of uyelikler) {
     for (const izin of u.grup.izinler) izinler.add(izin);
+  }
+
+  // Paket kısıtı
+  const kapali = await kapaliModulIzinleri();
+  if (kapali.size > 0) {
+    for (const izin of [...izinler]) {
+      if (modulKapaliMi(izin, kapali)) izinler.delete(izin);
+    }
   }
 
   return izinler;

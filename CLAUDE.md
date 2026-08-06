@@ -33,15 +33,19 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 
 ```
 prisma/
-  schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet
+  schema.prisma        # Tenant, User, Firma, YatirimDestegi, Egitim, Hizmet,
+                       # Grup, KullaniciGrup, DenetimKaydi, Plan, Davet
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
   bootstrap.ts         # üretim için ilk kullanıcı oluşturma
 src/
-  middleware.ts        # JWT doğrulama, /login dışındaki her yolu korur
+  middleware.ts        # JWT doğrulama; yalnızca /login ve /davet açıktır
   app/
     login/             # giriş sayfası + actions
+    davet/[token]/     # davet kabul — giriş gerektirmez (Faz 5)
+    admin/             # platform yönetimi — yalnızca platform_admin (Faz 5)
+                       #   kiracilar/ (liste, detay, yeni), paketler/, page.tsx
     (app)/             # oturum gerektiren panel
       page.tsx         # Genel Bakış (KPI + grafikler + son etkinlikler)
       firmalar/        # liste, detay, yeni, düzenle + actions
@@ -58,11 +62,15 @@ src/
     layout/            # sidebar, topbar, mobile-nav, theme-toggle, user-menu
     charts/            # area, bar, donut, tooltip
     dashboard/         # kpi-card, chart-card
+    admin/             # KiraciForm, KullaniciSatiri, DavetPanel, PlanPanel, ...
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton
   lib/
     auth.ts, session.ts   # oturum ve requireSession
     constants.ts          # durum/tür sabitleri + rozet etiketleri
     tenant-db.ts          # kiracı kapsamlı veri erişimi (ZORUNLU giriş noktası)
+    platform-db.ts        # kiracılar ötesi erişim — TEK KAPI (Faz 5)
+    davet-db.ts           # davet akışı, oturum öncesi erişim — TEK KAPI (Faz 5)
+    kiraci-ayar.ts        # kiracının markası ve paket limitleri (Faz 5)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -73,7 +81,9 @@ src/
 ### Veri Modeli
 
 `Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. Faz 4 ile `Grup`,
-`KullaniciGrup` ve `DenetimKaydi` eklendi. `Firma` iş verisinin
+`KullaniciGrup` ve `DenetimKaydi`, Faz 5 ile `Plan` ve `Davet` eklendi.
+`Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
+kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya `firmaId`
 ile bağlıdır (`onDelete: Cascade`). Enum yerine `String` alan +
 `src/lib/constants.ts` içindeki sabitler kullanılır (Faz 11'deki kiracıya özel
@@ -110,12 +120,39 @@ if (!(await yetkiVarMi(IZIN.firmaSil))) …   // action'larda ve arayüzde
 
 - Roller: `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
   Matris `src/lib/yetki-tanimlar.ts`, kontrol `src/lib/yetki.ts`.
-- **Etkin izin = rol izinleri ∪ grup izinleri.** Grup yalnızca ekler.
+- **Etkin izin = (rol izinleri ∪ grup izinleri) ∖ paketi kapalı modüller.**
+  Grup yalnızca ekler, paket yalnızca kısıtlar (Faz 5 / B4). Paket kısıtı
+  `etkinIzinler()` içinde uygulandığı için bütün sayfa ve action korumalarında
+  kendiliğinden geçerlidir; ayrıca kontrol yazmak gerekmez.
 - **Yetki kontrolü her zaman sunucuda.** Arayüzde düğme gizlemek koruma
   değildir; kullanıcı Server Action'ı doğrudan çağırabilir.
 - Her yazma işlemi `denetimYaz` ile denetim günlüğüne düşer
   (`src/lib/denetim.ts`). Günlük **değiştirilemez** — RLS'te kiracı için
   yalnızca SELECT ve INSERT politikası vardır.
+
+### Platform Katmanı (Faz 5 — İKİ DAR KAPI)
+
+Kiracı izolasyonunun **bilinçli** iki istisnası vardır. Her ikisi de tek bir
+dosyada toplanmıştır ve regresyon testi bu dosyaların dışında yönetim bağlamı
+kullanılmadığını sürekli denetler:
+
+| Kapı | Dosya | Kim geçer | Neden gerekli |
+|------|-------|-----------|---------------|
+| Admin panel | `src/lib/platform-db.ts` | `platform_admin` | Platform sahibi bütün müşterileri yönetir |
+| Davet kabulü | `src/lib/davet-db.ts` | token sahibi | Davet edilen kişinin henüz hesabı yok |
+
+```ts
+const db = await getPlatformDb();   // her çağrıda platform_admin doğrulanır
+```
+
+- `/admin` altındaki her sayfa hem layout'ta hem kendi içinde bu kapıdan geçer
+  (Server Action'lar layout'tan geçmez — layout'a güvenmek yetmez).
+- **Impersonation** ("kiracı olarak görüntüle") oturuma `impersonatorId` ve
+  `impersonatorEmail` yazar; rol bilinçli olarak `tenant_admin`'e düşürülür.
+  Bu bağlamda yapılan her işlem denetim günlüğüne **gerçek yönetici**
+  kimliğiyle düşer ve arayüzde kapatılamaz bir uyarı bandı durur.
+- **Davet token'ının kendisi saklanmaz** — yalnızca sha256 özeti. Kiracı,
+  e-posta ve rol istemciden gelmez, davet kaydından okunur.
 
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
@@ -137,7 +174,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**114 kontrol**.
+**142 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -145,10 +182,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (61 test, ~4 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (79 test, ~5 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetkilendirme, gerçek tarayıcı (sunucu çalışırken, 32)
+npm run kontrol:kimlik   # giriş + yetki + admin panel, gerçek tarayıcı (sunucu çalışırken, 42)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -222,7 +259,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | ✅ tamamlandı |
 | 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | ✅ tamamlandı |
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | ✅ tamamlandı |
-| 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | planlandı |
+| 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | ✅ tamamlandı |
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | planlandı |
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | planlandı |
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | planlandı |
@@ -245,3 +282,13 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   modellerde `tenantId`, oturumda kiracı bağlamı, merkezî kiracı katmanı,
   sahiplik doğrulaması. Giriş yapmış bir kullanıcının ID'sini bildiği her kaydı
   düzenleyebildiği açık kapatıldı.
+- **v1.2.0** — **Faz 2:** PostgreSQL'e geçiş ve Row-Level Security. Kiracı
+  sınırı veritabanı katmanında da zorunlu; bağlam ayarlanmazsa sıfır satır.
+- **v1.3.0** — **Faz 3:** Çapraz kiracı sızıntı testleri ve test altyapısı
+  (ayrı `test` şeması, gerçek tarayıcıyla kimlik kontrolü).
+- **v1.4.0** — **Faz 4:** RBAC, kullanıcı grupları, değiştirilemez denetim
+  günlüğü.
+- **v1.5.0** — **Faz 5:** Admin panel. `/admin` altında kiracı, kullanıcı,
+  davet ve paket yönetimi; platform metrikleri; impersonation; kiracı
+  markalaması. Kiracılar ötesi erişim iki dar kapıya (`platform-db.ts`,
+  `davet-db.ts`) hapsedildi ve regresyon testiyle sabitlendi.

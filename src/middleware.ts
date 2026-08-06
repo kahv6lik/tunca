@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE_NAME = "gezegen_session";
-const PUBLIC_PATHS = ["/login"];
+// Giriş gerektirmeyen yollar. `/davet` bilinçlidir: davet edilen kişinin
+// henüz hesabı yoktur, hesabı bu sayfada oluşturur (Faz 5 / B3).
+const PUBLIC_PATHS = ["/login", "/davet"];
 
 function getSecret(): Uint8Array {
   return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
@@ -26,8 +28,10 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  // Giriş yapmış kullanıcı login sayfasına gelirse panele yönlendir
-  if (isPublic && authed) {
+  // Giriş yapmış kullanıcı login sayfasına gelirse panele yönlendir.
+  // Davet sayfası dışarıda: oturumu açık biri de bir davet bağlantısına
+  // tıklayabilir ve "geçersiz/kullanılmış" bilgisini görmeyi hak eder.
+  if (pathname.startsWith("/login") && authed) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 

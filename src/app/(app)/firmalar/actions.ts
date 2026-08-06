@@ -12,6 +12,7 @@ import {
 } from "@/lib/tenant-db";
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
+import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
 
 const firmaSchema = z.object({
   ad: z.string().trim().min(1, "Firma adı zorunludur."),
@@ -41,6 +42,10 @@ export async function createFirma(
   formData: FormData
 ): Promise<FormState> {
   if (!(await yetkiVarMi(IZIN.firmaOlustur))) return { error: YETKISIZ };
+
+  // Paket limiti (Faz 5 / B4) — kayıt oluşturmadan önce.
+  const limitHatasi = await firmaLimitiAsildiMi();
+  if (limitHatasi) return { error: limitHatasi };
 
   const db = await getTenantDb();
   const parsed = parse(formData);

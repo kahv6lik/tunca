@@ -380,3 +380,24 @@ docker exec -it gezegen-crm-app npx tsx scripts/demo-hesap.ts
 
 Demo yönetici hesabını (`admin@gezegen.com` / `admin123`, tam yetkili) veriye
 dokunmadan geri getirir.
+
+### Admin panele ilk giriş (Faz 5)
+
+`/admin` altındaki platform yönetimine yalnızca `platform_admin` rolündeki bir
+kullanıcı girebilir ve bu rol arayüzden verilemez — ilk yönetici sunucuda
+oluşturulur:
+
+```bash
+docker exec -it gezegen-crm-app \
+  env PLATFORM_EMAIL='siz@sirketiniz.com' PLATFORM_PASSWORD='guclu-bir-sifre' \
+  npx tsx scripts/platform-admin.ts
+```
+
+Betik "platform" adında ayrı bir kiracı ve içinde bir yönetici hesabı açar
+(müşteri verisi tutmaz). Aynı komut var olan hesabın şifresini de sıfırlar —
+parolanızı unutursanız bu yeterlidir.
+
+Giriş yaptıktan sonra üst çubuktaki **Platform** düğmesinden panele geçilir.
+Müşteri ekleme sırası: **Paketler** → **Yeni Kuruluş** → kuruluş detayında
+**Davet Et**. Davet bağlantısı bir kez gösterilir; e-posta ile otomatik
+gönderim Faz 8'de gelecek.

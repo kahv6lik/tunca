@@ -97,11 +97,21 @@ export async function denetimYaz(opts: {
     const { eski, yeni } =
       opts.islem === "guncelle" ? farklar(temizEski, temizYeni) : { eski: temizEski, yeni: temizYeni };
 
+    /**
+     * Impersonation sırasında günlüğe GERÇEK yönetici yazılır. Aksi halde
+     * platform yöneticisinin yaptığı bir değişiklik, müşterinin kendi
+     * kullanıcısı yapmış gibi görünürdü — denetim günlüğünün varlık sebebine
+     * aykırı.
+     */
+    const kimlik = session.impersonatorEmail
+      ? `${session.impersonatorEmail} (${session.email} olarak)`
+      : session.email;
+
     await db.denetimKaydi.create({
       data: {
         tenantId: session.tenantId,
-        kullaniciId: session.userId,
-        kullaniciEmail: session.email,
+        kullaniciId: session.impersonatorId ?? session.userId,
+        kullaniciEmail: kimlik,
         islem: opts.islem,
         varlik: opts.varlik,
         varlikId: opts.varlikId,
