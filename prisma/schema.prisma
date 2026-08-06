@@ -33,6 +33,9 @@ model Tenant {
   yatirimlar   YatirimDestegi[]
   egitimler    Egitim[]
   hizmetler    Hizmet[]
+  gruplar      Grup[]
+  uyelikler    KullaniciGrup[]
+  denetim      DenetimKaydi[]
 
   @@index([durum])
 }
@@ -45,8 +48,12 @@ model User {
   email     String
   name      String
   password  String // bcrypt hash
-  role      String   @default("user") // "admin" | "user"
+  // Roller ve izin matrisi: src/lib/yetki.ts
+  role      String   @default("uye") // platform_admin | tenant_admin | uye | salt_okunur
+  durum     String   @default("aktif") // "aktif" | "pasif"
   createdAt DateTime @default(now())
+
+  gruplar KullaniciGrup[]
 
   // E-posta yalnızca kiracı içinde benzersiz; farklı kiracılarda aynı e-posta olabilir.
   @@unique([tenantId, email])
@@ -143,4 +150,59 @@ model Hizmet {
   @@index([tenantId, firmaId])
   @@index([tenantId, durum])
   @@index([tenantId, tarih])
+}
+
+// ── Faz 4: Yetkilendirme ve denetim ────────────────────────────────────────
+
+// Kullanıcı grubu — bir kiracı içinde izinleri toplu atamak için.
+// Etkin izin = rolün izinleri ∪ üye olunan grupların izinleri.
+model Grup {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ad        String
+  aciklama  String?
+  izinler   String[] // "firma.duzenle" gibi izin anahtarları (src/lib/yetki.ts)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  uyeler KullaniciGrup[]
+
+  @@unique([tenantId, ad])
+  @@index([tenantId, ad])
+}
+
+// Kullanıcı ↔ grup üyeliği
+model KullaniciGrup {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grupId   String
+  grup     Grup   @relation(fields: [grupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, grupId])
+  @@index([tenantId, userId])
+  @@index([tenantId, grupId])
+}
+
+// Denetim günlüğü — kim, ne zaman, hangi kaydı değiştirdi.
+// Uygulama üzerinden DEĞİŞTİRİLEMEZ ve SİLİNEMEZ; yalnızca yazılır ve okunur.
+model DenetimKaydi {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kullaniciId    String?
+  kullaniciEmail String // kullanıcı silinse bile kim olduğu kalsın
+  islem          String // "olustur" | "guncelle" | "sil"
+  varlik         String // "Firma" | "YatirimDestegi" | "Egitim" | "Hizmet" | "Grup" | "User"
+  varlikId       String
+  ozet           String? // insan okuyabilir kısa açıklama
+  eski           Json? // değişiklik öncesi alanlar
+  yeni           Json? // değişiklik sonrası alanlar
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, varlik, varlikId])
+  @@index([tenantId, kullaniciId])
 }

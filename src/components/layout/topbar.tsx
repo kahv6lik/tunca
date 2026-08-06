@@ -9,16 +9,20 @@ export function Topbar({
   name,
   email,
   tenantAd,
+  rolEtiket,
+  izinler,
   logout,
 }: {
   name: string;
   email: string;
   tenantAd: string;
+  rolEtiket: string;
+  izinler: string[];
   logout: () => Promise<void>;
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl md:px-6">
-      <MobileNav />
+      <MobileNav izinler={izinler} />
 
       <div className="relative hidden max-w-xs flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -31,10 +35,11 @@ export function Topbar({
       <div className="ml-auto flex items-center gap-2.5">
         {/* Aktif kiracı — kullanıcı hangi kuruluşun verisine baktığını her an görür */}
         <span
-          title="Aktif kuruluş"
-          className="hidden max-w-[200px] truncate rounded-lg border border-border/60 bg-secondary/40 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:block"
+          title={`Aktif kuruluş · ${rolEtiket}`}
+          className="hidden max-w-[240px] truncate rounded-lg border border-border/60 bg-secondary/40 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:block"
         >
           {tenantAd}
+          <span className="ml-1.5 text-muted-foreground/60">· {rolEtiket}</span>
         </span>
         <ThemeToggle />
         <div className="hidden h-6 w-px bg-border/70 sm:block" />

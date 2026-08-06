@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.3.0` — Faz 3 tamamlandı |
-| **Sıradaki faz** | **Faz 4** — RBAC, kullanıcı grupları, denetim günlüğü (`v1.4.0`) |
+| **Son çıkan sürüm** | `v1.4.0` — Faz 4 tamamlandı |
+| **Sıradaki faz** | **Faz 5** — Admin panel: tenant/kullanıcı/paket/impersonation (`v1.5.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -83,9 +83,9 @@ git push origin v1.2.0
 npm run dogrula
 ```
 
-Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, kiracı
-izolasyonu (veri katmanı + HTTP) ve gerçek tarayıcıyla kimlik doğrulamayı
-çalıştırır. Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
+paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
+çalıştırır (**114 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + regresyon (35 test, ~4 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (61 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -137,7 +137,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı | — |
 | 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | ✅ tamamlandı | — |
 | 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | ✅ tamamlandı | — |
-| 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı | |
+| 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | ✅ tamamlandı | — |
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı | |
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı | |
 | 7  | C4–C7 — Aktivite, Lead, timeline, teklif | `v1.7.0` | planlandı | |
@@ -163,9 +163,17 @@ npm run db:seed                 # iki kiracılı demo veri
 npm run dev                     # http://localhost:3000
 ```
 
-Giriş: `admin@gezegen.com` / `admin123` (800 firma) ve
-`admin@anadolu.com` / `anadolu123` (120 firma). İki hesapla ayrı ayrı girip
-listelerin tamamen ayrı olduğunu görün — projenin temel güvenlik sözü budur.
+Demo hesaplar (Faz 4'ten itibaren her rolden bir tane):
+
+| Kiracı | Rol | Giriş |
+|---|---|---|
+| Gezegen (800 firma) | Kuruluş Yöneticisi | `admin@gezegen.com` / `admin123` |
+| Gezegen | Üye | `kullanici@gezegen.com` / `user123` |
+| Gezegen | Salt Okunur | `okuyucu@gezegen.com` / `okuyucu123` |
+| Anadolu (120 firma) | Kuruluş Yöneticisi | `admin@anadolu.com` / `anadolu123` |
+
+İki kiracıyla girip listelerin ayrı olduğunu, farklı rollerle girip yetkilerin
+değiştiğini görün — projenin iki temel güvenlik sözü bunlar.
 
 Mimari ve kiracı katmanı kuralları: **`CLAUDE.md`**.
 
@@ -334,24 +342,50 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 
 ## Faz 4 — Yetkilendirme ve Denetim (A6, A7, A8) → `v1.4.0`
 
-- [ ] **A6 — RBAC**
+- [x] **A6 — RBAC**
    - Roller: `platform_admin` (kiracılar üstü), `tenant_admin`, `uye`, `salt_okunur`.
    - `Role` / `Permission` modelleri; modül × işlem (görüntüle/oluştur/düzenle/sil) matrisi.
    - Sunucu tarafı zorlama (`requirePermission`) + arayüzde yetkisiz öğelerin gizlenmesi.
    - **Yetki kontrolü her zaman sunucuda; arayüzdeki gizleme yalnızca kolaylık.**
-- [ ] **A7 — Kullanıcı grupları**
+- [x] **A7 — Kullanıcı grupları**
    - `Group` modeli, grup↔izin ve kullanıcı↔grup ilişkileri.
    - Etkin izin = rol izinleri ∪ grup izinleri.
    - Toplu atama arayüzü.
-- [ ] **A8 — Denetim günlüğü**
+- [x] **A8 — Denetim günlüğü**
    - `AuditLog` modeli: kiracı, kullanıcı, işlem, varlık türü/ID, eski→yeni değer, IP, zaman.
    - Merkezî veri katmanına bağlanır (her yazma otomatik loglanır).
    - Kiracı yöneticisi için filtrelenebilir görüntüleme ekranı.
    - Günlükler uygulama üzerinden **değiştirilemez ve silinemez**.
 
-### Kabul kriterleri
-- Salt-okunur kullanıcı, action'ı doğrudan çağırsa bile yazma yapamaz.
-- Her yazma işlemi denetim günlüğünde eski/yeni değeriyle görünür.
+### Kabul kriterleri — hepsi sağlandı ✅
+- Yetki kontrolü **her yazma action'ında** var; regresyon testi bunu her
+  çalıştırmada denetler (yazma sayısı ≥ yetki kontrolü sayısı).
+- Her yazma işlemi denetim günlüğüne eski/yeni değeriyle düşüyor.
+- **Denetim günlüğü değiştirilemez:** RLS'te kiracı için yalnızca SELECT ve
+  INSERT politikası var. Test, güncelleme ve silme denemelerinin 0 satır
+  etkilediğini kanıtlıyor.
+- Gerçek tarayıcıda üç rolle doğrulandı (32 kontrol): yönetici yönetim
+  ekranlarını görüyor, üye menüde görmüyor **ve doğrudan URL ile de giremiyor**,
+  salt okunur kullanıcı yazma düğmelerini görmüyor.
+- `npm run dogrula` toplam **114 kontrol** ile geçiyor (61 birim test dahil).
+
+### Uygulama notları
+- **Dört rol:** `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
+  Matris `src/lib/yetki-tanimlar.ts` içinde; kontrol `src/lib/yetki.ts` içinde
+  (server-only). Ayrı tutulmalarının sebebi tanımların istemci bileşenleri ve
+  testlerce de kullanılabilmesi.
+- **Etkin izin = rol izinleri ∪ grup izinleri.** Grup yalnızca yetki *ekler*,
+  hiçbir zaman kısıtlamaz. `cache()` ile istek başına bir kez hesaplanır.
+- **Eski roller taşındı:** migration `admin` → `tenant_admin`, `user` → `uye`.
+  `rolNormalize` ayrıca bir emniyet kemeri tutar; taşınmamış bir kayıt yüzünden
+  kimse yetkisiz kalmasın diye.
+- **Genel Bakış bölüm bölüm yetkilendirildi:** birden çok modülü topladığı için
+  tek kapı yerine her bölüm ayrı kontrol edilir; yetkisiz modülün sorgusu hiç
+  çalıştırılmaz. (Bu açığı Faz 4 regresyon testi yakaladı.)
+- **Yetkisiz erişimde 404 değil, açık mesaj:** kiracı dışı erişimde 404
+  gösteriyoruz (kaydın varlığını sızdırmamak için), ama aynı kiracı içinde
+  yetkisizlik farklı — kullanıcı zaten kuruluşun parçası, ona ne olduğunu
+  söylemek doğru (`/yetkisiz`).
 
 ---
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import AddPanel from "@/components/AddPanel";
@@ -20,6 +21,22 @@ export default async function FirmaDetayPage({
 }: {
   params: { id: string };
 }) {
+  await yetkiGerektir(IZIN.firmaGoruntule);
+
+  // Yetkiler — arayüzde yalnızca yapılabilecek işlemler gösterilir.
+  // (Asıl koruma action'ların içindedir; burası kolaylık.)
+  const [
+    firmaDuzenlaybilir, firmaSilebilir,
+    yatirimEkler, yatirimDuzenler, yatirimSiler,
+    egitimEkler, egitimDuzenler, egitimSiler,
+    hizmetEkler, hizmetDuzenler, hizmetSiler,
+  ] = await Promise.all([
+    yetkiVarMi(IZIN.firmaDuzenle), yetkiVarMi(IZIN.firmaSil),
+    yetkiVarMi(IZIN.yatirimOlustur), yetkiVarMi(IZIN.yatirimDuzenle), yetkiVarMi(IZIN.yatirimSil),
+    yetkiVarMi(IZIN.egitimOlustur), yetkiVarMi(IZIN.egitimDuzenle), yetkiVarMi(IZIN.egitimSil),
+    yetkiVarMi(IZIN.hizmetOlustur), yetkiVarMi(IZIN.hizmetDuzenle), yetkiVarMi(IZIN.hizmetSil),
+  ]);
+
   const db = await getTenantDb();
 
   // findFirst kullanılır: kiracı katmanı where'e tenantId ekler, böylece
@@ -132,14 +149,18 @@ export default async function FirmaDetayPage({
         action={
           <div className="flex items-center gap-2">
             <StatusBadge durum={firma.durum} />
-            <Link href={`/firmalar/${firma.id}/duzenle`} className="btn-secondary text-sm">
-              Düzenle
-            </Link>
-            <DeleteButton
-              action={deleteFirma.bind(null, firma.id)}
-              label="Firmayı Sil"
-              confirmText="Bu firmayı ve tüm kayıtlarını silmek istediğinize emin misiniz?"
-            />
+            {firmaDuzenlaybilir && (
+              <Link href={`/firmalar/${firma.id}/duzenle`} className="btn-secondary text-sm">
+                Düzenle
+              </Link>
+            )}
+            {firmaSilebilir && (
+              <DeleteButton
+                action={deleteFirma.bind(null, firma.id)}
+                label="Firmayı Sil"
+                confirmText="Bu firmayı ve tüm kayıtlarını silmek istediğinize emin misiniz?"
+              />
+            )}
           </div>
         }
       />
@@ -169,12 +190,14 @@ export default async function FirmaDetayPage({
         title="Yatırım Destekleri"
         count={firma.yatirimlar.length}
         addPanel={
+          yatirimEkler ? (
           <AddPanel
             buttonLabel="Yatırım Desteği Ekle"
             action={createYatirim}
             fields={yatirimFields}
             hidden={{ firmaId: firma.id }}
           />
+          ) : null
         }
       >
         {firma.yatirimlar.length === 0 ? (
@@ -191,7 +214,8 @@ export default async function FirmaDetayPage({
                 <td className="td"><StatusBadge durum={y.durum} /></td>
                 <td className="td text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <EditRecordDialog
+                    {yatirimDuzenler && (
+<EditRecordDialog
                       title="Yatırım Desteğini Düzenle"
                       fields={yatirimFields}
                       hidden={{ firmaId: firma.id }}
@@ -206,7 +230,10 @@ export default async function FirmaDetayPage({
                         aciklama: y.aciklama ?? "",
                       }}
                     />
-                    <DeleteButton action={deleteYatirim.bind(null, y.id, firma.id)} />
+                    )}
+                    {yatirimSiler && (
+                      <DeleteButton action={deleteYatirim.bind(null, y.id, firma.id)} />
+                    )}
                   </div>
                 </td>
               </tr>
@@ -220,12 +247,14 @@ export default async function FirmaDetayPage({
         title="Eğitimler"
         count={firma.egitimler.length}
         addPanel={
+          egitimEkler ? (
           <AddPanel
             buttonLabel="Eğitim Ekle"
             action={createEgitim}
             fields={egitimFields}
             hidden={{ firmaId: firma.id }}
           />
+          ) : null
         }
       >
         {firma.egitimler.length === 0 ? (
@@ -244,7 +273,8 @@ export default async function FirmaDetayPage({
                 <td className="td"><StatusBadge durum={e.durum} /></td>
                 <td className="td text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <EditRecordDialog
+                    {egitimDuzenler && (
+<EditRecordDialog
                       title="Eğitimi Düzenle"
                       fields={egitimFields}
                       hidden={{ firmaId: firma.id }}
@@ -260,7 +290,10 @@ export default async function FirmaDetayPage({
                         notlar: e.notlar ?? "",
                       }}
                     />
-                    <DeleteButton action={deleteEgitim.bind(null, e.id, firma.id)} />
+                    )}
+                    {egitimSiler && (
+                      <DeleteButton action={deleteEgitim.bind(null, e.id, firma.id)} />
+                    )}
                   </div>
                 </td>
               </tr>
@@ -274,12 +307,14 @@ export default async function FirmaDetayPage({
         title="Hizmetler"
         count={firma.hizmetler.length}
         addPanel={
+          hizmetEkler ? (
           <AddPanel
             buttonLabel="Hizmet Ekle"
             action={createHizmet}
             fields={hizmetFields}
             hidden={{ firmaId: firma.id }}
           />
+          ) : null
         }
       >
         {firma.hizmetler.length === 0 ? (
@@ -295,7 +330,8 @@ export default async function FirmaDetayPage({
                 <td className="td"><StatusBadge durum={h.durum} /></td>
                 <td className="td text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <EditRecordDialog
+                    {hizmetDuzenler && (
+<EditRecordDialog
                       title="Hizmeti Düzenle"
                       fields={hizmetFields}
                       hidden={{ firmaId: firma.id }}
@@ -308,7 +344,10 @@ export default async function FirmaDetayPage({
                         aciklama: h.aciklama ?? "",
                       }}
                     />
-                    <DeleteButton action={deleteHizmet.bind(null, h.id, firma.id)} />
+                    )}
+                    {hizmetSiler && (
+                      <DeleteButton action={deleteHizmet.bind(null, h.id, firma.id)} />
+                    )}
                   </div>
                 </td>
               </tr>

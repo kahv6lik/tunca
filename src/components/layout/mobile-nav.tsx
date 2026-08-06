@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils";
 import { NAV } from "./sidebar-nav";
 import { Brand } from "./brand";
 
-export function MobileNav() {
+export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
+  const izinKumesi = new Set(izinler);
+  const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -60,7 +62,7 @@ export function MobileNav() {
                 </button>
               </div>
               <nav className="flex-1 space-y-1 p-3">
-                {NAV.map((item) => {
+                {gorunenler.map((item) => {
                   const active = isActive(item.href);
                   const Icon = item.icon;
                   return (

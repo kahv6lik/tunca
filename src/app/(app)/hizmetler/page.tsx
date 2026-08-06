@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -16,6 +17,7 @@ export default async function HizmetlerPage({
 }: {
   searchParams: { ara?: string; durum?: string; sayfa?: string };
 }) {
+  await yetkiGerektir(IZIN.hizmetGoruntule);
   const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";

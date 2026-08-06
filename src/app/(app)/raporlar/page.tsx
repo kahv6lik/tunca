@@ -1,4 +1,5 @@
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -10,6 +11,7 @@ import { DURUM_RENK } from "@/lib/chart-theme";
 export const dynamic = "force-dynamic";
 
 export default async function RaporlarPage() {
+  await yetkiGerektir(IZIN.raporGoruntule);
   const db = await getTenantDb();
   const [
     firmaSayisi,

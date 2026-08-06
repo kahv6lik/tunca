@@ -45,7 +45,7 @@ async function main() {
 
   const hash = await bcrypt.hash(password, 10);
   await prisma.user.create({
-    data: { tenantId: tenant.id, email, name, password: hash, role: "admin" },
+    data: { tenantId: tenant.id, email, name, password: hash, role: "tenant_admin" },
   });
   console.log(`✅ Yönetici kullanıcısı oluşturuldu: ${email}`);
 }

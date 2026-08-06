@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import FirmaForm from "@/components/FirmaForm";
 import { updateFirma } from "../../actions";
@@ -11,6 +12,7 @@ export default async function FirmaDuzenlePage({
 }: {
   params: { id: string };
 }) {
+  await yetkiGerektir(IZIN.firmaDuzenle);
   const db = await getTenantDb();
   const firma = await db.firma.findFirst({ where: { id: params.id } });
   if (!firma) notFound();

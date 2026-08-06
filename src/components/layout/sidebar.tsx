@@ -2,14 +2,14 @@ import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
 import { APP_VERSION_ETIKET } from "@/lib/version";
 
-export function Sidebar() {
+export function Sidebar({ izinler }: { izinler: string[] }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border/60 bg-card/40 backdrop-blur-xl lg:flex">
       <div className="flex h-16 items-center border-b border-border/60 px-5">
         <Brand />
       </div>
 
-      <SidebarNav />
+      <SidebarNav izinler={izinler} />
 
       <div className="border-t border-border/60 p-3">
         <div className="card-glow flex items-center gap-3 rounded-xl p-3">

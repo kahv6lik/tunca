@@ -49,6 +49,9 @@ src/
       egitimler/
       hizmetler/
       raporlar/        # durum/tür/il/sektör dağılımları
+      gruplar/         # kullanıcı grupları ve izinleri (Faz 4)
+      denetim/         # denetim günlüğü — salt okunur (Faz 4)
+      yetkisiz/        # yetkisiz erişim bilgilendirmesi
       layout.tsx       # Sidebar + Topbar kabuğu
   components/
     ui/                # button, card, badge, pagination, skeleton, ...
@@ -61,12 +64,16 @@ src/
     constants.ts          # durum/tür sabitleri + rozet etiketleri
     tenant-db.ts          # kiracı kapsamlı veri erişimi (ZORUNLU giriş noktası)
     rls.ts                # PostgreSQL RLS bağlamları
+    yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
+    yetki.ts              # yetki kontrolü (server-only)
+    denetim.ts            # denetim günlüğü yazımı
     db.ts, format.ts, utils.ts, tr-iller.ts, chart-*.ts, version.ts
 ```
 
 ### Veri Modeli
 
-`Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. `Firma` iş verisinin
+`Tenant` en üsttedir; diğer tüm modeller `tenantId` taşır. Faz 4 ile `Grup`,
+`KullaniciGrup` ve `DenetimKaydi` eklendi. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim` ve `Hizmet` kayıtları firmaya `firmaId`
 ile bağlıdır (`onDelete: Cascade`). Enum yerine `String` alan +
 `src/lib/constants.ts` içindeki sabitler kullanılır (Faz 11'deki kiracıya özel
@@ -91,6 +98,25 @@ const firmalar = await db.firma.findMany(); // tenantId otomatik eklenir
   (`src/app/login/actions.ts`) — oturum öncesi kiracı henüz belli değildir ve
   orada yalnızca `kimlikIstemcisi` (salt okuma) kullanılır.
 
+### Yetkilendirme Katmanı (Faz 4 — ZORUNLU)
+
+Kiracı sınırı "hangi müşteri", yetkilendirme "aynı kuruluşta kim ne yapabilir"
+sorusunu yanıtlar.
+
+```ts
+await yetkiGerektir(IZIN.firmaGoruntule);   // sayfalarda, veri okumadan ÖNCE
+if (!(await yetkiVarMi(IZIN.firmaSil))) …   // action'larda ve arayüzde
+```
+
+- Roller: `platform_admin`, `tenant_admin`, `uye`, `salt_okunur`.
+  Matris `src/lib/yetki-tanimlar.ts`, kontrol `src/lib/yetki.ts`.
+- **Etkin izin = rol izinleri ∪ grup izinleri.** Grup yalnızca ekler.
+- **Yetki kontrolü her zaman sunucuda.** Arayüzde düğme gizlemek koruma
+  değildir; kullanıcı Server Action'ı doğrudan çağırabilir.
+- Her yazma işlemi `denetimYaz` ile denetim günlüğüne düşer
+  (`src/lib/denetim.ts`). Günlük **değiştirilemez** — RLS'te kiracı için
+  yalnızca SELECT ve INSERT politikası vardır.
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -110,7 +136,8 @@ npm run dogrula
 ```
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
-+ HTTP izolasyonu + gerçek tarayıcıyla kimlik doğrulama = **74 kontrol**.
++ HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
+**114 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -118,10 +145,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + regresyon (35 test, ~4 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (61 test, ~4 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken, 18)
+npm run kontrol:kimlik   # giriş + yetkilendirme, gerçek tarayıcı (sunucu çalışırken, 32)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -194,7 +221,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | ✅ tamamlandı |
 | 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | ✅ tamamlandı |
 | 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | ✅ tamamlandı |
-| 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | planlandı |
+| 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | ✅ tamamlandı |
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | planlandı |
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | planlandı |
 | 7  | Aktivite, Lead, timeline, teklif (C4-C7) | `v1.7.0` | planlandı |

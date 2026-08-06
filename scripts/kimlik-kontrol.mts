@@ -11,6 +11,7 @@ import { chromium } from "playwright";
 import { PrismaClient } from "@prisma/client";
 import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
+import { ROL, rolNormalize } from "../src/lib/yetki-tanimlar";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3000";
 const CHROME = process.env.PW_CHROME ?? "/opt/pw-browsers/chromium";
@@ -52,7 +53,11 @@ async function main() {
     include: { tenant: true },
   });
   kontrol("Demo hesap veritabanında var", !!demo, demo ? demo.email : "YOK");
-  kontrol("Demo hesabın rolü admin", demo?.role === "admin", `rol=${demo?.role}`);
+  kontrol(
+    "Demo hesabın rolü kuruluş yöneticisi",
+    rolNormalize(demo?.role ?? "") === ROL.tenantAdmin,
+    `rol=${demo?.role}`
+  );
   kontrol("Demo hesabın kiracısı aktif", demo?.tenant.durum === "aktif", `durum=${demo?.tenant.durum}`);
   kontrol(
     "Demo şifresi 'admin123' geçerli",
@@ -102,6 +107,72 @@ async function main() {
     const tekrar = await girisDene("admin@anadolu.com", "anadolu123");
     kontrol("Yeniden aktifleştirilince girebiliyor", tekrar.girdi);
   }
+
+  // 6 — Yetkilendirme (Faz 4)
+  console.log("\n6. Yetkilendirme — roller farklı şey görüyor");
+
+  const sayfaGetir = async (email: string, sifre: string, yol: string) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.fill("#email", email);
+    await page.fill("#password", sifre);
+    await page.click("button[type=submit]");
+    await page.waitForTimeout(2000);
+    await page.goto(`${BASE}${yol}`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1200);
+    const url = page.url();
+    const govde = await page.locator("body").innerText();
+    await ctx.close();
+    return { url, govde };
+  };
+
+  // Kuruluş yöneticisi: yönetim ekranlarını görür
+  const yoneticiMenu = await sayfaGetir("admin@gezegen.com", "admin123", "/");
+  kontrol("Yönetici menüde 'Gruplar' görüyor", yoneticiMenu.govde.includes("Gruplar"));
+  kontrol("Yönetici menüde 'Denetim Günlüğü' görüyor", yoneticiMenu.govde.includes("Denetim"));
+  kontrol("Yönetici rolü üst çubukta yazıyor", yoneticiMenu.govde.includes("Kuruluş Yöneticisi"));
+
+  const yoneticiGrup = await sayfaGetir("admin@gezegen.com", "admin123", "/gruplar");
+  kontrol("Yönetici gruplar sayfasını açabiliyor", !yoneticiGrup.url.includes("/yetkisiz"));
+
+  const yoneticiDenetim = await sayfaGetir("admin@gezegen.com", "admin123", "/denetim");
+  kontrol("Yönetici denetim günlüğünü açabiliyor", !yoneticiDenetim.url.includes("/yetkisiz"));
+
+  // Üye: yönetim ekranlarını GÖREMEZ
+  const uyeMenu = await sayfaGetir("kullanici@gezegen.com", "user123", "/");
+  kontrol("Üye menüde 'Gruplar' GÖRMÜYOR", !uyeMenu.govde.includes("Gruplar"));
+  kontrol("Üye menüde 'Denetim Günlüğü' GÖRMÜYOR", !uyeMenu.govde.includes("Denetim Günlüğü"));
+  kontrol("Üye rolü üst çubukta yazıyor", uyeMenu.govde.includes("Üye"));
+
+  const uyeGrup = await sayfaGetir("kullanici@gezegen.com", "user123", "/gruplar");
+  kontrol(
+    "Üye doğrudan URL ile gruplara giremiyor",
+    uyeGrup.url.includes("/yetkisiz") || uyeGrup.govde.includes("erişim yetkiniz yok"),
+    uyeGrup.url
+  );
+
+  const uyeDenetim = await sayfaGetir("kullanici@gezegen.com", "user123", "/denetim");
+  kontrol(
+    "Üye doğrudan URL ile denetim günlüğüne giremiyor",
+    uyeDenetim.url.includes("/yetkisiz") || uyeDenetim.govde.includes("erişim yetkiniz yok")
+  );
+
+  // Salt okunur: yazma düğmelerini görmez
+  const okuyucu = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/firmalar");
+  kontrol("Salt okunur firma listesini görebiliyor", okuyucu.govde.includes("firma listeleniyor"));
+  kontrol("Salt okunur rolü üst çubukta yazıyor", okuyucu.govde.includes("Salt Okunur"));
+
+  // Seed'deki "Saha Ekibi" grubu okuyucuya firma.olustur veriyor →
+  // grupların yetki EKLEDİĞİNİ uçtan uca kanıtlar.
+  kontrol(
+    "Grup üyeliği salt okunur kullanıcıya 'Yeni Firma' yetkisi ekliyor",
+    okuyucu.govde.includes("Yeni Firma"),
+    "grup: Saha Ekibi → firma.olustur"
+  );
+
+  const okuyucuRapor = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/raporlar");
+  kontrol("Salt okunur raporları görebiliyor", !okuyucuRapor.url.includes("/yetkisiz"));
 
   await browser.close();
 

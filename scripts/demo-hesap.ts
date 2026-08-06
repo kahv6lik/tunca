@@ -49,7 +49,7 @@ async function main() {
   if (mevcut) {
     await prisma.user.update({
       where: { id: mevcut.id },
-      data: { password: hash, role: "admin" },
+      data: { password: hash, role: "tenant_admin" },
     });
     console.log(`✅ Demo hesabın şifresi ve yönetici rolü sıfırlandı: ${email}`);
   } else {
@@ -59,7 +59,7 @@ async function main() {
         email,
         name: "Sistem Yöneticisi",
         password: hash,
-        role: "admin",
+        role: "tenant_admin",
       },
     });
     console.log(`✅ Demo yönetici hesabı oluşturuldu: ${email}`);

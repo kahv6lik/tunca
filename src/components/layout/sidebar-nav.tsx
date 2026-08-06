@@ -10,23 +10,34 @@ import {
   GraduationCap,
   Wrench,
   BarChart3,
+  Users,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type NavItem = { href: string; label: string; icon: LucideIcon };
+type NavItem = { href: string; label: string; icon: LucideIcon; izin?: string };
 
+/**
+ * Menü öğeleri. `izin` alanı olanlar yalnızca o izne sahip kullanıcıya
+ * gösterilir — ama bu YALNIZCA kolaylıktır: sayfanın kendisi de sunucuda
+ * `yetkiGerektir` ile korunur. Menüyü gizlemek koruma değildir.
+ */
 export const NAV: NavItem[] = [
   { href: "/", label: "Genel Bakış", icon: LayoutDashboard },
-  { href: "/firmalar", label: "Firmalar", icon: Building2 },
-  { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet },
-  { href: "/egitimler", label: "Eğitimler", icon: GraduationCap },
-  { href: "/hizmetler", label: "Hizmetler", icon: Wrench },
-  { href: "/raporlar", label: "Raporlar", icon: BarChart3 },
+  { href: "/firmalar", label: "Firmalar", icon: Building2, izin: "firma.goruntule" },
+  { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
+  { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },
+  { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },
+  { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
+  { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
+  { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   const pathname = usePathname();
+  const izinKumesi = new Set(izinler);
+  const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -35,7 +46,7 @@ export function SidebarNav() {
 
   return (
     <nav className="flex-1 space-y-1 px-3 py-4">
-      {NAV.map((item) => {
+      {gorunenler.map((item) => {
         const active = isActive(item.href);
         const Icon = item.icon;
         return (

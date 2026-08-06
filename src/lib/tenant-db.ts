@@ -31,6 +31,9 @@ const KIRACI_MODELLERI = new Set([
   "YatirimDestegi",
   "Egitim",
   "Hizmet",
+  "Grup",
+  "KullaniciGrup",
+  "DenetimKaydi",
 ]);
 
 // where filtresi eklenerek güvene alınabilen işlemler
@@ -131,9 +134,16 @@ export async function getTenantDb(): Promise<TenantClient> {
  * yoksa) 404 üretir. Bilerek 403 değil: 403, "böyle bir kayıt var ama senin
  * değil" bilgisini sızdırırdı. Kiracılar birbirinin varlığını bilmemeli.
  */
+export type KiraciModeli =
+  | "firma"
+  | "yatirimDestegi"
+  | "egitim"
+  | "hizmet"
+  | "grup";
+
 export async function sahiplikDogrula(
   db: TenantClient,
-  model: "firma" | "yatirimDestegi" | "egitim" | "hizmet",
+  model: KiraciModeli,
   id: string
 ): Promise<void> {
   const kayit = await (db[model] as {
@@ -152,7 +162,7 @@ export async function sahiplikDogrula(
  */
 export async function tenantOlustur(
   db: TenantClient,
-  model: "firma" | "yatirimDestegi" | "egitim" | "hizmet",
+  model: KiraciModeli,
   data: Record<string, unknown>
 ): Promise<{ id: string }> {
   return (db[model] as {
@@ -163,7 +173,7 @@ export async function tenantOlustur(
 /** Kiracı sınırı içinde güncelleme. Kayıt kiracıya ait değilse 404. */
 export async function tenantGuncelle(
   db: TenantClient,
-  model: "firma" | "yatirimDestegi" | "egitim" | "hizmet",
+  model: KiraciModeli,
   id: string,
   data: Record<string, unknown>
 ): Promise<void> {
@@ -174,10 +184,21 @@ export async function tenantGuncelle(
   if (sonuc.count === 0) notFound();
 }
 
+/** Kaydın güncelleme/silme öncesi hâlini okur — denetim günlüğü için. */
+export async function kayitOku(
+  db: TenantClient,
+  model: KiraciModeli,
+  id: string
+): Promise<Record<string, unknown> | null> {
+  return (db[model] as {
+    findFirst: (a: unknown) => Promise<Record<string, unknown> | null>;
+  }).findFirst({ where: { id } });
+}
+
 /** Kiracı sınırı içinde silme. Kayıt kiracıya ait değilse 404. */
 export async function tenantSil(
   db: TenantClient,
-  model: "firma" | "yatirimDestegi" | "egitim" | "hizmet",
+  model: KiraciModeli,
   id: string
 ): Promise<void> {
   const sonuc = await (db[model] as {

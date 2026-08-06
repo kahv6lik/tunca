@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
@@ -23,6 +24,8 @@ export default async function FirmalarPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await yetkiGerektir(IZIN.firmaGoruntule);
+  const ekleyebilir = await yetkiVarMi(IZIN.firmaOlustur);
   const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();
   const durum = searchParams.durum ?? "";
@@ -80,9 +83,11 @@ export default async function FirmalarPage({
         title="Firmalar"
         subtitle={`${toplam} firma listeleniyor`}
         action={
-          <Link href="/firmalar/yeni" className="btn-primary">
-            + Yeni Firma
-          </Link>
+          ekleyebilir ? (
+            <Link href="/firmalar/yeni" className="btn-primary">
+              + Yeni Firma
+            </Link>
+          ) : undefined
         }
       />
 
@@ -130,9 +135,11 @@ export default async function FirmalarPage({
           title="Firma bulunamadı"
           description="Arama kriterlerinizi değiştirin veya yeni firma ekleyin."
           action={
-            <Link href="/firmalar/yeni" className="btn-primary">
-              + Yeni Firma
-            </Link>
+            ekleyebilir ? (
+              <Link href="/firmalar/yeni" className="btn-primary">
+                + Yeni Firma
+              </Link>
+            ) : undefined
           }
         />
       ) : (

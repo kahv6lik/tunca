@@ -30,6 +30,8 @@ const IZINLI = [
   "src/lib/db.ts", // Prisma istemcisinin kendisi
   "src/lib/rls.ts", // RLS bağlam katmanı
   "src/lib/tenant-db.ts", // kiracı kapsamlı erişim katmanı
+  "src/lib/yetki.ts", // izin hesabı — kiraciIstemcisi kullanır
+  "src/lib/denetim.ts", // denetim günlüğü — kiraciIstemcisi kullanır
 ];
 
 describe("Veri erişimi kiracı katmanından geçiyor", () => {
@@ -163,5 +165,103 @@ describe("RLS migration'ı yerinde", () => {
         `ALTER TABLE "${tablo}" FORCE ROW LEVEL SECURITY`
       );
     }
+  });
+});
+
+
+describe("Yetkilendirme her yazma yolunda zorunlu (Faz 4)", () => {
+  const ACTION_DOSYALARI = KAYNAK_DOSYALAR.filter(
+    (d) => d.startsWith("src/app/(app)/") && d.endsWith("actions.ts")
+  );
+
+  it("veri yazan her action yetki kontrolü yapıyor", () => {
+    const ihlaller: string[] = [];
+
+    for (const dosya of ACTION_DOSYALARI) {
+      const icerik = readFileSync(dosya, "utf8");
+
+      // Yazma yapan action'lar: tenantOlustur / tenantGuncelle / tenantSil
+      const yaziyor = /(tenantOlustur|tenantGuncelle|tenantSil)\(/.test(icerik);
+      if (!yaziyor) continue;
+
+      if (!/yetkiVarMi|yetkiZorunlu|yetkiKontrolu/.test(icerik)) {
+        ihlaller.push(`${dosya}: veri yazıyor ama yetki kontrolü yok`);
+      }
+
+      // Her yazma işlemi için bir yetki kontrolü olmalı
+      const yazmaSayisi = (icerik.match(/(tenantOlustur|tenantGuncelle|tenantSil)\(/g) ?? []).length;
+      const kontrolSayisi = (icerik.match(/yetkiVarMi\(/g) ?? []).length;
+      if (kontrolSayisi < yazmaSayisi) {
+        ihlaller.push(
+          `${dosya}: ${yazmaSayisi} yazma işlemi var ama ${kontrolSayisi} yetki kontrolü`
+        );
+      }
+    }
+
+    expect(ihlaller, "İhlaller:\n" + ihlaller.join("\n")).toEqual([]);
+  });
+
+  it("veri yazan her action denetim kaydı bırakıyor", () => {
+    const ihlaller: string[] = [];
+
+    for (const dosya of ACTION_DOSYALARI) {
+      const icerik = readFileSync(dosya, "utf8");
+      if (!/(tenantOlustur|tenantGuncelle|tenantSil)\(/.test(icerik)) continue;
+
+      if (!icerik.includes("denetimYaz")) {
+        ihlaller.push(`${dosya}: veri yazıyor ama denetim kaydı yok`);
+      }
+    }
+
+    expect(ihlaller, "İhlaller:\n" + ihlaller.join("\n")).toEqual([]);
+  });
+
+  it("yetki gerektiren sayfalar kapıyı veri okumadan önce koyuyor", () => {
+    const ihlaller: string[] = [];
+    const SAYFALAR = KAYNAK_DOSYALAR.filter(
+      (d) => d.startsWith("src/app/(app)/") && d.endsWith("page.tsx")
+    );
+
+    for (const dosya of SAYFALAR) {
+      const icerik = readFileSync(dosya, "utf8");
+      if (!icerik.includes("getTenantDb")) continue;
+
+      // İki geçerli kalıp var:
+      //   1. `yetkiGerektir` — tek modüllü sayfalar (firmalar, raporlar…)
+      //   2. `yetkiVarMi` ile bölüm bölüm kontrol — Genel Bakış gibi birden
+      //      çok modülü toplayan sayfalar; kullanıcı yalnızca yetkili olduğu
+      //      bölümleri görür ve yetkisiz modülün sorgusu hiç çalışmaz.
+      const kapili = icerik.includes("yetkiGerektir");
+      const bolumluk = icerik.includes("yetkiVarMi");
+
+      if (!kapili && !bolumluk) {
+        ihlaller.push(`${dosya}: veri okuyor ama yetki kontrolü yok`);
+        continue;
+      }
+
+      // Tek kapılı sayfalarda kapı, veri erişiminden ÖNCE gelmeli
+      if (kapili) {
+        const kapi = icerik.indexOf("yetkiGerektir");
+        const veri = icerik.indexOf("await getTenantDb()");
+        if (kapi > veri) {
+          ihlaller.push(`${dosya}: yetki kapısı veri erişiminden SONRA geliyor`);
+        }
+      }
+    }
+
+    expect(ihlaller, "İhlaller:\n" + ihlaller.join("\n")).toEqual([]);
+  });
+
+  it("denetim günlüğünde UPDATE/DELETE politikası tanımlı değil", () => {
+    const yollar = execSync("find prisma/migrations -name migration.sql", {
+      encoding: "utf8",
+    }).trim().split("\n");
+    const hepsi = yollar.map((y) => readFileSync(y, "utf8")).join("\n");
+
+    // Kiracı için yalnızca SELECT ve INSERT politikası olmalı; günlüğü
+    // sonradan değiştirilebilir yapan bir politika eklenirse bu test kırılır.
+    expect(hepsi).toContain('CREATE POLICY denetim_okuma ON "DenetimKaydi"');
+    expect(hepsi).toContain('CREATE POLICY denetim_ekleme ON "DenetimKaydi"');
+    expect(hepsi).not.toMatch(/CREATE POLICY denetim_\w+ ON "DenetimKaydi"\s+FOR (UPDATE|DELETE)/);
   });
 });

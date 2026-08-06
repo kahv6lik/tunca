@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
+import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -16,6 +17,21 @@ export const dynamic = "force-dynamic";
 const AY_KISA = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 export default async function DashboardPage() {
+  /**
+   * Genel Bakış birden çok modülü topladığı için tek bir yetki kapısı yerine
+   * BÖLÜM BÖLÜM yetki kontrolü yapar: kullanıcı yalnızca görme yetkisi olan
+   * modüllerin sayılarını ve grafiklerini görür.
+   *
+   * Yetkisiz modüller için sorgu hiç çalıştırılmaz — veriyi çekip sonra
+   * gizlemek, veriyi hiç çekmemekle aynı şey değildir.
+   */
+  const [firmaYetki, yatirimYetki, egitimYetki, hizmetYetki] = await Promise.all([
+    yetkiVarMi(IZIN.firmaGoruntule),
+    yetkiVarMi(IZIN.yatirimGoruntule),
+    yetkiVarMi(IZIN.egitimGoruntule),
+    yetkiVarMi(IZIN.hizmetGoruntule),
+  ]);
+
   const db = await getTenantDb();
   const now = new Date();
   const oniki = new Date(now.getFullYear(), now.getMonth() - 11, 1);
@@ -31,30 +47,40 @@ export default async function DashboardPage() {
     sonFirmalar,
     yaklasanEgitimler,
   ] = await Promise.all([
-    db.firma.count(),
-    db.firma.count({ where: { durum: "aktif" } }),
-    db.yatirimDestegi.aggregate({
-      _sum: { tutar: true },
-      where: { durum: { in: ["onaylandi", "tamamlandi"] }, paraBirimi: "TRY" },
-    }),
-    db.egitim.count(),
-    db.hizmet.count(),
-    db.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
-    db.yatirimDestegi.findMany({
-      where: { tarih: { gte: oniki }, paraBirimi: "TRY" },
-      select: { tarih: true, tutar: true },
-    }),
-    db.firma.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      select: { id: true, ad: true, il: true, durum: true, createdAt: true, sektor: true },
-    }),
-    db.egitim.findMany({
-      where: { durum: "planlandi" },
-      orderBy: { tarih: "asc" },
-      take: 6,
-      include: { firma: { select: { ad: true } } },
-    }),
+    firmaYetki ? db.firma.count() : Promise.resolve(0),
+    firmaYetki ? db.firma.count({ where: { durum: "aktif" } }) : Promise.resolve(0),
+    yatirimYetki
+      ? db.yatirimDestegi.aggregate({
+          _sum: { tutar: true },
+          where: { durum: { in: ["onaylandi", "tamamlandi"] }, paraBirimi: "TRY" },
+        })
+      : Promise.resolve({ _sum: { tutar: 0 } }),
+    egitimYetki ? db.egitim.count() : Promise.resolve(0),
+    hizmetYetki ? db.hizmet.count() : Promise.resolve(0),
+    yatirimYetki
+      ? db.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } })
+      : Promise.resolve([] as { durum: string; _count: { _all: number } }[]),
+    yatirimYetki
+      ? db.yatirimDestegi.findMany({
+          where: { tarih: { gte: oniki }, paraBirimi: "TRY" },
+          select: { tarih: true, tutar: true },
+        })
+      : Promise.resolve([] as { tarih: Date; tutar: number }[]),
+    firmaYetki
+      ? db.firma.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: { id: true, ad: true, il: true, durum: true, createdAt: true, sektor: true },
+        })
+      : Promise.resolve([] as { id: string; ad: string; il: string | null; durum: string; createdAt: Date; sektor: string | null }[]),
+    egitimYetki
+      ? db.egitim.findMany({
+          where: { durum: "planlandi" },
+          orderBy: { tarih: "asc" },
+          take: 6,
+          include: { firma: { select: { ad: true } } },
+        })
+      : Promise.resolve([] as { id: string; baslik: string; tarih: Date; firma: { ad: string } }[]),
   ]);
 
   const toplamYatirim = yatirimAgg._sum.tutar ?? 0;
@@ -89,6 +115,7 @@ export default async function DashboardPage() {
 
       {/* KPI kartları */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {firmaYetki && (
         <KpiCard
           index={0}
           label="Toplam Firma"
@@ -98,6 +125,8 @@ export default async function DashboardPage() {
           hint={`${aktifFirma} aktif firma`}
           href="/firmalar"
         />
+        )}
+        {yatirimYetki && (
         <KpiCard
           index={1}
           label="Onaylı Yatırım (TRY)"
@@ -108,6 +137,8 @@ export default async function DashboardPage() {
           hint="Onaylanan + tamamlanan"
           href="/yatirim-destekleri"
         />
+        )}
+        {egitimYetki && (
         <KpiCard
           index={2}
           label="Eğitim"
@@ -117,6 +148,8 @@ export default async function DashboardPage() {
           hint="Toplam kayıt"
           href="/egitimler"
         />
+        )}
+        {hizmetYetki && (
         <KpiCard
           index={3}
           label="Hizmet"
@@ -126,9 +159,11 @@ export default async function DashboardPage() {
           hint="Toplam kayıt"
           href="/hizmetler"
         />
+        )}
       </div>
 
       {/* Grafikler */}
+      {yatirimYetki && (
       <div className="grid gap-4 lg:grid-cols-3">
         <ChartCard
           title="Aylık Yatırım Trendi"
@@ -156,9 +191,11 @@ export default async function DashboardPage() {
           )}
         </ChartCard>
       </div>
+      )}
 
       {/* Listeler */}
       <div className="grid gap-4 lg:grid-cols-2">
+        {firmaYetki && (
         <ChartCard title="Son Eklenen Firmalar" href="/firmalar">
           {sonFirmalar.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">Henüz firma eklenmemiş.</p>
@@ -189,7 +226,9 @@ export default async function DashboardPage() {
             </ul>
           )}
         </ChartCard>
+        )}
 
+        {egitimYetki && (
         <ChartCard title="Yaklaşan Eğitimler" href="/egitimler">
           {yaklasanEgitimler.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">Planlanmış eğitim yok.</p>
@@ -209,6 +248,7 @@ export default async function DashboardPage() {
             </ul>
           )}
         </ChartCard>
+        )}
       </div>
     </div>
   );

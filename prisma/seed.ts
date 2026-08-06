@@ -175,23 +175,54 @@ async function main() {
   console.log("🌱 Seed başlıyor…");
 
   // --- Kiracı 1 ---
+  // Faz 4'ten itibaren dört rol var; seed her rolden bir hesap üretir ki
+  // yetkilendirme elle de denenebilsin.
   const gezegen = await kiraciOlustur("Gezegen Danışmanlık", "gezegen");
-  await kullaniciOlustur(gezegen.id, "admin@gezegen.com", "Sistem Yöneticisi", "admin123", "admin");
-  await kullaniciOlustur(gezegen.id, "kullanici@gezegen.com", "Örnek Kullanıcı", "user123", "user");
+  await kullaniciOlustur(gezegen.id, "admin@gezegen.com", "Sistem Yöneticisi", "admin123", "tenant_admin");
+  await kullaniciOlustur(gezegen.id, "kullanici@gezegen.com", "Örnek Kullanıcı", "user123", "uye");
+  await kullaniciOlustur(gezegen.id, "okuyucu@gezegen.com", "Salt Okunur Kullanıcı", "okuyucu123", "salt_okunur");
 
   // --- Kiracı 2 (izolasyon doğrulaması için) ---
   const anadolu = await kiraciOlustur("Anadolu Yatırım", "anadolu");
-  await kullaniciOlustur(anadolu.id, "admin@anadolu.com", "Anadolu Yöneticisi", "anadolu123", "admin");
+  await kullaniciOlustur(anadolu.id, "admin@anadolu.com", "Anadolu Yöneticisi", "anadolu123", "tenant_admin");
 
   console.log("✅ Kiracılar ve kullanıcılar hazır.");
+
+  // --- Örnek grup: salt okunur kullanıcıya rapor dışında ekleme yetkisi ---
+  // Grupların yalnızca yetki EKLEDİĞİNİ göstermek için.
+  const mevcutGrup = await prisma.grup.findFirst({
+    where: { tenantId: gezegen.id, ad: "Saha Ekibi" },
+  });
+  if (!mevcutGrup) {
+    const grup = await prisma.grup.create({
+      data: {
+        tenantId: gezegen.id,
+        ad: "Saha Ekibi",
+        aciklama: "Firma ve eğitim kaydı ekleyebilen ekip",
+        izinler: ["firma.olustur", "egitim.olustur", "egitim.duzenle"],
+      },
+    });
+    const okuyucu = await prisma.user.findFirst({
+      where: { tenantId: gezegen.id, email: "okuyucu@gezegen.com" },
+    });
+    if (okuyucu) {
+      await prisma.kullaniciGrup.create({
+        data: { tenantId: gezegen.id, userId: okuyucu.id, grupId: grup.id },
+      });
+    }
+    console.log("✅ Örnek grup oluşturuldu: Saha Ekibi");
+  }
 
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");
-  console.log("   Gezegen Danışmanlık → admin@gezegen.com / admin123");
-  console.log("   Anadolu Yatırım     → admin@anadolu.com / anadolu123");
-  console.log("   İki hesapla ayrı ayrı girip listelerin farklı olduğunu doğrulayın.");
+  console.log("   Gezegen · Kuruluş Yöneticisi → admin@gezegen.com / admin123");
+  console.log("   Gezegen · Üye                → kullanici@gezegen.com / user123");
+  console.log("   Gezegen · Salt Okunur        → okuyucu@gezegen.com / okuyucu123");
+  console.log("   Anadolu · Kuruluş Yöneticisi → admin@anadolu.com / anadolu123");
+  console.log("\n   İki kiracıyla girip listelerin ayrı olduğunu,");
+  console.log("   farklı rollerle girip yetkilerin değiştiğini doğrulayın.");
 }
 
 main()
