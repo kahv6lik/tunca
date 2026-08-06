@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.2.0` — Faz 2 tamamlandı |
-| **Sıradaki faz** | **Faz 3** — Çapraz kiracı sızıntı testleri + test altyapısı (`v1.3.0`) |
+| **Son çıkan sürüm** | `v1.3.0` — Faz 3 tamamlandı |
+| **Sıradaki faz** | **Faz 4** — RBAC, kullanıcı grupları, denetim günlüğü (`v1.4.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -26,7 +26,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 - Bir faz, kabul kriterleri sağlanmadan kapanmış sayılmaz.
 - Faz 1'den itibaren **hiçbir yeni sorgu `tenantId` filtresi olmadan yazılmaz.**
   Veri erişimi yalnızca `src/lib/tenant-db.ts` üzerinden yapılır.
-- Her birleştirme öncesi `npm run kontrol:izolasyon` çalıştırılır ve geçmelidir.
+- Her birleştirme öncesi `npm test` çalıştırılır ve geçmelidir (CI de koşar).
 
 ## Nasıl Çalışıyoruz (2 kişilik ekip)
 
@@ -95,10 +95,15 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm run kontrol:izolasyon   # veri katmanı
-npm run kontrol:e2e         # HTTP (sunucu çalışırken)
-npm run kontrol:kimlik      # giriş formu, gerçek tarayıcı (sunucu çalışırken)
+npm test                 # Vitest: izolasyon + RLS + regresyon (35 test, ~4 sn)
+npm run test:izle        # geliştirirken sürekli koşan hâli
+npm run kontrol:e2e      # HTTP (sunucu çalışırken)
+npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
 ```
+
+**CI:** `.github/workflows/ci.yml` her push ve pull request'te Postgres
+servisiyle tip kontrolü, derleme ve testleri koşar — kiracı sınırını bozan bir
+değişiklik birleştirilmeden önce yakalanır.
 
 ### Faz kapanış kontrol listesi
 
@@ -131,7 +136,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 |-----|--------|-------|-------|---------|
 | 1  | A1, A2, A3 — Tenant veri modeli, oturum bağlamı, sahiplik doğrulama | `v1.1.0` | ✅ tamamlandı | — |
 | 2  | A4 — PostgreSQL'e geçiş + Row-Level Security | `v1.2.0` | ✅ tamamlandı | — |
-| 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | planlandı | |
+| 3  | A5 — Çapraz kiracı sızıntı testleri | `v1.3.0` | ✅ tamamlandı | — |
 | 4  | A6, A7, A8 — RBAC, kullanıcı grupları, denetim günlüğü | `v1.4.0` | planlandı | |
 | 5  | B1–B7 — Admin panel (tenant/kullanıcı/paket/impersonation/markalama) | `v1.5.0` | planlandı | |
 | 6  | C1, C2, C3 — Kişi, Fırsat/Anlaşma, Kanban satış hattı | `v1.6.0` | planlandı | |
@@ -205,7 +210,8 @@ veri, uygulama katmanında kiracı bazında izole olur.
 
 ### Kabul kriterleri — hepsi sağlandı ✅
 - İki kiracıyla doğrulama: hiçbir listede, detayda, raporda veya grafikte
-  diğer kiracının verisi görünmez. → `npm run kontrol:izolasyon` (19/19),
+  diğer kiracının verisi görünmez. → o dönemde `kontrol:izolasyon` betiğiyle
+  (19/19); Faz 3'te Vitest paketine taşındı,
   `npm run kontrol:e2e` (14/14)
 - Kiracı dışı kayıt ID'si ile doğrudan URL denemesi 404 sayfası gösterir ve
   hiçbir veri sızdırmaz.
@@ -289,20 +295,40 @@ geri dönüş yolu: **`docs/DEPLOY.md` → "v1.2.0 — PostgreSQL'e geçiş"**.
 **Amaç:** İzolasyonun bir daha bozulamayacağını otomatik olarak kanıtlamak.
 
 ### Çalışma paketleri
-- [ ] **Test altyapısı** (seçilen listede yoktu ama A5 için zorunlu; bu faza dahil edildi)
+- [x] **Test altyapısı** (seçilen listede yoktu ama A5 için zorunlu; bu faza dahil edildi)
    - Vitest + test veritabanı (izole Postgres şeması), fixture'lar, CI betiği.
-- [ ] **İzolasyon test paketi**
+- [x] **İzolasyon test paketi**
    - İki kiracı + kullanıcıları üreten fixture.
    - Her modül için: liste, detay, oluştur, güncelle, sil → kiracı dışı erişim 404.
    - Rapor ve dashboard toplamlarının kiracı dışı veriyi saymadığı testi.
    - RLS testi: uygulama katmanı atlanarak yapılan sorgu boş döner.
    - Oturum kurcalama testi: JWT'deki `tenantId` değiştirilirse erişim reddedilir.
-- [ ] **Regresyon koruması**
+- [x] **Regresyon koruması**
    - Yeni sorguların tenant filtresi olmadan eklenmesini yakalayan kontrol.
 
-### Kabul kriterleri
-- Test paketi CI'da yeşil; kasıtlı olarak bir filtre kaldırıldığında **kırmızıya döner**
-  (testin gerçekten koruduğunun kanıtı).
+### Kabul kriterleri — hepsi sağlandı ✅
+- **35 test**, 3 dosyada, ~4 saniyede koşuyor: izolasyon (17), RLS (10),
+  regresyon (8). `npm test`
+- **Mutasyon kanıtı** — testlerin gerçekten koruduğu iki kasıtlı hatayla
+  doğrulandı:
+  1. RLS bağlamı uygulanmadığında → izolasyon ve RLS testleri kırmızı
+  2. Bir sayfa kiracı katmanını atladığında → regresyon testleri kırmızı
+- **CI** (`.github/workflows/ci.yml`) her push ve pull request'te Postgres
+  servisiyle tip kontrolü + derleme + testleri koşuyor.
+- `npm run dogrula` toplam **74 kontrol** ile geçiyor.
+
+### Uygulama notları
+- Testler ayrı bir PostgreSQL şeması (`test`) kullanır, her çalıştırmada
+  sıfırdan kurulur ve sonunda silinir. Geliştirme şemanıza dokunmaz.
+- Her test dosyası **kendi kiracı çiftini** rastgele slug ile üretir; dosyalar
+  aynı veritabanını paylaşsa bile birbirlerini etkilemez.
+- **Yaşanan tuzak:** `vitest.config.ts` içindeki `test.env` ayarı globalSetup'a
+  uygulanmaz — globalSetup ana süreçte, ayar devreye girmeden önce çalışır. İlk
+  denemede migration'lar test şeması yerine geliştirme şemasına uygulandı.
+  `tests/kurulum.ts` artık test URL'ini kendisi türetiyor ve şemanın gerçekten
+  kurulduğunu doğruluyor.
+- `scripts/izolasyon-kontrol.ts` kaldırıldı; yerini Vitest paketi aldı. HTTP ve
+  tarayıcı kontrolleri (çalışan sunucu gerektirdikleri için) betik olarak kaldı.
 
 ---
 

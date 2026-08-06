@@ -1,0 +1,56 @@
+name: CI
+
+# Her push ve pull request'te çalışır. Kiracı izolasyonunu koruyan testler
+# burada koşar — bir sızıntı eklenirse birleştirmeden ÖNCE yakalanır.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: Tip kontrolü, derleme ve testler
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gezegen
+          POSTGRES_PASSWORD: gezegen
+          POSTGRES_DB: gezegen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gezegen -d gezegen_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://gezegen:gezegen@localhost:5432/gezegen_test?schema=public
+      AUTH_SECRET: ci-icin-yeterince-uzun-bir-test-anahtari-32ch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: PostgreSQL istemcisi (psql)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Tip kontrolü
+        run: npx tsc --noEmit
+
+      - name: Üretim derlemesi
+        run: npm run build
+
+      - name: Testler (kiracı izolasyonu, RLS, regresyon)
+        run: npm test

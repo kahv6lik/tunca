@@ -56,7 +56,7 @@ npm run dev                   # http://localhost:3000
 ```bash
 npm run dogrula              # tümü + rapor (önerilen)
 
-npm run kontrol:izolasyon    # veri katmanı + RLS
+npm test                     # izolasyon + RLS + regresyon testleri (~4 sn)
 npm run kontrol:e2e          # gerçek HTTP üzerinden (sunucu çalışırken)
 npm run kontrol:kimlik       # giriş formu, gerçek tarayıcı (sunucu çalışırken)
 ```
@@ -190,6 +190,7 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 | `npm run db:migrate` | Migrasyonları uygula (prisma migrate deploy) |
 | `npm run db:seed` | Örnek demo verilerini yükle |
 | `npm run db:bootstrap` | Kiracı + yönetici kullanıcısı oluştur (üretim) |
+| `npm test` | Kiracı izolasyonu, RLS ve regresyon testleri |
 | `npm run dogrula` | Tam doğrulama + rapor (`docs/dogrulama/v<sürüm>.md`) |
 | `npm run demo:kur` | Demo yönetici hesabını geri getir (veriye dokunmaz) |
 | `npm run gecis:postgres` | SQLite → PostgreSQL veri taşıma (tek seferlik) |

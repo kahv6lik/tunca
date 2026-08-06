@@ -109,13 +109,24 @@ katmanında bir sorgu filtreyi unutsa bile veri sızmaz.
 npm run dogrula
 ```
 
-Tip kontrolü + derleme + migration + demo veri + kiracı izolasyonu (veri
-katmanı, RLS ve HTTP) + gerçek tarayıcıyla kimlik doğrulama = **70 kontrol**.
+Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
++ HTTP izolasyonu + gerçek tarayıcıyla kimlik doğrulama = **74 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
 
-Tek tek: `kontrol:izolasyon` (31), `kontrol:e2e` (14), `kontrol:kimlik` (18).
+Tek tek:
+
+```bash
+npm test                 # Vitest: izolasyon + RLS + regresyon (35 test, ~4 sn)
+npm run test:izle        # geliştirirken sürekli koşan hâli
+npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
+npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken, 18)
+```
+
+**CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
+kontrolü, derleme ve testleri koşar. Kiracı sınırını bozan bir değişiklik
+birleştirilmeden önce yakalanır.
 
 Giriş yapılamaz duruma düşülürse: `npm run demo:kur` — demo yönetici hesabını
 (`admin@gezegen.com` / `admin123`, tam yetkili) veriye dokunmadan geri getirir.
@@ -182,7 +193,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 |-----|--------|-------|-------|
 | 1  | Tenant veri modeli, oturum bağlamı, sahiplik doğrulama (A1-A3) | `v1.1.0` | ✅ tamamlandı |
 | 2  | PostgreSQL'e geçiş + Row-Level Security (A4) | `v1.2.0` | ✅ tamamlandı |
-| 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | planlandı |
+| 3  | Çapraz kiracı sızıntı testleri + test altyapısı (A5) | `v1.3.0` | ✅ tamamlandı |
 | 4  | RBAC, kullanıcı grupları, denetim günlüğü (A6-A8) | `v1.4.0` | planlandı |
 | 5  | Admin panel: tenant/kullanıcı/davet/paket/impersonation/markalama (B1-B7) | `v1.5.0` | planlandı |
 | 6  | Kişi, Fırsat/Anlaşma, Kanban satış hattı (C1-C3) | `v1.6.0` | planlandı |

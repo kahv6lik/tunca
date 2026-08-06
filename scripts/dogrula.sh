@@ -188,9 +188,9 @@ else
   exit 1
 fi
 
-# ── 5. Veri katmanı izolasyonu ────────────────────────────────────────────
-kontrol_calistir "Kiracı izolasyonu — veri katmanı" \
-  "DATABASE_URL='$DB_URL' npx tsx scripts/izolasyon-kontrol.ts"
+# ── 5. Otomatik test paketi ───────────────────────────────────────────────
+# Kiracı izolasyonu, RLS ve regresyon korumaları. Kendi test şemasını kurar.
+kontrol_calistir "Otomatik testler (Vitest)" "bash scripts/test-calistir.sh"
 
 # ── 6. Sunucuyu başlat ────────────────────────────────────────────────────
 echo ""
