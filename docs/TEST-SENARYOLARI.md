@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.11.0** | **Faz 11** — Kiracıya özel alanlar: firma/kişi/fırsat formlarına beş tipli alan tanımlama, liste filtresi, dışa aktarım ve yedek bütünleşmesi | `/ozel-alanlar`da alan tanımla → firma formunda doldur → listede filtrele → dışa aktar | Alan formda kendiliğinden görünür; seçim tipli alan filtre olur; dosyada sütun olarak çıkar; komşu kiracı alanı hiç görmez | 324 |
 | **v1.10.1** | Güvenlik yükseltmesi: Next.js 15.5 + React 19 (14 hattında yamasız kalan açıklar), `npm audit` 0 açık | `npm audit` çalıştır; uygulamayı normal kullan | Hiç açık raporlanmaz; tüm ekranlar önceki gibi çalışır (296 kontrol aynı) | 296 |
 | **v1.10.0** | **Faz 10** — Özelleştirilebilir pano, kayıtlı görünümler (kaydet/paylaş/varsayılan), kiracı yedekleri (ekleyici geri yükleme + gece yedeği) | Panoda **Panoyu Düzenle** ile kart seç; `/firmalar`da filtre kur → **Görünümler → Kaydet**; `/yedekler`de **Şimdi Yedek Al** → bir kaydı sil → **Geri Yükle** | Pano yalnızca seçilen (ve izinli) kartları gösterir; liste parametresiz açılınca varsayılan görünüm uygulanır; silinen kayıt döner, mevcutlara dokunulmaz | 296 |
 
@@ -182,6 +183,22 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 10 | Yedeği indir (`.json.gz`) → `/yedekler`de dosyadan yükle | Dosya doğrulanır, "Dosyadan" türünde kayıt olur; geri yükleme ayrı onayla |
 | 11 | `kullanici@gezegen.com` ile `/yedekler` | `/yetkisiz` — yedek bütün veriyi içerir, yalnızca kuruluş yöneticisi |
 | 12 | `/denetim` | "Yedek alındı / geri yüklendi / indirildi" kayıtları |
+
+### v1.11.0 — Kiracıya özel alanlar (Faz 11)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `admin@gezegen.com` ile `/ozel-alanlar` | Seed'den gelen alanlar: Müşteri No, Segment (firma), LinkedIn (kişi), İhale No (fırsat) |
+| 2 | **Yeni Alan** → Firma, "Sözleşme Bitişi", tip Tarih, zorunlu işaretle | Alan listeye eklenir |
+| 3 | `/firmalar/yeni` aç | Formun altında "Özel Alanlar" bölümü; Sözleşme Bitişi boş bırakılamaz |
+| 4 | Sözleşme Bitişi'ni boş bırakıp kaydetmeyi dene | Sunucu hata döndürür: "alanı zorunludur" — arayüz kontrolü aşılsa bile kayıt yazılmaz |
+| 5 | Doldurup kaydet → firma detayına bak | Özel alanlar bilgi kartında değerleriyle görünür |
+| 6 | `/firmalar` listesinde **Segment** filtresinden "Altın" seç | Yalnızca o segmentteki firmalar listelenir; **Görünümler → Kaydet** dersen filtre görünümde saklanır |
+| 7 | Aynı filtreyle **Dışa Aktar** | Dosyada özel alanlar sütun olarak var ve filtre uygulanmış |
+| 8 | `kullanici@gezegen.com` ile `/ozel-alanlar` | `/yetkisiz` — ama firma formunda alanları görür ve doldurabilir |
+| 9 | `admin@anadolu.com` ile `/firmalar/yeni` | Gezegen'in alanları YOK — alanlar kiracıya özeldir |
+| 10 | Bir alanı sil (değerli olanı) | Onay metni kaç kayıtta değer olduğunu söyler; silince değerler de gider |
+| 11 | `/yedekler` → yedek al → alanı sil → geri yükle | Alan tanımı ve değerleri yedekten geri gelir |
 
 ---
 

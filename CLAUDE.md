@@ -41,7 +41,8 @@ prisma/
                        # Teklif, TeklifKalemi, Bildirim, BildirimTercihi,
                        # EpostaAyari, EpostaKuyrugu, EpostaKaydi,
                        # IsAkisi, IsAkisiCalismasi,
-                       # PanoTercihi, KayitliGorunum, Yedek
+                       # PanoTercihi, KayitliGorunum, Yedek,
+                       # OzelAlan, OzelAlanDeger
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -67,6 +68,7 @@ src/
       ice-aktar/       # Excel/CSV içe aktarım sihirbazı (Faz 9)
       teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
       yedekler/        # yedek al/indir/geri yükle — yedek.yonet (Faz 10)
+      ozel-alanlar/    # özel alan tanımları — ozelalan.yonet (Faz 11)
       pano-actions.ts, gorunum-actions.ts  # kişisel tercih action'ları (Faz 10)
     api/
       gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
@@ -94,8 +96,10 @@ src/
     bildirimler/       # BildirimListesi, TercihFormu (Faz 8)
     otomasyon/         # KuralPanel, EpostaAyarFormu (Faz 8)
     yedekler/          # YedekPanel (Faz 10)
+    ozel-alanlar/      # OzelAlanPanel (Faz 11)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
-    GorunumBar          # kayıtlı görünümler (Faz 10)
+    GorunumBar,         # kayıtlı görünümler (Faz 10)
+    OzelAlanGirdileri   # özel alan form girdileri (Faz 11)
   lib/
     auth.ts, session.ts   # oturum ve requireSession
     constants.ts          # durum/tür sabitleri + rozet etiketleri
@@ -116,6 +120,7 @@ src/
     pano-tanimlar.ts      # pano kart kayıt defteri — saf veri (Faz 10)
     gorunum.ts            # kayıtlı görünümler (+ -tanimlar: sorguTemizle) (Faz 10)
     yedek.ts              # yedekleme (+ -saf: bütün mantık, testler onu sınar) (Faz 10)
+    ozel-alan.ts          # kiracıya özel alanlar (+ -tanimlar: doğrulama saf) (Faz 11)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -130,7 +135,8 @@ src/
 `Kisi`, `Asama` ve `Firsat`, Faz 7 ile `Aktivite`, `Lead`, `Teklif` ve
 `TeklifKalemi`, Faz 8 ile `Bildirim`, `BildirimTercihi`, `EpostaAyari`,
 `EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
-`PanoTercihi`, `KayitliGorunum` ve `Yedek` eklendi.
+`PanoTercihi`, `KayitliGorunum` ve `Yedek`, Faz 11 ile `OzelAlan` ve
+`OzelAlanDeger` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -291,6 +297,25 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   zorunluluğunun belgeli istisnasıdır (`tests/regresyon.test.ts` içindeki
   `KISISEL_TERCIH_DOSYALARI`); kullanıcı yalnızca KENDİ satırını yazar.
 
+### Kiracıya Özel Alanlar (Faz 11)
+
+- **Değer her zaman String saklanır** (`OzelAlanDeger.deger`); tip (metin/
+  sayı/tarih/seçim/onay) yalnızca doğrulama ve gösterimdir. Doğrulama saf
+  katmandadır (`ozel-alan-tanimlar.ts`); seçim tipi istemciden geleni
+  TANIMDAKİ seçeneklerle karşılaştırır.
+- **Kayıt bağlantısı gerçek FK'dir** (firmaId/kisiId/firsatId, tam biri
+  dolu): kayıt silinince değerler cascade ile gider — yetim değer olamaz.
+  Yeni varlık eklemek şemaya FK eklemeyi gerektirir (bilinçli takas).
+- **Tanımlamak yönetim işi (`ozelalan.yonet`), değer yazmak varlık işidir.**
+  `ozelalan` bir paket modülüdür; kapatılırsa `alanlariGetir` boş döner ve
+  alanlar form/filtre/dışa aktarımdan tek noktadan kaybolur. Migration
+  mevcut paketlere modülü ekler — yükseltme özellik kapatmaz.
+- **Action deseni:** önce `formdanDegerler` doğrular, sonra ana kayıt, sonra
+  `degerleriKaydet`. Tanımsız `oa_*` anahtarları sessizce yok sayılır.
+- Seçim tipli firma alanları listede filtredir (`oa_<alanId>` parametresi);
+  kayıtlı görünüm ve dışa aktarım bunları kendiliğinden taşır. Yedek
+  kapsamında tanım değerden önce gelir.
+
 **2. Veritabanı katmanı (Faz 2)** — PostgreSQL Row-Level Security.
 `src/lib/rls.ts` her sorguyu bağlam ayarlanmış bir işleme sarar:
 
@@ -311,7 +336,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**296 kontrol**.
+**324 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -319,10 +344,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (171 test, ~7 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (192 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 104)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 111)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -402,7 +427,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 8  | Bildirim, iş akışı otomasyonu, e-posta, takvim (D1-D5) | `v1.8.0` | ✅ tamamlandı |
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | ✅ tamamlandı |
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | ✅ tamamlandı |
-| 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | planlandı |
+| 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | ✅ tamamlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | planlandı |
 | 13 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.13.0` | planlandı |
 
@@ -449,3 +474,8 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   (14 hattına yama gelmeyen kritik/yüksek açıklar: Server Action DoS/SSRF,
   önbellek zehirlenmesi, uç nokta ifşası). recharts 3, next-themes 0.4;
   postcss/sharp/uuid `overrides` ile yamalı. `npm audit`: 0 açık.
+- **v1.11.0** — **Faz 11:** Kiracıya özel alanlar. Firma/kişi/fırsat için
+  beş tipli (metin, sayı, tarih, seçim, onay) alan tanımlama ekranı;
+  formlarda ve detaylarda dinamik gösterim, seçim tipli firma alanlarında
+  liste filtresi; kayıtlı görünüm, dışa aktarım ve yedek bütünleşmesi.
+  Değerler gerçek FK ile bağlı — kayıt silinince cascade ile temizlenir.

@@ -13,6 +13,7 @@ import {
 } from "@/lib/tenant-db";
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
+import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 
 /**
  * Kişi (Contact) işlemleri — Faz 6 / C1.
@@ -75,18 +76,23 @@ export async function createKisi(
   }
   await firmaSahipligiDogrula(db, parsed.data.firmaId);
 
+  const alanlar = await alanlariGetir("kisi");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   if (parsed.data.birincil) {
     await digerBirincilleriKaldir(db, parsed.data.firmaId);
   }
 
   const kayit = await tenantOlustur(db, "kisi", parsed.data);
+  await degerleriKaydet(db, "kisi", kayit.id, ozel.degerler);
 
   await denetimYaz({
     islem: "olustur",
     varlik: "Kisi",
     varlikId: kayit.id,
     ozet: parsed.data.ad,
-    yeni: parsed.data,
+    yeni: { ...parsed.data, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidate(parsed.data.firmaId);
@@ -107,12 +113,17 @@ export async function updateKisi(
   }
   await firmaSahipligiDogrula(db, parsed.data.firmaId);
 
+  const alanlar = await alanlariGetir("kisi");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   if (parsed.data.birincil) {
     await digerBirincilleriKaldir(db, parsed.data.firmaId, id);
   }
 
   const oncesi = await kayitOku(db, "kisi", id);
   await tenantGuncelle(db, "kisi", id, parsed.data);
+  await degerleriKaydet(db, "kisi", id, ozel.degerler);
 
   await denetimYaz({
     islem: "guncelle",
@@ -120,7 +131,7 @@ export async function updateKisi(
     varlikId: id,
     ozet: parsed.data.ad,
     eski: oncesi,
-    yeni: parsed.data,
+    yeni: { ...parsed.data, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidate(parsed.data.firmaId);

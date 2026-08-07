@@ -5,6 +5,8 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil, X } from "lucide-react";
 import { createFirsat, updateFirsat, type FormState } from "@/app/(app)/firsatlar/actions";
 import { FIRSAT_DURUM, PARA_BIRIMI, durumBadge } from "@/lib/constants";
+import OzelAlanGirdileri from "@/components/OzelAlanGirdileri";
+import type { OzelAlanTanimi } from "@/lib/ozel-alan-tanimlar";
 
 type Secenek = { id: string; ad: string };
 type AsamaSecenek = { id: string; ad: string; olasilik: number };
@@ -39,6 +41,8 @@ export default function FirsatPanel({
   kisiler,
   sabitFirmaId,
   mevcut,
+  ozelAlanlar = [],
+  ozelDegerler = {},
 }: {
   asamalar: AsamaSecenek[];
   firmalar?: Secenek[];
@@ -46,6 +50,8 @@ export default function FirsatPanel({
   kisiler?: Secenek[];
   sabitFirmaId?: string;
   mevcut?: FirsatDegerleri;
+  ozelAlanlar?: OzelAlanTanimi[];
+  ozelDegerler?: Record<string, string>;
 }) {
   const [acik, setAcik] = useState(false);
   const duzenleme = Boolean(mevcut);
@@ -305,6 +311,9 @@ export default function FirsatPanel({
                   className="input"
                 />
               </div>
+
+              {/* Kiracıya özel alanlar (Faz 11 / E6) */}
+              <OzelAlanGirdileri alanlar={ozelAlanlar} degerler={ozelDegerler} />
 
               {state.error && (
                 <p className="sm:col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">

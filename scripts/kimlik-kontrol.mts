@@ -655,6 +655,47 @@ async function main() {
     `HTTP ${oturumsuzYedek.status}`
   );
 
+  // 13 — Kiracıya özel alanlar (Faz 11)
+  console.log("\n13. Kiracıya özel alanlar — tanım, form, filtre, izolasyon");
+
+  const alanYonetim = await sayfaGetir("admin@gezegen.com", "admin123", "/ozel-alanlar");
+  kontrol(
+    "Yönetici alan tanımlama ekranını açabiliyor",
+    !alanYonetim.url.includes("/yetkisiz") && alanYonetim.govde.includes("alan tanımlı")
+  );
+  kontrol(
+    "Seed'deki örnek alanlar listeleniyor",
+    alanYonetim.govde.includes("Müşteri No") && alanYonetim.govde.includes("Segment")
+  );
+
+  const yeniFirma = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar/yeni");
+  kontrol(
+    "Firma formunda özel alan bölümü var",
+    yeniFirma.govde.includes("Özel Alanlar") && yeniFirma.govde.includes("Müşteri No")
+  );
+
+  const firmaListe = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
+  kontrol(
+    "Seçim tipli alan firma listesinde filtre olarak sunuluyor",
+    firmaListe.govde.includes("Segment")
+  );
+
+  // Alan tanımı kuruluş çapında bir karardır — üye tanımlayamaz ama girer.
+  const uyeAlan = await sayfaGetir("kullanici@gezegen.com", "user123", "/ozel-alanlar");
+  kontrol("Üye alan tanımlama ekranına giremiyor", uyeAlan.url.includes("/yetkisiz"), uyeAlan.url);
+  const uyeYeniFirma = await sayfaGetir("kullanici@gezegen.com", "user123", "/firmalar/yeni");
+  kontrol(
+    "Üye formda özel alanları görüyor (değer girmek varlık iznine tabidir)",
+    uyeYeniFirma.govde.includes("Müşteri No")
+  );
+
+  // Alanlar KİRACIYA özeldir: komşu kiracının formunda görünmez.
+  const anadoluYeniFirma = await sayfaGetir("admin@anadolu.com", "anadolu123", "/firmalar/yeni");
+  kontrol(
+    "Komşu kiracının formunda bu alanlar YOK (kiracıya özel)",
+    !anadoluYeniFirma.govde.includes("Müşteri No") && !anadoluYeniFirma.govde.includes("Segment")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

@@ -35,7 +35,9 @@ export function sorguTemizle(ham: string): string {
   const cikti = new URLSearchParams();
 
   for (const [anahtar, deger] of girdi.entries()) {
-    if (!/^[a-zA-Z]{1,30}$/.test(anahtar)) continue;
+    // Düz filtre anahtarları ("ara", "durum"…) ve özel alan filtreleri
+    // ("oa_<alanId>", Faz 11). Başka biçim yok — "__proto__" dahil düşer.
+    if (!/^[a-zA-Z]{1,30}$/.test(anahtar) && !/^oa_[a-z0-9]{1,32}$/.test(anahtar)) continue;
     if (anahtar === "g" || anahtar === "sayfa") continue;
     if (!deger || deger.length > 200) continue;
     cikti.set(anahtar, deger);

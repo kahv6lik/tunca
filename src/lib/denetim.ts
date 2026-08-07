@@ -29,7 +29,8 @@ export type DenetimVarligi =
   | "Lead"
   | "Teklif"
   | "IsAkisi"
-  | "EpostaAyari";
+  | "EpostaAyari"
+  | "OzelAlan";
 
 export const VARLIK_ETIKET: Record<string, string> = {
   Firma: "Firma",

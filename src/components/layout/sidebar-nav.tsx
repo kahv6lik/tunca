@@ -18,6 +18,7 @@ import {
   Zap,
   Upload,
   DatabaseBackup,
+  ListPlus,
   BarChart3,
   Users,
   ScrollText,
@@ -51,6 +52,7 @@ export const NAV: NavItem[] = [
   { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
   { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
+  { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet" },
   { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet" },
 ];
 

@@ -433,7 +433,7 @@ async function paketleriKur() {
       firmaLimiti: 500,
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
-        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor",
+        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor", "ozelalan",
       ],
     },
     {
@@ -443,7 +443,7 @@ async function paketleriKur() {
       firmaLimiti: 0,
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
-        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor",
+        "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor", "ozelalan",
       ],
     },
   ];
@@ -529,6 +529,29 @@ async function main() {
     }
     console.log("✅ Örnek grup oluşturuldu: Saha Ekibi");
   }
+
+  // --- Örnek özel alanlar (Faz 11 / E6) — yalnızca Gezegen kiracısında ---
+  // Diğer kiracıda YOK: özel alanların kiracıya özel olduğu elle de görülsün.
+  const ozelAlanlar = [
+    { varlik: "firma", ad: "Müşteri No", tip: "metin", secenekler: [], zorunlu: false, sira: 1 },
+    {
+      varlik: "firma",
+      ad: "Segment",
+      tip: "secim",
+      secenekler: ["Altın", "Gümüş", "Bronz"],
+      zorunlu: false,
+      sira: 2,
+    },
+    { varlik: "kisi", ad: "LinkedIn", tip: "metin", secenekler: [], zorunlu: false, sira: 1 },
+    { varlik: "firsat", ad: "İhale No", tip: "metin", secenekler: [], zorunlu: false, sira: 1 },
+  ];
+  for (const a of ozelAlanlar) {
+    const mevcut = await prisma.ozelAlan.findFirst({
+      where: { tenantId: gezegen.id, varlik: a.varlik, ad: a.ad },
+    });
+    if (!mevcut) await prisma.ozelAlan.create({ data: { tenantId: gezegen.id, ...a } });
+  }
+  console.log("✅ Örnek özel alanlar hazır (Müşteri No, Segment, LinkedIn, İhale No).");
 
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");

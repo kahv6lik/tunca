@@ -70,6 +70,8 @@ model Tenant {
   PanoTercihi      PanoTercihi[]
   KayitliGorunum   KayitliGorunum[]
   Yedek            Yedek[]
+  OzelAlan         OzelAlan[]
+  OzelAlanDeger    OzelAlanDeger[]
 
   @@index([durum])
 }
@@ -113,14 +115,15 @@ model Firma {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  yatirimlar  YatirimDestegi[]
-  egitimler   Egitim[]
-  hizmetler   Hizmet[]
-  kisiler     Kisi[]
-  firsatlar   Firsat[]
-  aktiviteler Aktivite[]
-  leadler     Lead[]
-  teklifler   Teklif[]
+  yatirimlar   YatirimDestegi[]
+  egitimler    Egitim[]
+  hizmetler    Hizmet[]
+  kisiler      Kisi[]
+  firsatlar    Firsat[]
+  aktiviteler  Aktivite[]
+  leadler      Lead[]
+  teklifler    Teklif[]
+  ozelDegerler OzelAlanDeger[]
 
   @@index([tenantId, ad])
   @@index([tenantId, il])
@@ -304,8 +307,9 @@ model Kisi {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firsatlar   Firsat[]
-  aktiviteler Aktivite[]
+  firsatlar    Firsat[]
+  aktiviteler  Aktivite[]
+  ozelDegerler OzelAlanDeger[]
 
   @@index([tenantId, firmaId])
   @@index([tenantId, ad])
@@ -359,8 +363,9 @@ model Firsat {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  aktiviteler Aktivite[]
-  teklifler   Teklif[]
+  aktiviteler  Aktivite[]
+  teklifler    Teklif[]
+  ozelDegerler OzelAlanDeger[]
 
   @@index([tenantId, asamaId])
   @@index([tenantId, firmaId])
@@ -758,4 +763,64 @@ model Yedek {
   createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+// ── Kiracıya özel alanlar (Faz 11 / E6) ─────────────────────────────────────
+//
+// Her kiracı; firma, kişi ve fırsat kayıtlarına kendi alanlarını ekler.
+// Tip listesi src/lib/ozel-alan-tanimlar.ts içindedir (metin, sayı, tarih,
+// seçim, onay). Değer her zaman String saklanır — tip yalnızca doğrulama ve
+// gösterim içindir. Bu, constants.ts'teki "enum yerine String" tercihinin
+// devamıdır.
+model OzelAlan {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  varlik     String // "firma" | "kisi" | "firsat"
+  ad         String
+  tip        String   @default("metin")
+  secenekler String[] @default([]) // yalnızca tip="secim" kullanır
+  zorunlu    Boolean  @default(false)
+  sira       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  degerler OzelAlanDeger[]
+
+  @@unique([tenantId, varlik, ad])
+  @@index([tenantId, varlik, sira])
+}
+
+// Özel alan değeri. Kayıt bağlantısı GERÇEK yabancı anahtardır (üç seçenekli
+// sütundan tam biri dolu olur): kayıt silinince değerleri veritabanı düzeyinde
+// cascade ile temizlenir — "yetim değer" sınıfı sorun baştan kapatılır.
+model OzelAlanDeger {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  alanId String
+  alan   OzelAlan @relation(fields: [alanId], references: [id], onDelete: Cascade)
+
+  firmaId  String?
+  firma    Firma?  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  kisiId   String?
+  kisi     Kisi?   @relation(fields: [kisiId], references: [id], onDelete: Cascade)
+  firsatId String?
+  firsat   Firsat? @relation(fields: [firsatId], references: [id], onDelete: Cascade)
+
+  deger String
+
+  updatedAt DateTime @updatedAt
+
+  // Kayıt başına alan başına tek değer (NULL'lar Postgres'te çakışmaz).
+  @@unique([alanId, firmaId])
+  @@unique([alanId, kisiId])
+  @@unique([alanId, firsatId])
+  @@index([tenantId, alanId, deger])
+  @@index([firmaId])
+  @@index([kisiId])
+  @@index([firsatId])
 }

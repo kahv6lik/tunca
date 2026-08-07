@@ -6,6 +6,8 @@ import { useFormState, useFormStatus } from "react-dom";
 import type { FormState } from "@/app/(app)/firmalar/actions";
 import { FIRMA_DURUM, SEKTORLER, DIGER_SEKTOR } from "@/lib/constants";
 import { ILLER, ilceler } from "@/lib/tr-iller";
+import OzelAlanGirdileri from "@/components/OzelAlanGirdileri";
+import type { OzelAlanTanimi } from "@/lib/ozel-alan-tanimlar";
 
 type FirmaValues = {
   ad?: string;
@@ -35,11 +37,15 @@ export default function FirmaForm({
   initial,
   submitLabel = "Kaydet",
   cancelHref = "/firmalar",
+  ozelAlanlar = [],
+  ozelDegerler = {},
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   initial?: FirmaValues;
   submitLabel?: string;
   cancelHref?: string;
+  ozelAlanlar?: OzelAlanTanimi[];
+  ozelDegerler?: Record<string, string>;
 }) {
   const [state, formAction] = useFormState<FormState, FormData>(action, {});
   const v = initial ?? {};
@@ -173,6 +179,16 @@ export default function FirmaForm({
           <label className="label" htmlFor="notlar">Notlar</label>
           <textarea id="notlar" name="notlar" rows={3} className="input" defaultValue={v.notlar ?? ""} />
         </div>
+
+        {/* Kiracıya özel alanlar (Faz 11 / E6) */}
+        {ozelAlanlar.length > 0 && (
+          <div className="md:col-span-2 border-t border-border/60 pt-4">
+            <p className="mb-3 text-sm font-semibold text-foreground/90">Özel Alanlar</p>
+            <div className="grid gap-5 md:grid-cols-2">
+              <OzelAlanGirdileri alanlar={ozelAlanlar} degerler={ozelDegerler} />
+            </div>
+          </div>
+        )}
       </div>
 
       {state.error && (

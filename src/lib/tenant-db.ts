@@ -51,6 +51,8 @@ const KIRACI_MODELLERI = new Set([
   "PanoTercihi",
   "KayitliGorunum",
   "Yedek",
+  "OzelAlan",
+  "OzelAlanDeger",
 ]);
 
 // where filtresi eklenerek güvene alınabilen işlemler
@@ -172,7 +174,9 @@ export type KiraciModeli =
   | "isAkisi"
   | "isAkisiCalismasi"
   | "kayitliGorunum"
-  | "yedek";
+  | "yedek"
+  | "ozelAlan"
+  | "ozelAlanDeger";
 
 export async function sahiplikDogrula(
   db: TenantClient,

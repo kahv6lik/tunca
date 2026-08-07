@@ -10,6 +10,7 @@ import { formatTarih } from "@/lib/format";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
+import { alanlariGetir, degerleEslesenKayitlar, ozelAlanGirdiAdi } from "@/lib/ozel-alan";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ type SearchParams = {
   durum?: string;
   il?: string;
   sayfa?: string;
+  // Faz 11: özel alan filtreleri "oa_<alanId>" anahtarıyla gelir.
+  [anahtar: string]: string | undefined;
 };
 
 export default async function FirmalarPage(
@@ -38,6 +41,24 @@ export default async function FirmalarPage(
   const il = (searchParams.il ?? "").trim();
   const sayfa = Math.max(1, parseInt(searchParams.sayfa ?? "1", 10) || 1);
 
+  /**
+   * Özel alan filtreleri (Faz 11 / E6) — yalnızca SEÇİM tipli firma alanları
+   * filtre olarak sunulur (serbest metinde arama zaten "Ara" kutusunun işi).
+   * Değer eşleşen firma id'leri where'e eklenir; sorgular kiracı katmanından
+   * geçer. Filtre querystring'de yaşadığı için kayıtlı görünümler ve dışa
+   * aktarım kendiliğinden bunları da taşır.
+   */
+  const secimAlanlari = (await alanlariGetir("firma")).filter((a) => a.tip === "secim");
+  const aktifOzelFiltreler = secimAlanlari
+    .map((a) => ({ alan: a, deger: (searchParams[ozelAlanGirdiAdi(a.id)] ?? "").trim() }))
+    .filter((f) => f.deger && f.alan.secenekler.includes(f.deger));
+
+  const ozelKisitlar: Prisma.FirmaWhereInput[] = [];
+  for (const f of aktifOzelFiltreler) {
+    const idler = await degerleEslesenKayitlar(db, "firma", f.alan.id, f.deger);
+    ozelKisitlar.push({ id: { in: idler } });
+  }
+
   const where: Prisma.FirmaWhereInput = {
     AND: [
       ara
@@ -52,6 +73,7 @@ export default async function FirmalarPage(
         : {},
       durum ? { durum } : {},
       il ? { il: { contains: il } } : {},
+      ...ozelKisitlar,
     ],
   };
 
@@ -81,7 +103,12 @@ export default async function FirmalarPage(
   if (ara) qs.set("ara", ara);
   if (durum) qs.set("durum", durum);
   if (il) qs.set("il", il);
+  for (const f of aktifOzelFiltreler) qs.set(ozelAlanGirdiAdi(f.alan.id), f.deger);
   const baseUrl = `/firmalar?${qs.toString()}${qs.toString() ? "&" : ""}`;
+
+  const ozelFiltreDegerleri = Object.fromEntries(
+    aktifOzelFiltreler.map((f) => [ozelAlanGirdiAdi(f.alan.id), f.deger])
+  );
 
   return (
     <div>
@@ -90,8 +117,15 @@ export default async function FirmalarPage(
         subtitle={`${toplam} firma listeleniyor`}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <GorunumBar liste="firmalar" gorunumler={gorunumler} filtreler={{ ara, durum, il }} />
-            <DisaAktarDugmesi tur="firmalar" filtreler={{ ara, durum, il }} />
+            <GorunumBar
+              liste="firmalar"
+              gorunumler={gorunumler}
+              filtreler={{ ara, durum, il, ...ozelFiltreDegerleri }}
+            />
+            <DisaAktarDugmesi
+              tur="firmalar"
+              filtreler={{ ara, durum, il, ...ozelFiltreDegerleri }}
+            />
             {ekleyebilir && (
             <Link href="/firmalar/yeni" className="btn-primary">
               + Yeni Firma
@@ -134,8 +168,25 @@ export default async function FirmalarPage(
               ))}
           </select>
         </div>
+        {/* Seçim tipli özel alan filtreleri (Faz 11 / E6) */}
+        {secimAlanlari.map((a) => (
+          <div key={a.id} className="w-44">
+            <label className="label" htmlFor={ozelAlanGirdiAdi(a.id)}>{a.ad}</label>
+            <select
+              id={ozelAlanGirdiAdi(a.id)}
+              name={ozelAlanGirdiAdi(a.id)}
+              defaultValue={searchParams[ozelAlanGirdiAdi(a.id)] ?? ""}
+              className="input"
+            >
+              <option value="">Tümü</option>
+              {a.secenekler.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        ))}
         <button type="submit" className="btn-primary">Filtrele</button>
-        {(ara || durum || il) && (
+        {(ara || durum || il || aktifOzelFiltreler.length > 0) && (
           <Link href="/firmalar" className="btn-secondary">Temizle</Link>
         )}
       </form>

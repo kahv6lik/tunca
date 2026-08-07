@@ -16,6 +16,7 @@ import {
 } from "@/lib/tenant-db";
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
+import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 import { FIRSAT_DURUM } from "@/lib/constants";
 import { bildirimGonder } from "@/lib/bildirim";
 
@@ -115,15 +116,20 @@ export async function createFirsat(
   }
   await bagliKayitlariDogrula(db, parsed.data);
 
+  const alanlar = await alanlariGetir("firsat");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   const veri = veriHazirla(parsed.data);
   const kayit = await tenantOlustur(db, "firsat", veri);
+  await degerleriKaydet(db, "firsat", kayit.id, ozel.degerler);
 
   await denetimYaz({
     islem: "olustur",
     varlik: "Firsat",
     varlikId: kayit.id,
     ozet: veri.baslik,
-    yeni: veri,
+    yeni: { ...veri, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidate(veri.firmaId);
@@ -144,9 +150,14 @@ export async function updateFirsat(
   }
   await bagliKayitlariDogrula(db, parsed.data);
 
+  const alanlar = await alanlariGetir("firsat");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   const veri = veriHazirla(parsed.data);
   const oncesi = await kayitOku(db, "firsat", id);
   await tenantGuncelle(db, "firsat", id, veri);
+  await degerleriKaydet(db, "firsat", id, ozel.degerler);
 
   await denetimYaz({
     islem: "guncelle",
@@ -154,7 +165,7 @@ export async function updateFirsat(
     varlikId: id,
     ozet: veri.baslik,
     eski: oncesi,
-    yeni: veri,
+    yeni: { ...veri, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidate(veri.firmaId);

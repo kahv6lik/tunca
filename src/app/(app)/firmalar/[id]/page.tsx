@@ -21,6 +21,14 @@ import { etkinIzinler } from "@/lib/yetki";
 import { firmaTimeline } from "@/lib/timeline";
 import { Timeline } from "@/components/firmalar/Timeline";
 import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
+import {
+  alanlariGetir,
+  degerHaritasi,
+  topluDegerHaritasi,
+  degerBicimle,
+  alanFieldTanimi,
+  ozelAlanGirdiAdi,
+} from "@/lib/ozel-alan";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +110,26 @@ export default async function FirmaDetayPage(
           },
         })
       : Promise.resolve([]),
+  ]);
+
+  // Kiracıya özel alanlar (Faz 11 / E6): tanımlar + bu sayfadaki kayıtların
+  // değerleri. Paket modülü kapalıysa alanlariGetir boş döner ve hiçbir ek
+  // sorgu/giriş üretilmez.
+  const [firmaAlanlari, kisiAlanlari, firsatAlanlari] = await Promise.all([
+    alanlariGetir("firma"),
+    alanlariGetir("kisi"),
+    alanlariGetir("firsat"),
+  ]);
+  const [firmaOzel, kisiOzel, firsatOzel] = await Promise.all([
+    firmaAlanlari.length > 0
+      ? degerHaritasi(db, "firma", firma.id)
+      : Promise.resolve(new Map<string, string>()),
+    kisiAlanlari.length > 0
+      ? topluDegerHaritasi(db, "kisi", firma.kisiler.map((k) => k.id))
+      : Promise.resolve(new Map<string, Map<string, string>>()),
+    firsatAlanlari.length > 0
+      ? topluDegerHaritasi(db, "firsat", firma.firsatlar.map((f) => f.id))
+      : Promise.resolve(new Map<string, Map<string, string>>()),
   ]);
 
   const bugun = toDateInput(new Date());
@@ -202,6 +230,8 @@ export default async function FirmaDetayPage(
       ],
     },
     { name: "notlar", label: "Notlar", type: "textarea", colSpan: 2 },
+    // Kiracıya özel kişi alanları (Faz 11) — RecordForm'a ek girişler.
+    ...kisiAlanlari.map((a) => alanFieldTanimi(a) as Field),
   ];
 
   return (
@@ -248,6 +278,14 @@ export default async function FirmaDetayPage(
           <Info label="E-posta" value={firma.email} />
           <Info label="Adres" value={firma.adres} />
           <Info label="Onaylı Yatırım (TRY)" value={formatPara(toplamOnayliYatirim)} />
+          {/* Kiracıya özel alanlar (Faz 11 / E6) */}
+          {firmaAlanlari.map((a) => (
+            <Info
+              key={a.id}
+              label={a.ad}
+              value={degerBicimle(a, firmaOzel.get(a.id) ?? "")}
+            />
+          ))}
         </dl>
         {firma.notlar && (
           <div className="mt-4 border-t border-border/50 pt-4">
@@ -368,6 +406,12 @@ export default async function FirmaDetayPage(
                           email: k.email ?? "",
                           birincil: k.birincil ? "1" : "0",
                           notlar: k.notlar ?? "",
+                          ...Object.fromEntries(
+                            kisiAlanlari.map((a) => [
+                              ozelAlanGirdiAdi(a.id),
+                              kisiOzel.get(k.id)?.get(a.id) ?? "",
+                            ])
+                          ),
                         }}
                       />
                     )}
@@ -392,6 +436,7 @@ export default async function FirmaDetayPage(
                 kullanicilar={kullanicilar}
                 kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
                 sabitFirmaId={firma.id}
+                ozelAlanlar={firsatAlanlari}
               />
             ) : null
           }
@@ -427,6 +472,8 @@ export default async function FirmaDetayPage(
                           kullanicilar={kullanicilar}
                           kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
                           sabitFirmaId={firma.id}
+                          ozelAlanlar={firsatAlanlari}
+                          ozelDegerler={Object.fromEntries(firsatOzel.get(f.id) ?? new Map())}
                           mevcut={{
                             id: f.id,
                             firmaId: firma.id,

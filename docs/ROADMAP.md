@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.10.1` — güvenlik yükseltmesi (Next 15 + React 19, audit 0 açık) |
-| **Sıradaki faz** | **Faz 11** — Kiracıya özel alanlar (`v1.11.0`) |
+| **Son çıkan sürüm** | `v1.11.0` — Faz 11 tamamlandı |
+| **Sıradaki faz** | **Faz 12** — Hesap güvenliği ve KVKK (`v1.12.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**296 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**324 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (171 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (192 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -144,7 +144,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 8  | D1–D5 — Bildirim, iş akışı, e-posta, takvim | `v1.8.0` | ✅ tamamlandı | — |
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | ✅ tamamlandı | — |
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | ✅ tamamlandı | — |
-| 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | planlandı | |
+| 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı | |
 | 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
 
@@ -702,11 +702,61 @@ gerekçesini sorar.
 
 ---
 
-## Faz 11 — Kiracıya Özel Alanlar (E6) → `v1.11.0`
+## Faz 11 — Kiracıya Özel Alanlar (E6) → `v1.11.0` ✅
 
-- `CustomField` tanımı (varlık, ad, tip, seçenekler, zorunluluk) + `CustomFieldValue`.
-- Formlarda, listelerde, filtrelerde ve dışa aktarımda dinamik gösterim.
-- Kiracı yöneticisi için alan tanımlama ekranı.
+- [x] `OzelAlan` tanımı (varlık, ad, tip, seçenekler, zorunluluk, sıra) + `OzelAlanDeger`.
+- [x] Formlarda, detaylarda, filtrede ve dışa aktarımda dinamik gösterim.
+- [x] Kiracı yöneticisi için alan tanımlama ekranı (`/ozel-alanlar`).
+
+### Nasıl kuruldu
+
+**Değer her zaman String saklanır; tip yalnızca doğrulama ve gösterimdir.**
+Bu, `constants.ts`'teki "enum yerine String" tercihinin devamıdır: yeni tip
+eklemek migration gerektirmez. Beş tip vardır (metin, sayı, tarih, seçim,
+onay); doğrulama/biçimleme saf katmandadır (`ozel-alan-tanimlar.ts`) ve
+testler onu veritabanı olmadan sınar. Sayı TR virgülünü kabul eder, seçim
+tipi istemciden gelen değeri TANIMDAKİ seçeneklerle karşılaştırır — istemci
+listede olmayan bir seçenek yazamaz.
+
+**Kayıt bağlantısı gerçek yabancı anahtardır.** `OzelAlanDeger` üç seçenekli
+FK sütunu taşır (`firmaId` / `kisiId` / `firsatId`, tam biri dolu): kayıt
+silinince değerleri veritabanı düzeyinde cascade ile temizlenir — "yetim
+değer" sınıfı sorun baştan kapatılır ve test bunu kanıtlar. Bedeli, yeni bir
+varlığa özel alan açmanın migration gerektirmesidir; bu bilinçli bir
+takastır (`OZEL_ALAN_VARLIKLARI` başındaki yorumda yazılıdır). FK sütunlarının
+indeksleri `tenantId` ile başlamaz — cascade silme o sütunla arar; istisna
+regresyon testinde gerekçesiyle listelidir.
+
+**Alan tanımlamak yönetim işi, değer yazmak varlık işidir.** `ozelalan.yonet`
+izni yalnızca kuruluş yöneticisindedir (form biçimini kuruluş çapında
+değiştirir); değer görmek/yazmak ise ilgili varlığın kendi izinlerine
+tabidir — üye firma formunda alanları görür ve doldurur. `ozelalan` aynı
+zamanda bir paket modülüdür: paket kapatırsa `alanlariGetir` boş döner ve
+alanlar formlardan, filtrelerden ve dışa aktarımdan TEK noktadan kaybolur.
+Migration, mevcut paketlere modülü ekler — yükseltme kimsenin kullandığı
+şeyi kapatmaz; daraltmak platform sahibinin bilinçli kararıdır.
+
+**Doğrulama kayıttan önce, sunucuda.** Action'lar önce `formdanDegerler` ile
+özel alanları doğrular (zorunluluk dahil), sonra ana kaydı yazar, sonra
+değerleri. Tanımda olmayan `oa_*` anahtarları sessizce yok sayılır. Özel
+değerler denetim günlüğüne ana kaydın `yeni` yüküne gömülü düşer.
+
+**Filtre ve görünümlerle kendiliğinden bütünleşir.** Seçim tipli firma
+alanları firma listesinde filtre olur (`oa_<alanId>` parametresi); filtre
+querystring'de yaşadığı için kayıtlı görünümler (Faz 10) ve dışa aktarım
+(Faz 9) bunları kendiliğinden taşır — `sorguTemizle` yalnızca `oa_` biçimini
+tanıyacak kadar genişletildi. Dışa aktarım dosyasına tanımlı alanlar sütun
+olarak eklenir. Yedek kapsamına (Faz 10) iki tablo da girdi; sıra bilinçli:
+tanım değerden önce yüklenir.
+
+### Kabul kriterleri
+- [x] İki yeni tablo RLS ile korunuyor; komşu kiracı alan tanımını göremiyor.
+- [x] Aynı varlıkta aynı ad iki kez tanımlanamıyor; kayıt+alan başına tek değer.
+- [x] Kayıt silinince değerleri, alan silinince bütün değerleri cascade ile gidiyor.
+- [x] Üye `/ozel-alanlar`a giremiyor ama formda alanları görüyor; komşu kiracının formunda alanlar yok.
+- [x] Seçim filtresi, kayıtlı görünüm ve dışa aktarım özel alanları taşıyor.
+- [x] Yedek dosyasına tanım+değer giriyor, `tenantId` taşımıyor.
+- [x] `npm run dogrula` toplam **324 kontrol** ile geçiyor (192 birim test dahil).
 
 ---
 

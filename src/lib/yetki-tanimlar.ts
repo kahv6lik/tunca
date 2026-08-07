@@ -86,6 +86,13 @@ export const IZIN = {
   // modülüyle eşleşmez; paket kısıtından bilinçli olarak etkilenmez.
   yedekYonet: "yedek.yonet",
 
+  // Faz 11 — kiracıya özel alanlar. Alan TANIMLAMAK kuruluş çapında bir
+  // karardır (formların biçimini değiştirir); değerleri görmek/yazmak ise
+  // ilgili varlığın kendi izinlerine tabidir, ayrı izin gerekmez.
+  // "ozelalan" aynı zamanda bir paket modülüdür: paket kapatırsa alanlar
+  // tanımlanamaz VE formlarda görünmez (alanlariGetir boş döner).
+  ozelAlanYonet: "ozelalan.yonet",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -144,6 +151,7 @@ export const IZIN_ETIKET: Record<string, string> = {
   "otomasyon.eposta": "E-posta ayarlarını yönet",
   "rapor.goruntule": "Raporları görüntüle",
   "yedek.yonet": "Yedekleri yönet",
+  "ozelalan.yonet": "Özel alanları yönet",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -164,7 +172,7 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Takvim", izinler: [IZIN.takvimGoruntule] },
   { ad: "Otomasyon", izinler: [IZIN.otomasyonGoruntule, IZIN.otomasyonYonet, IZIN.epostaAyarYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
-  { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet] },
+  { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
 
 // ── Roller ─────────────────────────────────────────────────────────────────
@@ -237,6 +245,8 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.grupYonet,
     IZIN.denetimGoruntule,
     IZIN.yedekYonet,
+    // Alan tanımı da form biçimini kuruluş çapında değiştirir.
+    IZIN.ozelAlanYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

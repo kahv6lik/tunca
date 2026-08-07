@@ -223,6 +223,7 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 - **PanoTercihi** — kullanıcının pano kart seçimi ve sırası (Faz 10)
 - **KayitliGorunum** — listelerin adlandırılmış filtreleri; paylaşım kiracı içidir (Faz 10)
 - **Yedek** — kiracının iş verisi yedeği; geri yükleme ekleyicidir (Faz 10)
+- **OzelAlan / OzelAlanDeger** — kiracıya özel form alanları ve değerleri; değer kayda gerçek FK ile bağlı (Faz 11)
 
 Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet/kişi/fırsat kayıtları
 da silinir (cascade). İçinde fırsat olan bir aşama silinemez; bir kişi

@@ -229,10 +229,23 @@ describe("Şema kuralları", () => {
      *                       arama yapar (kimlik doğrulama bağlamı). Bu indeks
      *                       olmadan her giriş tam tablo taraması yapardı.
      *
+     *   @@index([firmaId]) / @@index([kisiId]) / @@index([firsatId])
+     *                     → OzelAlanDeger modeli (Faz 11); kayıt silinince
+     *                       değerlerin FK cascade ile temizlenmesi bu sütunla
+     *                       arama yapar. tenantId önde olsaydı cascade her
+     *                       silmede tam tablo taraması yapardı. Kiracı sınırı
+     *                       RLS + tenantId'li diğer indeksle zaten korunur.
+     *
      * Yeni bir istisna eklemek isteyen, önce bunun neden gerekli olduğunu
      * buraya yazmalıdır.
      */
-    const ISTISNALAR = ["@@index([durum])", "@@index([email])"];
+    const ISTISNALAR = [
+      "@@index([durum])",
+      "@@index([email])",
+      "@@index([firmaId])",
+      "@@index([kisiId])",
+      "@@index([firsatId])",
+    ];
 
     const indeksler = sema.match(/@@index\(\[[^\]]+\]\)/g) ?? [];
     for (const i of indeksler) {
@@ -242,7 +255,7 @@ describe("Şema kuralları", () => {
 
     // İstisna listesi sessizce büyümesin.
     const istisnaSayisi = indeksler.filter((i) => ISTISNALAR.includes(i)).length;
-    expect(istisnaSayisi, "belgelenmemiş istisna eklenmiş olabilir").toBeLessThanOrEqual(2);
+    expect(istisnaSayisi, "belgelenmemiş istisna eklenmiş olabilir").toBeLessThanOrEqual(5);
   });
 
   it("PostgreSQL kullanılıyor", () => {

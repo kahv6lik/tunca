@@ -65,6 +65,11 @@ const MODELLER = [
   "yatirimDestegi",
   "egitim",
   "hizmet",
+  // Faz 11 — özel alan tanımları ve değerleri. Tanım (ozelAlan) değerden
+  // önce gelir: OzelAlanDeger.alanId ona bağlıdır. Değer satırlarının
+  // firma/kisi/firsat FK'leri de yukarıdaki sıralar sayesinde hazırdır.
+  "ozelAlan",
+  "ozelAlanDeger",
 ] as const;
 
 type YedekModeli = (typeof MODELLER)[number];
@@ -82,6 +87,8 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   yatirimDestegi: ["tarih", "createdAt"],
   egitim: ["tarih", "createdAt"],
   hizmet: ["tarih", "createdAt"],
+  ozelAlan: ["createdAt", "updatedAt"],
+  ozelAlanDeger: ["updatedAt"],
 };
 
 export type YedekIcerigi = {

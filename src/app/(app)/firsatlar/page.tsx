@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import Kanban, { HatOzeti } from "@/components/firsatlar/Kanban";
 import FirsatPanel from "@/components/firsatlar/FirsatPanel";
+import { alanlariGetir } from "@/lib/ozel-alan";
 import { formatPara, formatTarih } from "@/lib/format";
 import { FIRSAT_DURUM } from "@/lib/constants";
 import { durumBadge } from "@/lib/constants";
@@ -160,6 +161,7 @@ export default async function FirsatlarPage(
                 asamalar={asamalar.map((a) => ({ id: a.id, ad: a.ad, olasilik: a.olasilik }))}
                 firmalar={firmalar}
                 kullanicilar={kullanicilar}
+                ozelAlanlar={await alanlariGetir("firsat")}
               />
             )}
           </div>

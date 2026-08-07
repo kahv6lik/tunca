@@ -171,6 +171,7 @@ export const PAKET_MODULLERI = [
   { deger: "takvim", etiket: "Takvim", izin: "takvim.goruntule" },
   { deger: "otomasyon", etiket: "İş Akışı Otomasyonu", izin: "otomasyon.goruntule" },
   { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
+  { deger: "ozelalan", etiket: "Özel Alanlar", izin: "ozelalan.yonet" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

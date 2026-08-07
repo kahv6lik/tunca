@@ -13,6 +13,7 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
+import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 
 const firmaSchema = z.object({
   ad: z.string().trim().min(1, "Firma adı zorunludur."),
@@ -52,15 +53,22 @@ export async function createFirma(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
+
+  // Özel alanlar (Faz 11): kayıt yazılmadan ÖNCE doğrulanır.
+  const alanlar = await alanlariGetir("firma");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   // tenantId, kiracı katmanı tarafından otomatik eklenir.
   const firma = await tenantOlustur(db, "firma", parsed.data);
+  await degerleriKaydet(db, "firma", firma.id, ozel.degerler);
 
   await denetimYaz({
     islem: "olustur",
     varlik: "Firma",
     varlikId: firma.id,
     ozet: parsed.data.ad,
-    yeni: parsed.data,
+    yeni: { ...parsed.data, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidatePath("/firmalar");
@@ -80,9 +88,14 @@ export async function updateFirma(
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
   }
 
+  const alanlar = await alanlariGetir("firma");
+  const ozel = formdanDegerler(alanlar, formData);
+  if (!ozel.ok) return { error: ozel.hata };
+
   const oncesi = await kayitOku(db, "firma", id);
   // Kayıt bu kiracıya ait değilse 404 üretir (A3).
   await tenantGuncelle(db, "firma", id, parsed.data);
+  await degerleriKaydet(db, "firma", id, ozel.degerler);
 
   await denetimYaz({
     islem: "guncelle",
@@ -90,7 +103,7 @@ export async function updateFirma(
     varlikId: id,
     ozet: parsed.data.ad,
     eski: oncesi,
-    yeni: parsed.data,
+    yeni: { ...parsed.data, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidatePath("/firmalar");

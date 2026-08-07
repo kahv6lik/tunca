@@ -4,6 +4,7 @@ import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import FirmaForm from "@/components/FirmaForm";
 import { updateFirma } from "../../actions";
+import { alanlariGetir, degerHaritasi } from "@/lib/ozel-alan";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export default async function FirmaDuzenlePage(
   const firma = await db.firma.findFirst({ where: { id: params.id } });
   if (!firma) notFound();
 
+  const ozelAlanlar = await alanlariGetir("firma");
+  const ozelDegerler = Object.fromEntries(await degerHaritasi(db, "firma", firma.id));
+
   const action = updateFirma.bind(null, firma.id);
 
   return (
@@ -28,6 +32,8 @@ export default async function FirmaDuzenlePage(
         initial={firma}
         submitLabel="Değişiklikleri Kaydet"
         cancelHref={`/firmalar/${firma.id}`}
+        ozelAlanlar={ozelAlanlar}
+        ozelDegerler={ozelDegerler}
       />
     </div>
   );

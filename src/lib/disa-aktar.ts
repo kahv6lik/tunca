@@ -3,6 +3,13 @@ import ExcelJS from "exceljs";
 import type { TenantClient } from "./tenant-db";
 import { veriKumesiBul, type Bicim, type VeriKumesi } from "./disa-aktar-tanimlar";
 import { degerBicimle, csvUret } from "./disa-aktar-saf";
+import {
+  alanlariGetir,
+  topluDegerHaritasi,
+  ozelAlanGirdiAdi,
+  degerBicimle as ozelDegerBicimle,
+  type OzelAlanVarligi,
+} from "./ozel-alan";
 
 export * from "./disa-aktar-saf";
 
@@ -220,6 +227,13 @@ async function satirlariOku(
   }
 }
 
+/** Özel alan destekli kümeler (Faz 11 / E6): küme → varlık eşlemesi. */
+const OZEL_ALAN_KUMELERI: Record<string, OzelAlanVarligi> = {
+  firmalar: "firma",
+  kisiler: "kisi",
+  firsatlar: "firsat",
+};
+
 export async function disaAktar(
   db: TenantClient,
   kumeAdi: string,
@@ -227,10 +241,55 @@ export async function disaAktar(
   filtre: Filtre,
   kiraciAd: string
 ): Promise<DisaAktarimSonucu | null> {
-  const kume = veriKumesiBul(kumeAdi);
+  let kume = veriKumesiBul(kumeAdi);
   if (!kume) return null;
 
-  const satirlar = await satirlariOku(db, kume, filtre);
+  let satirlar = await satirlariOku(db, kume, filtre);
+
+  /**
+   * Kiracıya özel alanlar (Faz 11): tanımlı alanlar dosyaya sütun olarak
+   * eklenir ve listeden gelen "oa_<alanId>" filtreleri burada da uygulanır —
+   * "ekranda gördüğümü indir" sözü özel alanlar için de geçerlidir.
+   */
+  const varlik = OZEL_ALAN_KUMELERI[kume.deger];
+  if (varlik) {
+    const alanlar = await alanlariGetir(varlik);
+    if (alanlar.length > 0) {
+      const degerler = await topluDegerHaritasi(
+        db,
+        varlik,
+        satirlar.map((s) => s.id as string)
+      );
+
+      for (const a of alanlar) {
+        const suzgec = (filtre[ozelAlanGirdiAdi(a.id)] ?? "").trim();
+        if (suzgec) {
+          satirlar = satirlar.filter(
+            (s) => (degerler.get(s.id as string)?.get(a.id) ?? "") === suzgec
+          );
+        }
+      }
+
+      satirlar = satirlar.map((s) => ({
+        ...s,
+        ...Object.fromEntries(
+          alanlar.map((a) => [
+            ozelAlanGirdiAdi(a.id),
+            ozelDegerBicimle(a, degerler.get(s.id as string)?.get(a.id) ?? ""),
+          ])
+        ),
+      }));
+
+      kume = {
+        ...kume,
+        sutunlar: [
+          ...kume.sutunlar,
+          ...alanlar.map((a) => ({ anahtar: ozelAlanGirdiAdi(a.id), etiket: a.ad })),
+        ],
+      };
+    }
+  }
+
   const tarih = new Date().toISOString().slice(0, 10);
   const temelAd = `${kume.deger}-${tarih}`;
 
