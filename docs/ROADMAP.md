@@ -17,6 +17,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 |---|---|
 | **Son çıkan sürüm** | `v1.12.1` — kişi departmanı |
 | **Sıradaki faz** | **Faz 13** — AI özellikleri (`v1.13.0`) |
+| **Sonrası** | Faz 14–21: saha geri bildirimlerinden türeyen ikinci tur (35 bulgu) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -147,6 +148,14 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
 | 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
+| 14 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.14.0` | planlandı | |
+| 15 | T1–T6 — Ürün kataloğu, paket, kampanya ve fiyat motoru | `v1.15.0` | planlandı | |
+| 16 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.16.0` | planlandı | |
+| 17 | P1–P4 — Proje, destek kaydı, SSS | `v1.17.0` | planlandı | |
+| 18 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.18.0` | planlandı | |
+| 19 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.19.0` | planlandı | |
+| 20 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.20.0` | planlandı | |
+| 21 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.21.0` | planlandı | |
 
 ## Yeni Katılan İçin Hızlı Başlangıç
 
@@ -850,6 +859,283 @@ verinin modele gönderildiği kiracı yöneticisine açıkça bildirilir ve
 kapatılabilir olur.
 
 ---
+
+---
+
+# İKİNCİ TUR — Saha Geri Bildirimleri (Faz 14–21)
+
+Aşağıdaki fazlar, ürün ortağının kullanım sonrası tespitlerinden türetildi
+(35 bulgu). Bulgular olduğu gibi bırakılmadı; **birbirine bağımlı olanlar aynı
+faza toplandı** ve bağımlılık sırasına dizildi:
+
+- Sipariş, kampanya kotasından adet düşer → **kampanya ürün kataloğundan sonra**.
+- Sevkiyat yalnızca onaylı siparişten doğar → **sipariş akışından sonra**.
+- Mali raporlar sipariş/sevkiyat verisini okur → **onlardan sonra**.
+- Birleşik ekran bütün modülleri kapsar → **en sona**.
+
+> **Karar bekleyen konular** her fazın sonunda "Açık sorular" başlığı altında
+> listelidir. Bunlar yanıtlanmadan o faz başlatılmaz.
+
+---
+
+## Faz 14 — Arayüz ve Veri Düzeltmeleri → `v1.14.0`
+
+Küçük ama günlük kullanımı doğrudan etkileyen düzeltmeler. Yeni modül yok;
+bu yüzden ilk sıradadır — hızlı kazanç.
+
+- [ ] **H1 — Firma numarası.** Her firmaya kiracı içinde **değiştirilemez**,
+      otomatik artan `A0001` biçiminde numara. Liste, detay, arama ve dışa
+      aktarımda görünür.
+      *Tasarım:* numara kiracı BAŞINA sayılır (her kuruluş A0001'den başlar);
+      üretimi veritabanı düzeyinde tekil kısıtla korunur, eşzamanlı iki kayıt
+      aynı numarayı alamaz. Mevcut firmalara migration ile `createdAt`
+      sırasına göre numara verilir.
+- [ ] **H2 — Filtrelerde büyük/küçük harf duyarsızlığı.** Bütün liste
+      aramaları `mode: "insensitive"` kullanır.
+      *Bulgu doğrulandı:* şu an firmalar, adaylar, kişiler (telefon),
+      eğitimler, hizmetler ve yatırım destekleri listelerinde eksik — yani
+      "TEKSTİL" arayan kullanıcı "Tekstil" firmasını bulamıyor.
+      Ayrıca **Türkçe İ/ı sorunu**: `insensitive` tek başına "İSTANBUL" ile
+      "istanbul"u eşleştirir ama "Istanbul" ile "ıstanbul"u ayırır; arama
+      terimi normalize edilir (SecimKutusu'ndaki yöntem ortak bir yardımcıya
+      taşınır).
+- [ ] **H3 — Kişiler → Kontaklar.** Modülün adı her yerde değişir: menü,
+      başlıklar, dışa aktarım etiketi, bildirim metinleri.
+      *Dikkat:* URL `/kisiler` olarak KALIR (kayıtlı görünümler `liste`
+      anahtarına bağlı; değiştirmek kullanıcıların görünümlerini kırardı).
+      Yalnızca görünen ad değişir; gerekçe koda yazılır.
+- [ ] **H4 — Kontaklar menüde Raporlar'ın altına taşınır.**
+- [ ] **H5 — Adaylar, Fırsatlar'ın içine taşınır.** `/adaylar` ayrı menü
+      öğesi olmaktan çıkar; Fırsatlar ekranında üçüncü bir sekme olur
+      (Kanban · Liste · **Adaylar**). Adres korunur (kayıtlı görünümler için).
+- [ ] **H6 — Yeni fırsatta yerinde firma oluşturma.** Fırsat formundaki firma
+      seçicisinde "+ Yeni firma" seçeneği; ad ve gerekli asgari alanlarla
+      firma açılır ve fırsata bağlanır. Paket firma limitine tabidir.
+- [ ] **H7 — Fırsat "Teklif" aşamasına gelince teklif bağlanır.** Fırsat
+      detayında "Teklif Hazırla" düğmesi; üretilen teklif fırsata bağlanır ve
+      fırsat kartında/detayında görünür.
+      *Veri modeli:* `Teklif.firsatId` (opsiyonel FK, `onDelete: SetNull`).
+      Bir fırsatın birden çok teklifi (ve revizyonu) olabilir.
+- [ ] **H8 — Takvimde kategori süzgeci.** Üstteki kategori rozetlerine
+      tıklayınca yalnızca o tür öğe kalır (görev, fırsat, teklif, eğitim,
+      hizmet); çoklu seçim ve "tümü" desteklenir. Süzgeç querystring'de
+      yaşar — kayıtlı görünüm ve `.ics` çıktısı da ona uyar.
+- [ ] **H9 — Raporlarda tarih aralığı.** Bütün rapor kartları ortak bir
+      tarih aralığı süzgecine bağlanır (hazır seçenekler: bu ay, geçen ay,
+      bu çeyrek, bu yıl, özel aralık). Süzgeç querystring'de yaşar.
+
+### Açık sorular
+- Firma numarası 4 hane (`A0001`) → **en fazla 9999 firma**. Demo kiracıda
+  zaten 800 firma var. 9999'a ulaşınca ne olsun: beş haneye mi geçilsin
+  (`A10000`), yoksa harf mi ilerlesin (`B0001`)? **Önerim: beş haneye taşsın**
+  — biçim bozulmaz, numara benzersiz kalır.
+
+---
+
+## Faz 15 — Ürün Kataloğu, Paket ve Kampanya → `v1.15.0`
+
+Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
+
+- [ ] **T1 — Ürün/hizmet kataloğu.** Kod, ad, birim, liste fiyatı, KDV oranı,
+      para birimi, aktif/pasif. Kiracıya özeldir.
+- [ ] **T2 — Müşteriye özel paket tanımı.** Bir veya birden çok üründen
+      oluşan paket; firmaya özel fiyat/iskonto taşıyabilir.
+- [ ] **T3 — Kampanya tanımı.** Kod, ad, **tip**, **durum**, **başlangıç ve
+      bitiş tarihi**, kapsadığı ürün/paketler, indirim kuralı (yüzde ya da
+      tutar), firma kapsamı (tüm firmalar / seçili firmalar).
+      *Tip örnekleri:* yüzde indirim, tutar indirimi, X alana Y bedava,
+      paket fiyatı. Tip listesi sabit tanımdır (`constants.ts`).
+      *Durum:* taslak · aktif · duraklatıldı · sona erdi (bitiş tarihi
+      geçince zamanlanmış iş kendiliğinden "sona erdi"ye çeker).
+- [ ] **T4 — Kampanya kotası ve kullanım sayacı.** Kampanyaya **adet**
+      girilir; her satışta verilen adet otomatik düşer. Firma bazında
+      "bu kampanyadan kaç kez faydalandı" ve "ne kadar hakkı kaldı" görünür.
+      *Kritik:* kota düşümü sipariş onayıyla ATOMİK olmalı — iki satış
+      temsilcisi aynı anda son adedi satamamalı (veritabanı düzeyinde koşullu
+      güncelleme; sayaç uygulama katmanında hesaplanıp yazılmaz).
+- [ ] **T5 — Kampanya raporu.** Kampanya bazında: kullanım adedi, kalan kota,
+      ciro etkisi, firma kırılımı, tarih aralığı süzgeci.
+- [ ] **T6 — Fiyat motoru.** Bir sipariş satırının fiyatı tek bir SAF
+      fonksiyondan geçer: liste fiyatı → firmaya özel paket → geçerli kampanya
+      → son fiyat. Sıra ve öncelik yazılıdır; testler bu fonksiyonu
+      veritabanı olmadan sınar (`fiyat-saf.ts`).
+
+### Açık sorular
+- Aynı siparişe **birden çok kampanya** uygulanabilir mi, yoksa en avantajlı
+  tek kampanya mı seçilsin? **Önerim: tek kampanya** (en avantajlı olan
+  otomatik seçilir, kullanıcı isterse değiştirir) — üst üste binen indirimler
+  hem hesaplaması hem savunması zor rakamlar üretir.
+- Kota **adet** üzerinden mi, **tutar** üzerinden mi tükenecek? Bulguda adet
+  yazıyor; ikisi birden gerekiyorsa şimdi söylenmeli.
+
+---
+
+## Faz 16 — Sipariş, Onay Akışı ve Sevkiyat → `v1.16.0`
+
+- [ ] **S1 — Sipariş modülü.** Firma, kalemler (ürün/paket, adet, birim
+      fiyat, iskonto, KDV), toplamlar, uygulanan kampanya, para birimi.
+      Tutarlar **sunucuda** hesaplanır ve saklanır (teklifteki desen).
+- [ ] **S2 — Projeye ve teklife bağlama.** Sipariş; bir teklif ve/veya bir
+      projeyle ilişkilendirilebilir (Faz 17'deki proje modülüyle bütünleşir).
+      Tekliften tek tuşla sipariş oluşturma.
+- [ ] **S3 — Yönetici onay akışı.** Satış personelinin girdiği her sipariş
+      "onay bekliyor" durumunda açılır. Yönetici onaylar ya da reddeder
+      (gerekçeyle). Onay yetkisi ayrı bir izindir (`siparis.onayla`).
+      **Onaylanmadan sevkiyata hiçbir bildirim gitmez** — bu, akışın
+      sözüdür ve testle sabitlenir.
+- [ ] **S4 — Depo / Sevkiyat modülü.** Onaylanan siparişler sevkiyat
+      kuyruğuna düşer. Sevkiyat durumu: hazırlanıyor · sevk edildi ·
+      teslim edildi · iptal. Kargo/taşıyıcı ve takip numarası alanı.
+- [ ] **S5 — Sevkiyat raporu.** Durum kırılımı, bekleme süreleri, gecikenler,
+      tarih aralığı süzgeci.
+- [ ] **S6 — Bildirimler.** Onay bekleyen sipariş → yöneticiye; onay/ret →
+      satış personeline; onaylandı → depo ekibine. Mevcut bildirim kapısından
+      (`bildirim.ts`) geçer, kullanıcı tercihine saygılıdır.
+
+### Açık sorular
+- **Gerçek stok takibi var mı?** Bulguda yalnızca kampanya adedi düşmesi
+  isteniyor. Ürünün genel stok miktarı da tutulacaksa bu ayrı bir iştir
+  (stok hareketi, giriş/çıkış, sayım) ve fazı belirgin biçimde büyütür.
+  **Varsayımım: gerçek stok YOK**, yalnızca kampanya kotası düşüyor.
+- Onay **tek kademeli** mi (yönetici), yoksa tutara göre kademeli mi
+  (ör. 100.000 TL üstü genel müdür)? **Varsayımım: tek kademeli.**
+
+---
+
+## Faz 17 — Proje, Destek Kaydı ve SSS → `v1.17.0`
+
+- [ ] **P1 — Proje modülü.** Firma, ad, kod, sorumlu, başlangıç/bitiş,
+      durum, bütçe. Projeye bağlı **teklifler ve siparişler** proje
+      detayında listelenir ve oradan oluşturulabilir.
+- [ ] **P2 — Destek / başvuru kaydı (ticket).** Firma bazında açılır.
+      Alanlar: **geliş kanalı** (telefon, e-posta, web, saha ziyareti,
+      sosyal medya…), **öncelik** (düşük/orta/yüksek/kritik), **atanan
+      kişi**, durum (açık · işlemde · beklemede · çözüldü · kapandı),
+      **yapılan işlemler** (zaman damgalı işlem geçmişi).
+- [ ] **P3 — Destek raporu.** Firma bazında ve genel: kanal kırılımı,
+      öncelik dağılımı, kişi bazında yük, çözüm süresi, tarih aralığı.
+- [ ] **P4 — SSS (bilgi bankası).** Manuel giriş: soru, yanıt, kategori,
+      etiketler. Üstünde **arama** (Türkçe duyarsız). Destek kaydı
+      ekranından ilgili SSS'ye hızlı erişim.
+
+### Açık sorular
+- Destek kaydı ile mevcut **Aktivite** modülü ne kadar ayrışacak? Aktivite
+  "ne yaptık" günlüğüdür; destek kaydı ise **sahibi, önceliği ve durumu olan
+  bir iş**. **Önerim: ayrı model**, ama destek kaydının işlem geçmişi
+  aktivite kayıtlarıyla tutulsun — firma zaman akışında ikisi birden görünür.
+
+---
+
+## Faz 18 — Saha Çalışması: Ek Dosyalar ve Konum Doğrulama → `v1.18.0`
+
+- [ ] **A1 — Dosya eki altyapısı.** Aktivite (ve sonraki fazda destek kaydı,
+      sipariş) kaydına dosya eklenebilir. Boyut ve tür sınırı, kiracı bazlı
+      kota, virüs riskine karşı sunucuda tür doğrulaması (uzantıya değil
+      içeriğe bakılır).
+- [ ] **A2 — Fotoğraf çekme.** Mobil tarayıcıda kameradan doğrudan çekim
+      (`capture` özniteliği); çekilen görsel sunucuda küçültülerek saklanır.
+- [ ] **A3 — Firma konumu.** Firma kaydına enlem/boylam. Adresten koordinat
+      üretimi (geocoding) ve haritada işaretleme.
+- [ ] **A4 — Ziyaret kaydı ve saat.** Saha personeli ziyareti başlatır ve
+      bitirir; **süre otomatik tutulur**, aktivite kaydına yazılır.
+- [ ] **A5 — Konum doğrulama.** Ziyaret anında tarayıcının konum servisinden
+      alınan koordinat, firmanın koordinatıyla karşılaştırılır.
+      Yarıçap içindeyse kayıt **yeşil**; dışındaysa **kırmızı** işaretlenir,
+      aktiviteye açıklayıcı not düşer ve **yöneticiye bildirim gider**.
+      Yarıçap kuruluş ayarıdır (varsayılan öneri: 300 m).
+
+### Açık sorular — bu faz başlamadan yanıtlanmalı
+1. **KVKK.** Personel konumu kişisel veridir. Aydınlatma metnine "çalışan
+   konum verisi" bölümü eklenmeli, metin sürümü artmalı ve personelden
+   **yeniden rıza** alınmalıdır. Konumun yalnızca ziyaret anında alındığı,
+   sürekli takip yapılmadığı açıkça yazılmalı. Bu, teknik değil hukuki bir
+   karardır; onaysız başlanmaz.
+2. **Dosya depolama.** Şu an uygulamanın kalıcı disk alanı YOK (yalnızca
+   veritabanı volume'ü var). İki seçenek: (a) sunucuya Docker volume ekleyip
+   yerel diske yazmak — basit, ama yedekleme ayrı düşünülmeli; (b) S3 uyumlu
+   bir nesne deposu — dayanıklı, ama ek servis/maliyet. **Önerim: (a) yerel
+   volume**, mevcut ölçek için yeterli; yedeğe dahil edilir.
+3. **Geocoding servisi.** Adresten koordinat üretmek dış servis ister
+   (Google Maps ücretli, OpenStreetMap/Nominatim ücretsiz ama kullanım
+   sınırlı). **Önerim: Nominatim** + koordinatın elle düzeltilebilmesi.
+   Alternatif: koordinat yalnızca elle/haritadan seçilsin, geocoding hiç
+   olmasın.
+4. Konum doğrulama **zorunlu mu**? Kullanıcı tarayıcı iznini reddederse
+   ziyaret kaydı açılamasın mı, yoksa "konum doğrulanamadı" (sarı) olarak mı
+   açılsın? **Önerim: sarı** — teknik bir aksaklık, personeli işini
+   yapamaz hâle getirmemeli.
+
+---
+
+## Faz 19 — Raporlama Merkezi ve Firma Dosyası → `v1.19.0`
+
+- [ ] **R1 — Rapor merkezi.** Bütün raporlar tek bir çatı altında: ortak
+      tarih aralığı, ortak süzgeçler (firma, sorumlu, durum), ortak dışa
+      aktarım. Yeni bir rapor eklemek kayıt defterine satır eklemek olur
+      (pano kartlarındaki desen).
+- [ ] **R2 — Mali raporlar.** Ciro (teklif/sipariş bazlı), tahsilat
+      beklentisi, kampanya maliyeti/indirim toplamı, ürün ve paket bazında
+      satış, firma bazında ciro, dönem karşılaştırması.
+- [ ] **R3 — Modül raporları.** Fırsat hattı ve dönüşüm oranları, aktivite
+      yükü, destek kaydı performansı, sevkiyat durumu, eğitim/hizmet/yatırım
+      dağılımları — hepsi tarih aralığına duyarlı.
+- [ ] **R4 — Firma dosyası (tek PDF).** Bir firma için yapılan HER ŞEYİN tek
+      belgede toplanması: künye, kontaklar, fırsatlar, teklifler, siparişler,
+      projeler, destek kayıtları, aktiviteler, yatırım/eğitim/hizmet kayıtları
+      ve zaman akışı. Kiracı markasıyla, tarayıcı yazdırma motoruyla (Faz 9
+      deseni). İçerik izin süzgecinden geçer — izni olmayan modül belgeye
+      girmez.
+- [ ] **R5 — Rapor özelleştirme.** Kullanıcı hangi kolonları/kırılımları
+      istediğini seçer ve kaydeder (kayıtlı görünüm altyapısı kullanılır).
+
+---
+
+## Faz 20 — Anket → `v1.20.0`
+
+- [ ] **N1 — Anket tanımı.** Başlık, açıklama, sorular (metin, çoktan
+      seçmeli, ölçek 1-5/1-10, evet-hayır), zorunluluk, sıra.
+- [ ] **N2 — Anket gönderimi.** Seçili firmalara/kontaklara e-postayla
+      **kişiye özel bağlantı**. Bağlantı token'lıdır; token saklanmaz,
+      yalnızca sha256 özeti tutulur (davet akışı deseni).
+- [ ] **N3 — Yanıt toplama.** Anket sayfası **oturum gerektirmez** —
+      müşteri uygulamanın kullanıcısı değildir. Bu, kiracı sınırının
+      **beşinci dar kapısıdır** ve tek bir dosyada toplanır
+      (`anket-db.ts`); regresyon testi bunu denetler.
+- [ ] **N4 — Anket raporu.** Soru bazında dağılım, NPS/memnuniyet skoru,
+      firma kırılımı, yanıtlama oranı, tarih aralığı.
+
+### Açık sorular
+- Anket yanıtları **anonim** mi olacak, yoksa kimin yanıtladığı görünecek mi?
+  Anonimse aydınlatma metninde bu söz verilmeli ve teknik olarak da
+  tutulmamalı (yanıt satırında kontak bağlantısı olmaz).
+
+---
+
+## Faz 21 — Birleşik Çalışma Ekranı → `v1.21.0`
+
+Bulgu: *"Modellerin içinden gezmemek için modeller kompleks yapıda çalışsın.
+Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek)."*
+
+- [ ] **U1 — Komut paleti (Ctrl/Cmd + K).** Her yerden firma, kontak, fırsat,
+      teklif, sipariş, proje, destek kaydı arama ve doğrudan açma; ayrıca
+      "yeni fırsat", "yeni sipariş" gibi eylemler.
+- [ ] **U2 — Yan panel (drawer) ile yerinde detay.** Listeden bir kayda
+      tıklayınca sayfa değiştirmeden yandan açılan panelde detay ve düzenleme;
+      "aç" ile tam sayfaya geçilebilir.
+- [ ] **U3 — Firma çalışma ekranı.** Bir firmanın bütün modülleri (kontak,
+      fırsat, teklif, sipariş, proje, destek, aktivite, ek dosyalar) sekmeli
+      tek ekranda; modüller arasında gezinmeden çalışılabilir.
+- [ ] **U4 — İlişkili kayıt zinciri.** Her kayıtta "bununla ilişkili" şeridi:
+      fırsat → teklif → sipariş → sevkiyat zinciri tek bakışta izlenir.
+
+### Açık sorular
+- Odoo'nun neyi örnek alınıyor: **tek ekranda sekmeli çalışma** mı, yoksa
+  **her listede satır içi düzenleme** mi? İkisi çok farklı iştir.
+  **Önerim: yukarıdaki U1–U4** (komut paleti + yan panel + firma çalışma
+  ekranı); satır içi düzenleme ayrıca istenirse ek madde olur.
+- Bu faz mevcut ekranların ÜSTÜNE gelir, onları değiştirmez — böylece
+  alışkanlıklar bozulmaz. Onaylanırsa bu kural yazılı hâle getirilir.
+
 
 ## Planlama Notları
 
