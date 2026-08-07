@@ -87,7 +87,7 @@ export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
         key={item.href}
         href={item.href}
         className={cn(
-          "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          "group relative flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[13px] font-medium transition-colors",
           active
             ? "text-foreground"
             : "text-muted-foreground hover:text-foreground"
@@ -96,13 +96,13 @@ export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
         {active && (
           <motion.span
             layoutId="sidebar-active"
-            className="absolute inset-0 rounded-xl border border-primary/30 bg-primary/10"
+            className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10"
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
           />
         )}
         <Icon
           className={cn(
-            "relative z-10 h-[18px] w-[18px] transition-colors",
+            "relative z-10 h-4 w-4 transition-colors",
             active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
           )}
         />
@@ -115,11 +115,11 @@ export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   }
 
   return (
-    <nav className="flex-1 space-y-1 px-3 py-4">
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
       {ana.map(oge)}
       {yonetim.length > 0 && (
         <>
-          <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <p className="px-3 pb-0.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
             Yönetim
           </p>
           {yonetim.map(oge)}

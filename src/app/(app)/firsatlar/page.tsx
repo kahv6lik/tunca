@@ -302,6 +302,13 @@ export default async function FirsatlarPage(
               </div>
             )
           ) : (
+            /**
+             * Kanban, sayfanın yatay dolgusunu da kullanarak TAM genişliğe
+             * yayılır (negatif margin + eş dolgu). Beş sütunlu varsayılan hat
+             * 13" ekrana kaydırmasız sığar; daha çok aşamada yatay kaydırma
+             * kanbanın kendi içindedir, sayfa genişlemez.
+             */
+            <div className="-mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
             <Kanban
               duzenleyebilir={duzenleyebilir}
               asamalar={asamalar.map((a) => ({ id: a.id, ad: a.ad, renk: a.renk }))}
@@ -319,6 +326,7 @@ export default async function FirsatlarPage(
                 sorumluAd: f.sorumluId ? sorumluAdi.get(f.sorumluId) ?? null : null,
               }))}
             />
+            </div>
           )}
         </>
       )}

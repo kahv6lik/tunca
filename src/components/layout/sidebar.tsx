@@ -12,7 +12,7 @@ export function Sidebar({
   kiraciAd?: string;
 }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border/60 bg-card/40 backdrop-blur-xl lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border/60 bg-card/40 backdrop-blur-xl lg:flex">
       <div className="flex h-16 items-center border-b border-border/60 px-5">
         <Brand logoUrl={logoUrl} ad={kiraciAd} />
       </div>

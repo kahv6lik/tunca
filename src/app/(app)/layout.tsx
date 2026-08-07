@@ -43,7 +43,7 @@ export default async function AppLayout({
       )}
 
       <Sidebar izinler={izinler} logoUrl={ayar.logoUrl} kiraciAd={ayar.ad} />
-      <div className="lg:pl-64">
+      <div className="lg:pl-60">
         <Topbar
           name={session.name}
           email={session.email}
