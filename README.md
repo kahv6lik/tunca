@@ -262,3 +262,4 @@ deploy/
   `prisma/schema.prisma` içindeki `provider` değerini `postgresql` yapıp
   `DATABASE_URL`'i güncelleyin.
 - `AUTH_SECRET`'i güçlü ve gizli bir değere ayarlayın (deploy.sh otomatik üretir).
+# beatit
