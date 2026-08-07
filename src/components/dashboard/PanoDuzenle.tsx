@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { SlidersHorizontal, X, ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { panoKaydet, panoVarsayilanaDon } from "@/app/(app)/pano-actions";
@@ -56,7 +57,7 @@ export default function PanoDuzenle({
       </button>
 
       {acik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >
@@ -182,7 +183,7 @@ export default function PanoDuzenle({
               </div>
             </div>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );

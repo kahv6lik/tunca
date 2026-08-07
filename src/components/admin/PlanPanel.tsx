@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
@@ -63,7 +64,7 @@ export default function PlanPanel({ mevcut }: { mevcut?: Plan }) {
       )}
 
       {acik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >
@@ -170,7 +171,7 @@ export default function PlanPanel({ mevcut }: { mevcut?: Plan }) {
               </div>
             </form>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
@@ -116,7 +117,7 @@ export function YedekIslemleri({
       </button>
 
       {geriYukleAcik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setGeriYukleAcik(false)}
         >
@@ -195,7 +196,7 @@ export function YedekIslemleri({
               </form>
             )}
           </div>
-        </div>
+        </ModalKatman>
       )}
     </div>
   );

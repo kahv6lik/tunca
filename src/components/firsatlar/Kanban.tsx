@@ -64,7 +64,7 @@ export default function Kanban({
   }
 
   return (
-    <div className="-mx-1 flex gap-3 overflow-x-auto pb-4">
+    <div className="flex w-full gap-3 overflow-x-auto pb-4">
       {asamalar.map((asama) => {
         const sutun = firsatlar.filter((f) => asamaOf(f) === asama.id);
         const toplam = sutun.reduce((s, f) => s + f.tutar, 0);
@@ -87,7 +87,9 @@ export default function Kanban({
               setSuruklenen(null);
             }}
             className={cn(
-              "flex w-[280px] shrink-0 flex-col rounded-2xl border border-border/60 bg-card/40 transition-colors",
+              // Sütunlar ekranı DOLDURUR: az aşamada genişleyip yayılır,
+              // çok aşamada min-genişliğin altına inmez ve yatay kaydırma açılır.
+              "flex min-w-[270px] flex-1 shrink-0 flex-col rounded-2xl border border-border/60 bg-card/40 transition-colors",
               hedef === asama.id && "border-primary/60 bg-primary/5"
             )}
           >

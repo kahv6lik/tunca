@@ -696,6 +696,30 @@ async function main() {
     !anadoluYeniFirma.govde.includes("Müşteri No") && !anadoluYeniFirma.govde.includes("Segment")
   );
 
+  // 14 — Kuruluş içi kullanıcı yönetimi (/kullanicilar)
+  console.log("\n14. Kullanıcı yönetimi — kuruluş yöneticisinin ekip ekranı");
+
+  const ekip = await sayfaGetir("admin@gezegen.com", "admin123", "/kullanicilar");
+  kontrol(
+    "Yönetici kullanıcı ekranını açabiliyor",
+    !ekip.url.includes("/yetkisiz") && ekip.govde.includes("Davet Et")
+  );
+  kontrol(
+    "Kuruluşun kullanıcıları listeleniyor",
+    ekip.govde.includes("kullanici@gezegen.com") && ekip.govde.includes("okuyucu@gezegen.com")
+  );
+  kontrol(
+    "Komşu kiracının kullanıcısı listede YOK",
+    !ekip.govde.includes("admin@anadolu.com")
+  );
+
+  const uyeEkip = await sayfaGetir("kullanici@gezegen.com", "user123", "/kullanicilar");
+  kontrol(
+    "Üye kullanıcı yönetimine giremiyor",
+    uyeEkip.url.includes("/yetkisiz"),
+    uyeEkip.url
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

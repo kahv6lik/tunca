@@ -194,5 +194,11 @@ export async function firmaTimeline(
 
   await Promise.all(isteler);
 
-  return ogeler.sort((a, b) => b.tarih.getTime() - a.tarih.getTime()).slice(0, limit);
+  // Önce en yeni `limit` öğe seçilir (eskiler değil), sonra akış KRONOLOJİK
+  // sunulur: en eski üstte, bugüne doğru aşağı akar. Firmanın hikâyesi
+  // baştan sona okunur.
+  return ogeler
+    .sort((a, b) => b.tarih.getTime() - a.tarih.getTime())
+    .slice(0, limit)
+    .reverse();
 }

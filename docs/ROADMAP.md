@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.11.0` — Faz 11 tamamlandı |
+| **Son çıkan sürüm** | `v1.11.1` — geri bildirim düzeltmeleri (timeline, modallar, kanban, /kullanicilar) |
 | **Sıradaki faz** | **Faz 12** — Hesap güvenliği ve KVKK (`v1.12.0`) |
 | **Devam eden iş** | yok |
 
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**324 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**328 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port

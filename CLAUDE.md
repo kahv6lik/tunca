@@ -69,6 +69,7 @@ src/
       teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
       yedekler/        # yedek al/indir/geri yükle — yedek.yonet (Faz 10)
       ozel-alanlar/    # özel alan tanımları — ozelalan.yonet (Faz 11)
+      kullanicilar/    # kuruluş içi ekip yönetimi — kullanici.yonet (v1.11.1)
       pano-actions.ts, gorunum-actions.ts  # kişisel tercih action'ları (Faz 10)
     api/
       gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
@@ -336,7 +337,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**324 kontrol**.
+**328 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -347,7 +348,7 @@ Tek tek:
 npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (192 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 111)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 115)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -479,3 +480,9 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   formlarda ve detaylarda dinamik gösterim, seçim tipli firma alanlarında
   liste filtresi; kayıtlı görünüm, dışa aktarım ve yedek bütünleşmesi.
   Değerler gerçek FK ile bağlı — kayıt silinince cascade ile temizlenir.
+- **v1.11.1** — Kullanıcı geri bildirimi düzeltmeleri: zaman akışı kronolojik
+  (en eski üstte); kart içinden açılan modallar portala taşındı (`.card`
+  backdrop-filter'ı fixed konumu hapsediyordu — `ModalKatman`); kanban
+  sütunları ekrana yayılır; menüde "Yönetim" bölümü ve `/kullanicilar`
+  ekranı (kuruluş yöneticisi kendi ekibini davet eder, rol/durum/şifre
+  yönetir; platform rolü kiracı içinden verilemez).

@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, X, ArrowRightLeft } from "lucide-react";
@@ -56,7 +57,7 @@ export default function LeadPanel({
       )}
 
       {acik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >
@@ -234,7 +235,7 @@ export default function LeadPanel({
               </div>
             </form>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );
@@ -276,7 +277,7 @@ export function DonusturPanel({
       </button>
 
       {acik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >
@@ -383,7 +384,7 @@ export function DonusturPanel({
               </div>
             </form>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );

@@ -26,7 +26,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; izin?: string };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  izin?: string;
+  /** "yonetim" işaretli öğeler menüde "Yönetim" başlığı altında gruplanır. */
+  bolum?: "yonetim";
+};
 
 /**
  * Menü öğeleri. `izin` alanı olanlar yalnızca o izne sahip kullanıcıya
@@ -46,62 +53,78 @@ export const NAV: NavItem[] = [
   { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },
   { href: "/takvim", label: "Takvim", icon: CalendarDays, izin: "takvim.goruntule" },
   { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
-  { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule" },
   // İçe aktarım firma OLUŞTURMA yetkisi olanlara görünür; sayfa da izinli
   // veri kümesi yoksa kendini açmaz.
   { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
-  { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet" },
-  { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule" },
-  { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet" },
-  { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet" },
+
+  // ── Yönetim: kuruluşun yönetimsel işleri tek başlık altında toplanır. ──
+  // (Platformlar ÜSTÜ yönetim ayrıdır: /admin, yalnızca platform_admin.)
+  { href: "/kullanicilar", label: "Kullanıcılar", icon: Users, izin: "kullanici.yonet", bolum: "yonetim" },
+  { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet", bolum: "yonetim" },
+  { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet", bolum: "yonetim" },
+  { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule", bolum: "yonetim" },
+  { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule", bolum: "yonetim" },
+  { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet", bolum: "yonetim" },
 ];
 
 export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   const pathname = usePathname();
   const izinKumesi = new Set(izinler);
   const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
+  const ana = gorunenler.filter((i) => i.bolum !== "yonetim");
+  const yonetim = gorunenler.filter((i) => i.bolum === "yonetim");
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   }
 
+  function oge(item: NavItem) {
+    const active = isActive(item.href);
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={cn(
+          "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          active
+            ? "text-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        {active && (
+          <motion.span
+            layoutId="sidebar-active"
+            className="absolute inset-0 rounded-xl border border-primary/30 bg-primary/10"
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+          />
+        )}
+        <Icon
+          className={cn(
+            "relative z-10 h-[18px] w-[18px] transition-colors",
+            active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          )}
+        />
+        <span className="relative z-10">{item.label}</span>
+        {active && (
+          <span className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.6)]" />
+        )}
+      </Link>
+    );
+  }
+
   return (
     <nav className="flex-1 space-y-1 px-3 py-4">
-      {gorunenler.map((item) => {
-        const active = isActive(item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {active && (
-              <motion.span
-                layoutId="sidebar-active"
-                className="absolute inset-0 rounded-xl border border-primary/30 bg-primary/10"
-                transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              />
-            )}
-            <Icon
-              className={cn(
-                "relative z-10 h-[18px] w-[18px] transition-colors",
-                active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-              )}
-            />
-            <span className="relative z-10">{item.label}</span>
-            {active && (
-              <span className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.6)]" />
-            )}
-          </Link>
-        );
-      })}
+      {ana.map(oge)}
+      {yonetim.length > 0 && (
+        <>
+          <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Yönetim
+          </p>
+          {yonetim.map(oge)}
+        </>
+      )}
     </nav>
   );
 }

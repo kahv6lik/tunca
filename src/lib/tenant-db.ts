@@ -53,6 +53,9 @@ const KIRACI_MODELLERI = new Set([
   "Yedek",
   "OzelAlan",
   "OzelAlanDeger",
+  // Davet kiracıya bağlıdır ve RLS'te kiracı politikası vardır; kuruluş
+  // yöneticisi kendi ekibini /kullanicilar üzerinden davet eder.
+  "Davet",
 ]);
 
 // where filtresi eklenerek güvene alınabilen işlemler
@@ -176,7 +179,9 @@ export type KiraciModeli =
   | "kayitliGorunum"
   | "yedek"
   | "ozelAlan"
-  | "ozelAlanDeger";
+  | "ozelAlanDeger"
+  | "user"
+  | "davet";
 
 export async function sahiplikDogrula(
   db: TenantClient,

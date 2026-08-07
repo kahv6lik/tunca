@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
@@ -187,7 +188,7 @@ export default function GorunumBar({
       </div>
 
       {kayitAcik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setKayitAcik(false)}
         >
@@ -257,7 +258,7 @@ export default function GorunumBar({
               </div>
             </form>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );

@@ -62,26 +62,55 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                 </button>
               </div>
               <nav className="flex-1 space-y-1 p-3">
-                {gorunenler.map((item) => {
-                  const active = isActive(item.href);
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                        active
-                          ? "border border-primary/30 bg-primary/10 text-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                      )}
-                    >
-                      <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                {gorunenler
+                  .filter((i) => i.bolum !== "yonetim")
+                  .map((item) => {
+                    const active = isActive(item.href);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                          active
+                            ? "border border-primary/30 bg-primary/10 text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                        )}
+                      >
+                        <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                {gorunenler.some((i) => i.bolum === "yonetim") && (
+                  <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Yönetim
+                  </p>
+                )}
+                {gorunenler
+                  .filter((i) => i.bolum === "yonetim")
+                  .map((item) => {
+                    const active = isActive(item.href);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                          active
+                            ? "border border-primary/30 bg-primary/10 text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                        )}
+                      >
+                        <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
               </nav>
             </motion.aside>
               </div>

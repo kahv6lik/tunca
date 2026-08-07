@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -60,7 +61,7 @@ export default function EditRecordDialog({
         createPortal(
           <AnimatePresence>
             {open && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+          <ModalKatman className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -93,7 +94,7 @@ export default function EditRecordDialog({
                 onSuccess={() => setOpen(false)}
               />
             </motion.div>
-          </div>
+          </ModalKatman>
             )}
           </AnimatePresence>,
           document.body

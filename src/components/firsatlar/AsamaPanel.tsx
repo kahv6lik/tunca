@@ -1,5 +1,6 @@
 "use client";
 
+import ModalKatman from "@/components/ui/ModalKatman";
 import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -43,7 +44,7 @@ export default function AsamaPanel({ mevcut }: { mevcut?: Asama }) {
       )}
 
       {acik && (
-        <div
+        <ModalKatman
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >
@@ -124,7 +125,7 @@ export default function AsamaPanel({ mevcut }: { mevcut?: Asama }) {
               </div>
             </form>
           </div>
-        </div>
+        </ModalKatman>
       )}
     </>
   );
