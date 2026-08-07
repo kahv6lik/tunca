@@ -38,6 +38,7 @@ export default async function KisilerPage(
         OR: [
           { ad: { contains: ara, mode: "insensitive" } },
           { unvan: { contains: ara, mode: "insensitive" } },
+          { departman: { contains: ara, mode: "insensitive" } },
           { email: { contains: ara, mode: "insensitive" } },
           { telefon: { contains: ara } },
           { firma: { ad: { contains: ara, mode: "insensitive" } } },
@@ -86,7 +87,7 @@ export default async function KisilerPage(
             id="ara"
             name="ara"
             defaultValue={ara}
-            placeholder="Ad, unvan, e-posta, telefon veya firma…"
+            placeholder="Ad, unvan, departman, e-posta, telefon veya firma…"
             className="input"
           />
         </div>
@@ -112,6 +113,7 @@ export default async function KisilerPage(
               <tr>
                 <th className="th">Ad</th>
                 <th className="th">Unvan</th>
+                <th className="th">Departman</th>
                 <th className="th">Firma</th>
                 <th className="th">Telefon</th>
                 <th className="th">E-posta</th>
@@ -133,6 +135,7 @@ export default async function KisilerPage(
                     </span>
                   </td>
                   <td className="td">{k.unvan ?? "—"}</td>
+                  <td className="td">{k.departman ?? "—"}</td>
                   <td className="td">
                     <Link
                       href={`/firmalar/${k.firma.id}`}

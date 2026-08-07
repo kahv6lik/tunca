@@ -107,6 +107,7 @@ src/
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
+    ui/SecimKutusu     # aramalı tek seçimli açılır kutu (v1.12.1)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
     GorunumBar,         # kayıtlı görünümler (Faz 10)
     OzelAlanGirdileri   # özel alan form girdileri (Faz 11)
@@ -354,7 +355,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**369 kontrol**.
+**373 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -365,7 +366,7 @@ Tek tek:
 npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (219 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 129)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 133)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -510,6 +511,11 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   geçici kilit; sürümlü KVKK aydınlatma metni, açık rıza kaydı, saklama
   süresi temizliği ve kişisel veri kopyası. Dördüncü dar kapı:
   `giris-guvenlik.ts` (`app.giris` bağlamı).
+- **v1.12.1** — Kişi kaydına **departman** alanı: 40 seçenekli SABİT listeden
+  (`DEPARTMANLAR`) aramalı açılır kutuyla seçilir, elle yazılamaz. Serbest
+  metin olsaydı aynı departman farklı yazımlarla kaydolur ve gruplama
+  anlamsızlaşırdı; unvan serbest kalır. Kişiler listesinde ve firma detayında
+  sütun, aramada ve dışa aktarımda alan olarak yer alır.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

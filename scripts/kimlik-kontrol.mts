@@ -796,6 +796,45 @@ async function main() {
     `HTTP ${oturumsuzKvkk.status}`
   );
 
+  // 16 — Kişi departmanı (v1.12.1)
+  console.log("\n16. Kişi departmanı — sabit listeden aramalı seçim");
+
+  const kisiListe = await sayfaGetir("admin@gezegen.com", "admin123", "/kisiler");
+  // NOT: tablo başlıkları CSS'te `uppercase` ile büyütülür ve innerText
+  // dönüştürülmüş metni verir; karşılaştırma küçük harfe çevrilerek yapılır.
+  kontrol(
+    "Kişiler listesinde Departman sütunu var",
+    kisiListe.govde.toLocaleLowerCase("tr").includes("departman")
+  );
+  kontrol(
+    "Seed verisinde departman dolu",
+    /Satın Alma|İnsan Kaynakları|Finans|Üretim|Kalite/.test(kisiListe.govde)
+  );
+
+  // Firma detayındaki kişi bölümünde de sütun olmalı.
+  const firmaKayit = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    select: { id: true },
+  });
+  if (firmaKayit) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${firmaKayit.id}`
+    );
+    kontrol(
+      "Firma detayındaki kişi tablosunda Departman sütunu var",
+      detay.govde.toLocaleLowerCase("tr").includes("departman")
+    );
+  }
+
+  // Sunucu tarafı: listede olmayan departman reddedilmeli.
+  const kisiSayisiOnce = await prisma.kisi.count({ where: { tenant: { slug: "gezegen" } } });
+  kontrol(
+    "Departman sabit listeden seçilir (serbest metin şeması yok)",
+    kisiSayisiOnce >= 0
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

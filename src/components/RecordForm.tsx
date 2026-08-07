@@ -2,8 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import SecimKutusu from "./ui/SecimKutusu";
 
-export type FieldType = "text" | "number" | "date" | "select" | "textarea";
+export type FieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "textarea"
+  /** Aramalı, tek seçimli açılır kutu — uzun sabit listeler için (v1.12.1). */
+  | "arama-secim";
 
 export type Field = {
   name: string;
@@ -71,6 +79,12 @@ export default function RecordForm({
   const [txt, setTxt] = useState<Record<string, string>>(() =>
     Object.fromEntries(otherFields.map((f) => [f.name, initialOtherText(f)]))
   );
+  /**
+   * Başarılı gönderimden sonra artar ve React `key` olarak kullanılır.
+   * `form.reset()` yalnızca yerel (DOM) girdileri sıfırlar; kendi durumunu
+   * React'te tutan SecimKutusu ancak yeniden monte edilerek temizlenir.
+   */
+  const [sifirlama, setSifirlama] = useState(0);
 
   useEffect(() => {
     if (state.ok) {
@@ -78,6 +92,7 @@ export default function RecordForm({
       // "Diğer" alanlarının kontrollü durumunu da başa döndür
       setSel(Object.fromEntries(otherFields.map((f) => [f.name, initialSelected(f)])));
       setTxt(Object.fromEntries(otherFields.map((f) => [f.name, initialOtherText(f)])));
+      setSifirlama((n) => n + 1);
       onSuccess?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,6 +146,16 @@ export default function RecordForm({
                     <input type="hidden" name={f.name} value={sel[f.name] ?? ""} />
                   )}
                 </>
+              ) : f.type === "arama-secim" ? (
+                <SecimKutusu
+                  key={`${f.name}-${sifirlama}`}
+                  id={f.name}
+                  name={f.name}
+                  secenekler={(f.options ?? []).map((o) => o.value)}
+                  deger={f.defaultValue != null ? String(f.defaultValue) : ""}
+                  placeholder={f.placeholder ?? "Seçiniz…"}
+                  required={f.required}
+                />
               ) : f.type === "select" ? (
                 <select
                   id={f.name}

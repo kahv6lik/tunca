@@ -9,6 +9,7 @@
 import { PrismaClient } from "@prisma/client";
 import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
+import { DEPARTMANLAR } from "../src/lib/constants";
 
 // RLS yönetim bağlamı: kurulum betikleri kiracılar ötesi yazabilmelidir.
 const temelIstemci = new PrismaClient();
@@ -223,6 +224,7 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
         firmaId: f.id,
         ad: `${rnd(ADLAR)} ${rnd(SOYADLAR)}`,
         unvan: rnd(UNVANLAR),
+        departman: rnd(DEPARTMANLAR as unknown as string[]),
         telefon: `0${rndInt(500, 555)} ${rndInt(100, 999)} ${rndInt(10, 99)} ${rndInt(10, 99)}`,
         email: `kisi${kisiler.length + 1}@firma.com.tr`,
         birincil: k === 0, // ilk kişi birincil muhatap

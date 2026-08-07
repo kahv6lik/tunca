@@ -13,6 +13,7 @@ import {
 } from "@/lib/tenant-db";
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
+import { DEPARTMANLAR } from "@/lib/constants";
 import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 
 /**
@@ -27,6 +28,17 @@ const schema = z.object({
   firmaId: z.string().min(1),
   ad: z.string().trim().min(1, "Ad zorunludur."),
   unvan: z.string().trim().optional(),
+  // Departman SABİT listeden gelmelidir. Arayüz elle girişe izin vermez ama
+  // asıl koruma burada: istemciden gelen değer listede yoksa reddedilir,
+  // aksi halde alan sessizce serbest metne dönerdi.
+  departman: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (d) => !d || (DEPARTMANLAR as readonly string[]).includes(d),
+      "Geçersiz departman."
+    ),
   telefon: z.string().trim().optional(),
   email: z.string().trim().optional(),
   // Form'dan "1"/"0" gelir. `z.coerce.boolean()` KULLANILMAZ: o, "0" ve

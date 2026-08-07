@@ -326,7 +326,11 @@ model Kisi {
   firmaId   String
   firma     Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
   ad        String
-  unvan     String? // görev / pozisyon
+  unvan     String? // görev / pozisyon (serbest metin)
+  // Departman SABİT listeden seçilir (src/lib/constants.ts → DEPARTMANLAR).
+  // Serbest metin olsaydı aynı departman üç farklı yazımla kaydolur ve
+  // gruplama/raporlama anlamsızlaşırdı.
+  departman String?
   telefon   String?
   email     String?
   // Firmanın birincil muhatabı. Firma başına en fazla bir tane olur; kural

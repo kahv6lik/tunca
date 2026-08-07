@@ -1,4 +1,5 @@
 import "server-only";
+import { DEPARTMANLAR } from "./constants";
 import ExcelJS from "exceljs";
 import {
   getTenantDb,
@@ -227,6 +228,12 @@ async function satirYaz(
       firmaId,
       ad: v.ad,
       unvan: v.unvan || null,
+      // Departman sabit listeden gelmelidir; dosyadaki serbest metin listede
+      // yoksa alan BOŞ bırakılır (satırın tamamı düşmez). Amaç, içe aktarımın
+      // raporlanabilir alanı serbest metne çevirmesini engellemektir.
+      departman: (DEPARTMANLAR as readonly string[]).includes((v.departman ?? "").trim())
+        ? v.departman!.trim()
+        : null,
       telefon: v.telefon || null,
       email: v.email || null,
       birincil: /^(evet|true|1|x)$/i.test(v.birincil ?? ""),

@@ -196,3 +196,61 @@ export function durumBadge(durum: string) {
     }
   );
 }
+
+/**
+ * Departmanlar (v1.12.1) — kişi kaydındaki `departman` alanının seçenekleri.
+ *
+ * SABİT bir listedir ve kullanıcı elle değer giremez. Gerekçe: departman
+ * raporlanabilir bir alandır ("hangi departmanla daha çok konuşuyoruz?");
+ * serbest metin olsaydı "Satın Alma", "satinalma", "Satınalma Dept." aynı
+ * şeyin üç ayrı değeri olur ve gruplama anlamsızlaşırdı. Unvan alanı serbest
+ * kalır — kişinin kendi tanımı oradadır.
+ *
+ * Listeye eklemek güvenlidir; ÇIKARMAK değildir: eski kayıtlarda kalan değer
+ * listede bulunmazsa arayüzde gösterilmeye devam eder ama seçilemez hâle
+ * gelir (SecimKutusu bunu kendisi ele alır).
+ */
+export const DEPARTMANLAR = [
+  "Yönetim Kurulu",
+  "Genel Müdürlük",
+  "Satış",
+  "Pazarlama",
+  "İş Geliştirme",
+  "Müşteri İlişkileri",
+  "Satın Alma",
+  "Tedarik Zinciri",
+  "Lojistik",
+  "Depo",
+  "Üretim",
+  "Planlama",
+  "Kalite Güvence",
+  "Kalite Kontrol",
+  "Ar-Ge",
+  "Ür-Ge",
+  "Mühendislik",
+  "Bakım Onarım",
+  "Bilgi Teknolojileri",
+  "Yazılım Geliştirme",
+  "Finans",
+  "Muhasebe",
+  "Bütçe ve Raporlama",
+  "İnsan Kaynakları",
+  "Eğitim ve Gelişim",
+  "Hukuk",
+  "İdari İşler",
+  "İş Sağlığı ve Güvenliği",
+  "Çevre ve Sürdürülebilirlik",
+  "Dış Ticaret",
+  "İhracat",
+  "İthalat",
+  "Proje Yönetimi",
+  "Teknik Servis",
+  "Halkla İlişkiler",
+  "Kurumsal İletişim",
+  "Risk ve Uyum",
+  "İç Denetim",
+  "Yatırım ve Teşvik",
+  "Diğer",
+] as const;
+
+export type Departman = (typeof DEPARTMANLAR)[number];

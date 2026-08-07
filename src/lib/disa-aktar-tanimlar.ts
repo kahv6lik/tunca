@@ -57,6 +57,7 @@ export const VERI_KUMELERI: VeriKumesi[] = [
       { anahtar: "ad", etiket: "Ad Soyad", zorunlu: true },
       { anahtar: "firmaAd", etiket: "Firma", zorunlu: true },
       { anahtar: "unvan", etiket: "Unvan" },
+      { anahtar: "departman", etiket: "Departman" },
       { anahtar: "telefon", etiket: "Telefon" },
       { anahtar: "email", etiket: "E-posta" },
       { anahtar: "birincil", etiket: "Birincil Kişi" },

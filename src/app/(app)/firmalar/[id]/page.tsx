@@ -9,6 +9,7 @@ import DeleteButton from "@/components/DeleteButton";
 import EditRecordDialog from "@/components/edit-record-dialog";
 import type { Field } from "@/components/RecordForm";
 import { formatPara, formatTarih, toDateInput } from "@/lib/format";
+import { DEPARTMANLAR } from "@/lib/constants";
 import { deleteFirma } from "../actions";
 import { createYatirim, updateYatirim, deleteYatirim } from "../../yatirim-destekleri/actions";
 import { createEgitim, updateEgitim, deleteEgitim } from "../../egitimler/actions";
@@ -218,6 +219,15 @@ export default async function FirmaDetayPage(
   const kisiFields: Field[] = [
     { name: "ad", label: "Ad Soyad", required: true },
     { name: "unvan", label: "Unvan / Görev" },
+    // Departman SABİT listeden seçilir (raporlanabilirlik için); unvan
+    // serbest metin olarak kalır — kişinin kendi tanımı oradadır.
+    {
+      name: "departman",
+      label: "Departman",
+      type: "arama-secim",
+      placeholder: "Departman seçin…",
+      options: DEPARTMANLAR.map((d) => ({ value: d, label: d })),
+    },
     { name: "telefon", label: "Telefon" },
     { name: "email", label: "E-posta" },
     {
@@ -374,7 +384,7 @@ export default async function FirmaDetayPage(
           <Empty />
         ) : (
           <TableWrap
-            head={["Ad", "Unvan", "Telefon", "E-posta", "İşlem"]}
+            head={["Ad", "Unvan", "Departman", "Telefon", "E-posta", "İşlem"]}
             rows={firma.kisiler.map((k) => (
               <tr key={k.id} className="hover:bg-muted/40">
                 <td className="td font-medium">
@@ -389,6 +399,7 @@ export default async function FirmaDetayPage(
                   </span>
                 </td>
                 <td className="td">{k.unvan ?? "—"}</td>
+                <td className="td">{k.departman ?? "—"}</td>
                 <td className="td">{k.telefon ?? "—"}</td>
                 <td className="td">{k.email ?? "—"}</td>
                 <td className="td text-right">
@@ -404,6 +415,7 @@ export default async function FirmaDetayPage(
                           unvan: k.unvan ?? "",
                           telefon: k.telefon ?? "",
                           email: k.email ?? "",
+                          departman: k.departman ?? "",
                           birincil: k.birincil ? "1" : "0",
                           notlar: k.notlar ?? "",
                           ...Object.fromEntries(
