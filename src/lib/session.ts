@@ -41,7 +41,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
     .setExpirationTime(`${SESSION_DURATION}s`)
     .sign(getSecret());
 
-  cookies().set(COOKIE_NAME, token, {
+  (await cookies()).set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -51,7 +51,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret());
@@ -77,7 +77,7 @@ export async function getSession(): Promise<SessionPayload | null> {
 }
 
 export async function destroySession(): Promise<void> {
-  cookies().delete(COOKIE_NAME);
+  (await cookies()).delete(COOKIE_NAME);
 }
 
 export { COOKIE_NAME };

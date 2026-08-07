@@ -20,11 +20,12 @@ export const dynamic = "force-dynamic";
  * Aday, henüz firma olmamış bir ilgidir. Üstteki şerit hunidir: hangi
  * aşamada kaç aday var ve kaçı işe dönüştü.
  */
-export default async function AdaylarPage({
-  searchParams,
-}: {
-  searchParams: { ara?: string; durum?: string; kaynak?: string };
-}) {
+export default async function AdaylarPage(
+  props: {
+    searchParams: Promise<{ ara?: string; durum?: string; kaynak?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.leadGoruntule);
   await varsayilanaYonlendir("adaylar", searchParams);
   const gorunumler = await gorunumleriGetir("adaylar");

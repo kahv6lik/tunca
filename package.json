@@ -1,6 +1,6 @@
 {
   "name": "gezegen-crm",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,6 +27,15 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.26",
+      "sharp": "^0.35.3"
+    },
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@types/mailparser": "^3.4.6",
@@ -40,20 +49,20 @@
     "jose": "^5.9.6",
     "lucide-react": "^0.454.0",
     "mailparser": "^3.9.14",
-    "next": "14.2.15",
-    "next-themes": "^0.3.0",
+    "next": "^15.5.23",
+    "next-themes": "^0.4.6",
     "nodemailer": "^9.0.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "recharts": "^2.13.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.16.11",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "autoprefixer": "^10.4.20",
     "playwright": "^1.62.1",
     "postcss": "^8.4.47",

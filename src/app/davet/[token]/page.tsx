@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  * kuruluş adı bile gösterilmez: token'ı olmayan biri hiçbir kiracının
  * varlığını öğrenemez.
  */
-export default async function DavetPage({ params }: { params: { token: string } }) {
+export default async function DavetPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const davet = await davetGoruntule(params.token);
 
   return (

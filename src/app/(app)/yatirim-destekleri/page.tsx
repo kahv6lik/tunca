@@ -13,11 +13,12 @@ import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
 
-export default async function YatirimlarPage({
-  searchParams,
-}: {
-  searchParams: { ara?: string; durum?: string; sayfa?: string };
-}) {
+export default async function YatirimlarPage(
+  props: {
+    searchParams: Promise<{ ara?: string; durum?: string; sayfa?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.yatirimGoruntule);
   const db = await getTenantDb();
   const ara = (searchParams.ara ?? "").trim();

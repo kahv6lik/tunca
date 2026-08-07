@@ -11,11 +11,12 @@ export const dynamic = "force-dynamic";
  * ama AYNI kiracı içinde yetkisiz erişimde durum farklı: kullanıcı zaten
  * kuruluşun bir parçası, ona ne olduğunu açıkça söylemek doğru.
  */
-export default function YetkisizPage({
-  searchParams,
-}: {
-  searchParams: { izin?: string };
-}) {
+export default async function YetkisizPage(
+  props: {
+    searchParams: Promise<{ izin?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const izin = searchParams.izin;
   const etiket = izin ? IZIN_ETIKET[izin] : undefined;
 

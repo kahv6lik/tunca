@@ -25,7 +25,8 @@ export const dynamic = "force-dynamic";
  * Sayfa `@media print` ile hazırlanmıştır: arayüz kabuğu, düğmeler ve
  * gölgeler baskıda görünmez.
  */
-export default async function TeklifYazdirPage({ params }: { params: { id: string } }) {
+export default async function TeklifYazdirPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await yetkiGerektir(IZIN.teklifGoruntule);
   const { db, session } = await getTenantContext();
 
@@ -73,11 +74,11 @@ export default async function TeklifYazdirPage({ params }: { params: { id: strin
           <div className="flex items-center gap-4">
             {ayar.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
+              (<img
                 src={ayar.logoUrl}
                 alt={ayar.ad}
                 className="h-14 w-14 rounded-xl object-contain"
-              />
+              />)
             ) : (
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-xl text-xl font-bold text-white"

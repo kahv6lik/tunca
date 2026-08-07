@@ -29,11 +29,12 @@ const TUR_ETIKET = Object.fromEntries(AKTIVITE_TUR.map((t) => [t.deger, t.etiket
  * (tüm açık işler) ve "Akış" (her şey, kronolojik). Varsayılan sekme
  * bilinçli olarak Bugün'dür — sabah açılınca ilk görülmesi gereken budur.
  */
-export default async function AktivitelerPage({
-  searchParams,
-}: {
-  searchParams: { sekme?: string; atanan?: string; tur?: string };
-}) {
+export default async function AktivitelerPage(
+  props: {
+    searchParams: Promise<{ sekme?: string; atanan?: string; tur?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.aktiviteGoruntule);
 
   const [ekleyebilir, duzenleyebilir, silebilir] = await Promise.all([

@@ -19,11 +19,12 @@ const SAYFA_BOYUTU = 25;
  * Kişiler firma detay sayfasından eklenir; burası kiracı genelinde arama
  * içindir — "şu telefon kimindi?" sorusunun yanıtı.
  */
-export default async function KisilerPage({
-  searchParams,
-}: {
-  searchParams: { ara?: string; sayfa?: string };
-}) {
+export default async function KisilerPage(
+  props: {
+    searchParams: Promise<{ ara?: string; sayfa?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.kisiGoruntule);
   await varsayilanaYonlendir("kisiler", searchParams);
   const gorunumler = await gorunumleriGetir("kisiler");

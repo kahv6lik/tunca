@@ -14,11 +14,12 @@ export const dynamic = "force-dynamic";
  * türetilir ama alan düzenlenebilir, çünkü çoğu kuruluşun kendi numaralama
  * geleneği vardır.
  */
-export default async function YeniTeklifPage({
-  searchParams,
-}: {
-  searchParams: { firma?: string; firsat?: string };
-}) {
+export default async function YeniTeklifPage(
+  props: {
+    searchParams: Promise<{ firma?: string; firsat?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.teklifOlustur);
   const db = await getTenantDb();
 

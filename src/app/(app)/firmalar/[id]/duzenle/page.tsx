@@ -7,11 +7,12 @@ import { updateFirma } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function FirmaDuzenlePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function FirmaDuzenlePage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await yetkiGerektir(IZIN.firmaDuzenle);
   const db = await getTenantDb();
   const firma = await db.firma.findFirst({ where: { id: params.id } });

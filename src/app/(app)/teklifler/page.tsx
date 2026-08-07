@@ -15,11 +15,12 @@ import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 export const dynamic = "force-dynamic";
 
 /** Teklif listesi (Faz 7 / C7). */
-export default async function TekliflerPage({
-  searchParams,
-}: {
-  searchParams: { ara?: string; durum?: string };
-}) {
+export default async function TekliflerPage(
+  props: {
+    searchParams: Promise<{ ara?: string; durum?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.teklifGoruntule);
   await varsayilanaYonlendir("teklifler", searchParams);
   const ekleyebilir = await yetkiVarMi(IZIN.teklifOlustur);

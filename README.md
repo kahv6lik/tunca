@@ -19,7 +19,7 @@ hizmetleri** takip etmek için geliştirilmiş web tabanlı bir CRM uygulaması.
 
 ## Teknolojiler
 
-- [Next.js 14](https://nextjs.org/) (App Router, Server Actions)
+- [Next.js 15](https://nextjs.org/) + React 19 (App Router, Server Actions)
 - [Prisma ORM](https://www.prisma.io/) + **PostgreSQL** (Row-Level Security ile kiracı izolasyonu)
 - [Tailwind CSS](https://tailwindcss.com/)
 - Kimlik doğrulama: `jose` (JWT) + `bcryptjs`

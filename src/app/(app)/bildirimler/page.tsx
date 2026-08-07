@@ -14,11 +14,12 @@ export const dynamic = "force-dynamic";
  * kullanıcıyla sınırlanır. Bu sayfa paket kısıtına da tabi değildir: hangi
  * modüller açık olursa olsun kullanıcı kendi bildirimini görebilmelidir.
  */
-export default async function BildirimlerPage({
-  searchParams,
-}: {
-  searchParams: { filtre?: string };
-}) {
+export default async function BildirimlerPage(
+  props: {
+    searchParams: Promise<{ filtre?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { db, session } = await getTenantContext();
 
   const yalnizOkunmamis = searchParams.filtre === "okunmamis";

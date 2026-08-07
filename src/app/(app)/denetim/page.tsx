@@ -19,11 +19,12 @@ const SAYFA_BOYUTU = 50;
  * politikaları da bunu zorunlu kılar (bkz. RLS migration'ı: DenetimKaydi
  * tablosunda kiracı için yalnızca SELECT ve INSERT politikası vardır).
  */
-export default async function DenetimPage({
-  searchParams,
-}: {
-  searchParams: { islem?: string; varlik?: string; kullanici?: string; sayfa?: string };
-}) {
+export default async function DenetimPage(
+  props: {
+    searchParams: Promise<{ islem?: string; varlik?: string; kullanici?: string; sayfa?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.denetimGoruntule);
   const db = await getTenantDb();
 

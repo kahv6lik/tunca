@@ -16,7 +16,8 @@ import {
 export const dynamic = "force-dynamic";
 
 /** Kuruluş detayı — B1 (kiracı), B2 (kullanıcılar), B3 (davet), B5 (impersonation). */
-export default async function KiraciDetayPage({ params }: { params: { id: string } }) {
+export default async function KiraciDetayPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const db = await getPlatformDb();
 
   const kiraci = await db.tenant.findUnique({

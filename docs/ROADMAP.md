@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.10.0` — Faz 10 tamamlandı |
+| **Son çıkan sürüm** | `v1.10.1` — güvenlik yükseltmesi (Next 15 + React 19, audit 0 açık) |
 | **Sıradaki faz** | **Faz 11** — Kiracıya özel alanlar (`v1.11.0`) |
 | **Devam eden iş** | yok |
 

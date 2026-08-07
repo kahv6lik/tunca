@@ -24,11 +24,12 @@ import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
 
 export const dynamic = "force-dynamic";
 
-export default async function FirmaDetayPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function FirmaDetayPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await yetkiGerektir(IZIN.firmaGoruntule);
 
   // Yetkiler — arayüzde yalnızca yapılabilecek işlemler gösterilir.

@@ -11,11 +11,12 @@ import { durumBadge } from "@/lib/constants";
 export const dynamic = "force-dynamic";
 
 /** Kuruluş (kiracı) listesi — Faz 5 / B1. */
-export default async function KiracilarPage({
-  searchParams,
-}: {
-  searchParams: { q?: string; durum?: string };
-}) {
+export default async function KiracilarPage(
+  props: {
+    searchParams: Promise<{ q?: string; durum?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const db = await getPlatformDb();
 
   const q = (searchParams.q ?? "").trim();

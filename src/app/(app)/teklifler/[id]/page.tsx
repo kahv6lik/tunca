@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
  * kalemler gösterilir. Geçmiş bir sürümü düzenleyebilmek, revizyon zincirinin
  * anlamını ortadan kaldırırdı.
  */
-export default async function TeklifDetayPage({ params }: { params: { id: string } }) {
+export default async function TeklifDetayPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await yetkiGerektir(IZIN.teklifGoruntule);
 
   const [duzenleyebilir, olusturabilir, silebilir] = await Promise.all([

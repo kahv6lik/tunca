@@ -24,11 +24,12 @@ export const dynamic = "force-dynamic";
  * gösterir — kapanmış işler hattı tıkamasın diye; kapananlar liste
  * görünümünde durum filtresiyle görülür.
  */
-export default async function FirsatlarPage({
-  searchParams,
-}: {
-  searchParams: { gorunum?: string; ara?: string; durum?: string; sorumlu?: string };
-}) {
+export default async function FirsatlarPage(
+  props: {
+    searchParams: Promise<{ gorunum?: string; ara?: string; durum?: string; sorumlu?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.firsatGoruntule);
 
   await varsayilanaYonlendir("firsatlar", searchParams);

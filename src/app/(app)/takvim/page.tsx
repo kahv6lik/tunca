@@ -23,11 +23,12 @@ const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
  * Ayrı bir "etkinlik" kaydı yoktur; görevlerin, fırsatların, tekliflerin,
  * eğitim ve hizmetlerin TARİHLERİ tek ızgarada birleştirilir.
  */
-export default async function TakvimPage({
-  searchParams,
-}: {
-  searchParams: { ay?: string; kim?: string };
-}) {
+export default async function TakvimPage(
+  props: {
+    searchParams: Promise<{ ay?: string; kim?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.takvimGoruntule);
   const { db, session } = await getTenantContext();
   const izinler = await etkinIzinler();

@@ -20,7 +20,9 @@ sorgu `tenantId` filtresi olmadan yazılmaz.**
 
 ## Teknoloji Yığını
 
-- **Next.js 14** (App Router + Server Actions, `src/app`)
+- **Next.js 15** + React 19 (App Router + Server Actions, `src/app`)
+  — güvenlik yamaları 14 hattına gelmediği için 15.5'e geçildi (v1.10.1);
+  `package.json` içindeki `overrides` (postcss, sharp, uuid) audit'i sıfır tutar
 - **Prisma ORM + PostgreSQL** (`prisma/schema.prisma`, `DATABASE_URL`)
   — kiracı izolasyonu Row-Level Security ile veritabanı katmanında da zorunlu
 - **Tailwind CSS** + shadcn tarzı bileşen sistemi, dark mode (`next-themes`)
@@ -443,3 +445,7 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   kullanıcı bazlı özelleştirilebilir pano; beş listede kaydet/paylaş/varsayılan
   destekli kayıtlı görünümler; ekleyici (idempotent) geri yüklemeli kiracı
   yedekleri, gece otomatik yedeği ve dosya indirme/yükleme.
+- **v1.10.1** — Güvenlik yükseltmesi: Next.js 14.2.15 → 15.5.23 + React 19
+  (14 hattına yama gelmeyen kritik/yüksek açıklar: Server Action DoS/SSRF,
+  önbellek zehirlenmesi, uç nokta ifşası). recharts 3, next-themes 0.4;
+  postcss/sharp/uuid `overrides` ile yamalı. `npm audit`: 0 açık.

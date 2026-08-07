@@ -22,11 +22,12 @@ type SearchParams = {
   sayfa?: string;
 };
 
-export default async function FirmalarPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function FirmalarPage(
+  props: {
+    searchParams: Promise<SearchParams>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.firmaGoruntule);
   await varsayilanaYonlendir("firmalar", searchParams);
   const ekleyebilir = await yetkiVarMi(IZIN.firmaOlustur);
