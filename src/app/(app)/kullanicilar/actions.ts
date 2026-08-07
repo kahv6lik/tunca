@@ -9,6 +9,7 @@ import { ROL } from "@/lib/yetki-tanimlar";
 import { denetimYaz } from "@/lib/denetim";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
 import { davetTokenUret } from "@/lib/davet";
+import { sifreDogrula } from "@/lib/guvenlik-tanimlar";
 
 /**
  * Kuruluş içi kullanıcı yönetimi — /kullanicilar (kullanici.yonet).
@@ -95,16 +96,22 @@ export async function ekipSifreSifirla(
   if (!(await yetkiVarMi(IZIN.kullaniciYonet))) return { error: YETKISIZ };
 
   const sifre = String(formData.get("sifre") ?? "");
-  if (sifre.length < 8) return { error: "Şifre en az 8 karakter olmalı." };
 
   const { db } = await getTenantContext();
   const oncesi = await kayitOku(db, "user", userId);
   if (!oncesi) return { error: "Kullanıcı bulunamadı." };
+
   if (oncesi.role === ROL.platformAdmin) {
     return { error: "Platform yöneticisi kuruluş içinden yönetilemez." };
   }
 
-  await tenantGuncelle(db, "user", userId, { password: await bcrypt.hash(sifre, 10) });
+  const politika = sifreDogrula(sifre, oncesi.email as string);
+  if (!politika.ok) return { error: politika.hata };
+
+  await tenantGuncelle(db, "user", userId, {
+    password: await bcrypt.hash(sifre, 10),
+    sifreGuncellendi: new Date(),
+  });
   await denetimYaz({
     islem: "guncelle",
     varlik: "User",
@@ -195,4 +202,48 @@ export async function ekipDavetIptal(id: string): Promise<void> {
   });
 
   revalidatePath("/kullanicilar");
+}
+
+// ── Kuruluş güvenlik politikaları (Faz 12 / F2, F3, F7) ────────────────────
+
+/**
+ * Kuruluş çapındaki güvenlik ayarları — `kullanici.yonet` iznine bağlıdır.
+ *
+ * Bunlar kişisel değil KURULUŞSAL kararlardır: 2FA zorunluluğu bütün ekibi,
+ * saklama süresi ise kuruluşun KVKK taahhüdünü etkiler.
+ */
+export async function guvenlikPolitikasiKaydet(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  if (!(await yetkiVarMi(IZIN.kullaniciYonet))) return { error: YETKISIZ };
+
+  const { db, session } = await getTenantContext();
+
+  const ikiFaktorZorunlu = String(formData.get("ikiFaktorZorunlu") ?? "") === "1";
+  const oturumOmruGun = Math.min(365, Math.max(1, Number(formData.get("oturumOmruGun")) || 7));
+  const veriSaklamaGun = Math.min(3650, Math.max(0, Number(formData.get("veriSaklamaGun")) || 0));
+
+  const oncesi = await db.tenant.findFirst({ where: { id: session.tenantId } });
+
+  await db.tenant.updateMany({
+    where: { id: session.tenantId },
+    data: { ikiFaktorZorunlu, oturumOmruGun, veriSaklamaGun },
+  });
+
+  await denetimYaz({
+    islem: "guncelle",
+    varlik: "User", // denetimde "kuruluş güvenlik politikası" olayı
+    varlikId: session.tenantId,
+    ozet: `Güvenlik politikası güncellendi (2FA zorunlu: ${ikiFaktorZorunlu ? "evet" : "hayır"})`,
+    eski: {
+      ikiFaktorZorunlu: oncesi?.ikiFaktorZorunlu,
+      oturumOmruGun: oncesi?.oturumOmruGun,
+      veriSaklamaGun: oncesi?.veriSaklamaGun,
+    },
+    yeni: { ikiFaktorZorunlu, oturumOmruGun, veriSaklamaGun },
+  });
+
+  revalidatePath("/kullanicilar");
+  return { ok: true, bilgi: "Güvenlik politikası kaydedildi." };
 }

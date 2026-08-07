@@ -15,8 +15,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.11.1` — geri bildirim düzeltmeleri (timeline, modallar, kanban, /kullanicilar) |
-| **Sıradaki faz** | **Faz 12** — Hesap güvenliği ve KVKK (`v1.12.0`) |
+| **Son çıkan sürüm** | `v1.12.0` — Faz 12 tamamlandı |
+| **Sıradaki faz** | **Faz 13** — AI özellikleri (`v1.13.0`) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -85,7 +85,7 @@ npm run dogrula
 
 Tek komut; tip kontrolü, üretim derlemesi, migration, demo veri, otomatik test
 paketi, HTTP izolasyonu ve gerçek tarayıcıyla kimlik + yetki doğrulamasını
-çalıştırır (**328 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
+çalıştırır (**369 kontrol**). Sonucu ekrana yazar ve **`docs/dogrulama/v<sürüm>.md`** dosyasına
 kaydeder. Bu dosya, o sürümün doğru çalıştığının kanıtı olarak depoda kalır.
 
 Önemli: doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port
@@ -95,7 +95,7 @@ sıfırdan kurulur ve sonunda silinir.
 Tek tek çalıştırmak isterseniz:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (192 test)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (219 test)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken)
 npm run kontrol:kimlik   # giriş formu, gerçek tarayıcı (sunucu çalışırken)
@@ -145,7 +145,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 9  | E1, E2, E5 — Dışa/içe aktarım, PDF | `v1.9.0` | ✅ tamamlandı | — |
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | ✅ tamamlandı | — |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
-| 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | planlandı | |
+| 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
 | 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
 
 ## Yeni Katılan İçin Hızlı Başlangıç
@@ -760,13 +760,82 @@ tanım değerden önce yüklenir.
 
 ---
 
-## Faz 12 — Hesap Güvenliği ve KVKK (F1–F4, F7) → `v1.12.0`
+## Faz 12 — Hesap Güvenliği ve KVKK (F1–F4, F7) → `v1.12.0` ✅
 
-- [ ] **F1 — Şifre politikası + şifremi unuttum:** minimum karmaşıklık, süreli sıfırlama bağlantısı.
-- [ ] **F2 — İki faktörlü doğrulama:** TOTP, yedek kodlar, kiracı bazında zorunlu kılma seçeneği.
-- [ ] **F3 — Oturum yönetimi:** aktif oturum listesi, uzaktan sonlandırma, oturum süresi politikası.
-- [ ] **F4 — Hız sınırlama:** giriş denemesi sınırı, geçici kilit, brute-force koruması.
-- [ ] **F7 — KVKK:** veri saklama süresi, silme/dışa aktarma talebi akışı, aydınlatma metni, açık rıza kaydı.
+- [x] **F1 — Şifre politikası + şifremi unuttum:** minimum karmaşıklık, süreli sıfırlama bağlantısı.
+- [x] **F2 — İki faktörlü doğrulama:** TOTP, yedek kodlar, kiracı bazında zorunlu kılma seçeneği.
+- [x] **F3 — Oturum yönetimi:** aktif oturum listesi, uzaktan sonlandırma, oturum süresi politikası.
+- [x] **F4 — Hız sınırlama:** giriş denemesi sınırı, geçici kilit, brute-force koruması.
+- [x] **F7 — KVKK:** veri saklama süresi, dışa aktarma, aydınlatma metni, açık rıza kaydı.
+
+### Nasıl kuruldu
+
+**DÖRDÜNCÜ DAR KAPI açıldı** (`src/lib/giris-guvenlik.ts`). Hız sınırlama
+sayacı, hesap kilidi, şifre sıfırlama isteği ve oturum kaydı kimlik
+doğrulanmadan ÖNCE yazılmak zorundadır; `app.kimlik_dogrulama` bağlamı ise
+bilinçli olarak salt okumadır ve öyle kalmalıydı. Bu yüzden dar kapsamlı bir
+`app.giris` bağlamı eklendi: yalnızca User, Tenant, Oturum, SifreSifirlama,
+GirisDenemesi ve e-posta kuyruğuna INSERT görür — iş verisine (firma, teklif,
+kişi) hiçbir erişimi yoktur. Regresyon testi `girisIstemcisi`nin bu dosyanın
+dışında kullanılmadığını sürekli denetler.
+
+**Şifre politikası TEK yerdedir** (`guvenlik-tanimlar.ts`) ve BÜTÜN belirleme
+noktalarında aynıdır: davet kabulü, şifre sıfırlama, yönetici sıfırlaması,
+kuruluş içi sıfırlama, kendi şifresini değiştirme. Bir kapıda gevşek kural,
+politikanın tamamını hükümsüz kılar. Kural en az 10 karakter + büyük/küçük
+harf + rakam; yaygın parolalar ve e-posta adının kendisi reddedilir. **Testin
+yakaladığı gerçek bir hata:** küçük harf kontrolü şifreyi önce küçük harfe
+çevirip bakıyordu, yani her şifreyi geçiriyordu.
+
+**Şifre sıfırlama yanıtı HER ZAMAN aynıdır.** Hesap bulunsun ya da bulunmasın
+kullanıcı "bağlantı gönderildi" mesajını görür; aksi halde form, kimlerin
+müşteri olduğunu sorgulayan bir sayaca dönüşürdü. Token saklanmaz (sha256
+özeti), 1 saat yaşar, tek kullanımlıktır ve tamamlandığında kullanıcının
+BÜTÜN oturumları kapanır — sıfırlamanın sebebi çoğu zaman "hesabım ele
+geçirildi" şüphesidir.
+
+**Hız sınırlama iki katmanlıdır:** IP başına saatlik başarısız deneme sınırı
+(hesap aranmadan önce; sözlük saldırısı hesabın varlığından bağımsız
+durdurulmalı) ve hesap başına 5 denemede 15 dakikalık kilit. Kilit, şifre
+DOĞRU olsa bile uygulanır — aksi halde doğru şifreyi bulan saldırganı
+durdurmazdı.
+
+**TOTP için kütüphane kurulmadı.** RFC 6238, HMAC-SHA1 üzerine kurulu otuz
+satırlık bir algoritmadır ve Node'un kendi crypto modülü yeterlidir; kimlik
+doğrulama yoluna denetlenmemiş bir bağımlılık sokmamak bilinçli bir tercihtir.
+Uygulama RFC'nin resmî test vektörüyle sınanır. Sır AES-256-GCM ile ŞİFRELİ
+saklanır, yedek kodlar bcrypt özeti olarak tutulur ve her biri bir kez işe
+yarar. 2FA kurulumu, kullanıcı ilk kodu doğru girene kadar AÇILMAZ — aksi
+halde uygulamayı kuramamış kullanıcı kendi hesabından kilitlenirdi. Kapatmak
+için şifre istenir: ele geçirilen bir oturum ikinci faktörü söküp atamaz.
+
+**JWT artık `jti` taşır ve sunucuda bir Oturum satırına karşılık gelir.** JWT
+kendi başına iptal edilemez; "bu oturumu sonlandır" düğmesini mümkün kılan
+şey budur. Kontrol middleware'de DEĞİL `getSession()` içinde yapılır —
+middleware Edge çalışma zamanındadır ve Prisma oraya girmez; uygulamanın her
+sayfası ve action'ı zaten `getSession`'dan geçer. Faz 12 öncesi çerezler jti
+taşımaz ve doğal ömürleri dolana kadar geçerli sayılır (kullanıcıları toptan
+çıkarmamak için bilinçli geçiş kararı).
+
+**KVKK metni SÜRÜMLÜDÜR** ve rıza, metnin hangi sürümüne verildiğiyle
+saklanır: metin değişince sürüm artar ve yeniden onay istenir. "Bir kere
+onaylamıştı" savunması değişmiş bir metin için geçerli değildir. Saklama
+temizliği zamanlanmış çalıştırıcıdadır; denetim günlüğü kiracı bağlamında
+silinemediği için (Faz 4'ün değiştirilemezlik sözü) temizlik yönetim
+bağlamında ve tenantId açıkça verilerek yapılır — "değiştirilemez" ile
+"süresiz saklanır" aynı şey değildir. Veri kopyasına şifre özeti ve 2FA sırrı
+DAHİL EDİLMEZ: bunlar kullanıcı hakkında bilgi değil, kimlik doğrulama
+sırlarıdır.
+
+### Kabul kriterleri
+- [x] Üç yeni tablo RLS ile korunuyor; oturum ve sıfırlama kayıtları kiracı sınırına tabi.
+- [x] GirisDenemesi kiracı bağlamında SIFIR satır döndürüyor (kimin ne zaman denediği müşteriye açılmaz).
+- [x] Şifre politikası beş belirleme noktasında da aynı; zayıf şifre hiçbirinden geçmiyor.
+- [x] Geçersiz sıfırlama bağlantısı hiçbir hesap bilgisi sızdırmıyor.
+- [x] TOTP, RFC 6238 test vektörünü doğruluyor; ±1 pencere toleransı var, dışı reddediliyor.
+- [x] Oturum sonlandırıldığında ilgili çerez bir sonraki istekte geçersiz.
+- [x] KVKK metni sürümlü, rıza kaydı denetime düşüyor, veri kopyası oturumsuz indirilemiyor.
+- [x] `npm run dogrula` toplam **369 kontrol** ile geçiyor (219 birim test dahil).
 
 ---
 

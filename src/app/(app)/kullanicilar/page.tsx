@@ -7,6 +7,7 @@ import {
   EkipSatirIslemleri,
   DavetPaneli,
   DavetIptalDugmesi,
+  GuvenlikPolitikasiFormu,
 } from "@/components/kullanicilar/EkipPanel";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
 
@@ -24,17 +25,22 @@ export default async function KullanicilarPage() {
   const { db, session } = await getTenantContext();
   const ayar = await kiraciAyari();
 
-  const [kullanicilar, davetler] = await Promise.all([
+  const [kullanicilar, davetler, kiraci] = await Promise.all([
     db.user.findMany({
       orderBy: [{ role: "asc" }, { name: "asc" }],
       select: {
         id: true, name: true, email: true, role: true, durum: true, createdAt: true,
+        ikiFaktorAktif: true,
       },
     }),
     db.davet.findMany({
       where: { kullanildi: null, sonKullanma: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
       select: { id: true, email: true, ad: true, rol: true, sonKullanma: true },
+    }),
+    db.tenant.findFirst({
+      where: { id: session.tenantId },
+      select: { ikiFaktorZorunlu: true, oturumOmruGun: true, veriSaklamaGun: true },
     }),
   ]);
 
@@ -143,6 +149,21 @@ export default async function KullanicilarPage() {
           </tbody>
         </table>
       </div>
+
+      <section className="card mt-6 p-6">
+        <h2 className="mb-1 font-semibold text-foreground">Güvenlik Politikası</h2>
+        <p className="mb-5 text-sm text-muted-foreground">
+          Kuruluşunuzun tamamı için geçerli kurallar. Kişisel ayarlarınız (kendi
+          şifreniz, iki faktörünüz, oturumlarınız) profil menüsündeki{" "}
+          <strong className="text-foreground">Hesap Güvenliği</strong> ekranındadır.
+        </p>
+        <GuvenlikPolitikasiFormu
+          ikiFaktorZorunlu={!!kiraci?.ikiFaktorZorunlu}
+          oturumOmruGun={kiraci?.oturumOmruGun ?? 7}
+          veriSaklamaGun={kiraci?.veriSaklamaGun ?? 0}
+          ikiFaktorsuzSayi={kullanicilar.filter((k) => !k.ikiFaktorAktif).length}
+        />
+      </section>
     </div>
   );
 }

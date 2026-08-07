@@ -26,7 +26,8 @@ import { prisma } from "./db";
 type Baglam =
   | { tur: "kiraci"; tenantId: string }
   | { tur: "yonetim" }
-  | { tur: "kimlik" };
+  | { tur: "kimlik" }
+  | { tur: "giris" };
 
 function ayarIfadesi(istemci: PrismaClient, baglam: Baglam) {
   switch (baglam.tur) {
@@ -36,6 +37,8 @@ function ayarIfadesi(istemci: PrismaClient, baglam: Baglam) {
       return istemci.$executeRaw`SELECT set_config('app.yonetim', 'evet', true)`;
     case "kimlik":
       return istemci.$executeRaw`SELECT set_config('app.kimlik_dogrulama', 'evet', true)`;
+    case "giris":
+      return istemci.$executeRaw`SELECT set_config('app.giris', 'evet', true)`;
   }
 }
 
@@ -83,4 +86,19 @@ export function yonetimIstemcisi(temel?: PrismaClient) {
  */
 export function kimlikIstemcisi(temel?: PrismaClient) {
   return rlsIstemcisi({ tur: "kimlik" }, temel);
+}
+
+/**
+ * Giriş güvenliği (Faz 12 / F1-F4) — kimlik doğrulanmadan ÖNCE yazma.
+ *
+ * Hız sınırlama sayacı, hesap kilidi, şifre sıfırlama isteği ve oturum kaydı
+ * kimlik doğrulanmadan önce yazılmak zorundadır; `kimlik` bağlamı bilinçli
+ * olarak salt okumadır ve öyle kalmalıdır.
+ *
+ * Kapsamı dardır: User, Tenant, Oturum, SifreSifirlama ve GirisDenemesi.
+ * İş verisine (firma, teklif, kişi…) hiçbir erişim vermez. TEK kullanıcısı
+ * `src/lib/giris-guvenlik.ts`'tir; regresyon testi bunu denetler.
+ */
+export function girisIstemcisi(temel?: PrismaClient) {
+  return rlsIstemcisi({ tur: "giris" }, temel);
 }

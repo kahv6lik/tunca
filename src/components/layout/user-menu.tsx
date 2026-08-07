@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LogOut, ChevronDown, UserRound } from "lucide-react";
+import { LogOut, ChevronDown, ShieldCheck } from "lucide-react";
 
 function initials(name: string) {
   return name
@@ -68,12 +69,13 @@ export function UserMenu({
               </div>
             </div>
             <div className="my-1 h-px bg-border/60" />
-            <button
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-muted-foreground"
+            <Link
+              href="/guvenlik"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <UserRound className="h-4 w-4" /> Profil
-            </button>
+              <ShieldCheck className="h-4 w-4" /> Hesap Güvenliği
+            </Link>
             <form action={logout}>
               <button
                 type="submit"

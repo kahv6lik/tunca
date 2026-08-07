@@ -10,9 +10,12 @@ import {
   ekipSifreSifirla,
   ekipDavetOlustur,
   ekipDavetIptal,
+  guvenlikPolitikasiKaydet,
   type FormState,
 } from "@/app/(app)/kullanicilar/actions";
 import { ROL_ETIKET } from "@/lib/yetki-tanimlar";
+import { SIFRE_POLITIKA_METNI } from "@/lib/guvenlik-tanimlar";
+import { SAKLAMA_SECENEKLERI } from "@/lib/kvkk-tanimlar";
 
 const ROLLER = ["tenant_admin", "uye", "salt_okunur"] as const;
 
@@ -135,7 +138,7 @@ function SifrePanel({
               <form action={formAction} className="space-y-4">
                 <div>
                   <label className="label" htmlFor={`sifre-${kullaniciId}`}>
-                    Yeni şifre (en az 8 karakter)
+                    Yeni şifre
                   </label>
                   <input
                     id={`sifre-${kullaniciId}`}
@@ -146,6 +149,9 @@ function SifrePanel({
                     className="input"
                     autoComplete="off"
                   />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {SIFRE_POLITIKA_METNI}
+                  </p>
                 </div>
                 {state.error && <p className="text-sm text-rose-400">{state.error}</p>}
                 <div className="flex justify-end gap-2">
@@ -276,5 +282,90 @@ export function DavetIptalDugmesi({ id }: { id: string }) {
     >
       İptal Et
     </button>
+  );
+}
+
+/** Kuruluş çapındaki güvenlik politikaları (Faz 12). */
+export function GuvenlikPolitikasiFormu({
+  ikiFaktorZorunlu,
+  oturumOmruGun,
+  veriSaklamaGun,
+  ikiFaktorsuzSayi,
+}: {
+  ikiFaktorZorunlu: boolean;
+  oturumOmruGun: number;
+  veriSaklamaGun: number;
+  ikiFaktorsuzSayi: number;
+}) {
+  const [state, formAction] = useFormState<FormState, FormData>(
+    guvenlikPolitikasiKaydet,
+    {}
+  );
+
+  return (
+    <form action={formAction} className="grid gap-5 sm:grid-cols-2">
+      <label className="sm:col-span-2 flex items-start gap-3 text-sm text-foreground">
+        <input
+          type="checkbox"
+          name="ikiFaktorZorunlu"
+          value="1"
+          defaultChecked={ikiFaktorZorunlu}
+          className="mt-0.5 h-4 w-4 rounded border-border"
+        />
+        <span>
+          İki faktörlü doğrulamayı zorunlu kıl
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Açıkken kurulumu olmayan kullanıcılar giriş sonrası doğrudan kurulum
+            ekranına yönlendirilir.
+            {ikiFaktorsuzSayi > 0 &&
+              ` Şu anda ${ikiFaktorsuzSayi} kullanıcının kurulumu yok.`}
+          </span>
+        </span>
+      </label>
+
+      <div>
+        <label className="label" htmlFor="oturumOmruGun">Oturum ömrü (gün)</label>
+        <input
+          id="oturumOmruGun"
+          name="oturumOmruGun"
+          type="number"
+          min={1}
+          max={365}
+          defaultValue={oturumOmruGun}
+          className="input"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Bu süre sonunda kullanıcı yeniden giriş yapar.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="veriSaklamaGun">Kayıt saklama süresi (gün)</label>
+        <select
+          id="veriSaklamaGun"
+          name="veriSaklamaGun"
+          defaultValue={String(veriSaklamaGun)}
+          className="input"
+        >
+          {SAKLAMA_SECENEKLERI.map((s) => (
+            <option key={s.deger} value={s.deger}>{s.etiket}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Denetim günlüğü ve e-posta kayıtları bu süreden eskiyse silinir (KVKK).
+        </p>
+      </div>
+
+      {state.error && (
+        <p className="sm:col-span-2 text-sm text-rose-400">{state.error}</p>
+      )}
+      {state.ok && (
+        <p className="sm:col-span-2 text-sm text-emerald-400">{state.bilgi}</p>
+      )}
+
+      <div className="sm:col-span-2">
+        <Gonder etiket="Politikayı Kaydet" />
+      </div>
+    </form>
   );
 }

@@ -6,6 +6,7 @@ import { kiracininKurallariniCalistir } from "./is-akisi";
 import { kuyruguIsle } from "./eposta";
 import { gelenKutusuSenkron } from "./eposta-gelen";
 import { otomatikYedekAl, yedekIstemcisi } from "./yedek";
+import { saklamaEsigi, GIRIS_DENEMESI_SAKLAMA_GUN } from "./kvkk-tanimlar";
 
 /**
  * Zamanlanmış işler — Faz 8 / D1, D2, D3.
@@ -29,6 +30,7 @@ export type CalistirmaSonucu = {
   eposta: { gonderilen: number; hatali: number };
   senkron: { okunan: number; eslesen: number };
   yedek: number; // bu çalıştırmada alınan otomatik yedek sayısı
+  temizlenen: number; // saklama süresi dolan kayıtlar (Faz 12 / F7)
   hata: string[];
 };
 
@@ -54,7 +56,7 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
   // göndermek ya da onun adına posta çekmek doğru olmaz.
   const kiracilar = await yonetim.tenant.findMany({
     where: { durum: "aktif" },
-    select: { id: true },
+    select: { id: true, veriSaklamaGun: true },
   });
 
   const sonuc: CalistirmaSonucu = {
@@ -64,10 +66,33 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
     eposta: { gonderilen: 0, hatali: 0 },
     senkron: { okunan: 0, eslesen: 0 },
     yedek: 0,
+    temizlenen: 0,
     hata: [],
   };
 
-  for (const { id } of kiracilar) {
+  /**
+   * KVKK saklama temizliği (F7) — kiracıdan bağımsızdır.
+   *
+   * Giriş denemeleri kiracıya bağlı değildir (giriş öncesi kaydedilir), bu
+   * yüzden yönetim bağlamında ve kiracı döngüsünün DIŞINDA temizlenir.
+   * Süre aydınlatma metninde yazılıdır ve kuruluş tarafından uzatılamaz.
+   */
+  try {
+    const esik = saklamaEsigi(GIRIS_DENEMESI_SAKLAMA_GUN);
+    if (esik) {
+      const silinen = await yonetim.girisDenemesi.deleteMany({
+        where: { createdAt: { lt: esik } },
+      });
+      sonuc.temizlenen += silinen.count;
+    }
+    // Süresi dolmuş oturum kayıtları da birikmesin.
+    await yonetim.oturum.deleteMany({ where: { sonKullanma: { lt: new Date() } } });
+    await yonetim.sifreSifirlama.deleteMany({ where: { sonKullanma: { lt: new Date() } } });
+  } catch (e) {
+    sonuc.hata.push(`saklama temizliği: ${e instanceof Error ? e.message : e}`);
+  }
+
+  for (const { id, veriSaklamaGun } of kiracilar) {
     const db: TenantClient = tenantClient(id);
 
     try {
@@ -93,6 +118,30 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
       if (y.alindi) sonuc.yedek++;
     } catch (e) {
       sonuc.hata.push(`${id} yedek: ${e instanceof Error ? e.message : e}`);
+    }
+
+    /**
+     * Kuruluşun saklama politikası (F7): denetim günlüğü ve e-posta kayıtları
+     * belirlenen süreden eskiyse silinir. 0 = süresiz (varsayılan).
+     *
+     * Denetim günlüğü kiracı bağlamında SİLİNEMEZ (RLS'te yalnızca SELECT ve
+     * INSERT politikası var — Faz 4'ün değiştirilemezlik sözü). Bu yüzden
+     * saklama temizliği yönetim bağlamında ve tenantId açıkça verilerek
+     * yapılır: "değiştirilemez" ile "süresiz saklanır" aynı şey değildir.
+     */
+    try {
+      const esik = saklamaEsigi(veriSaklamaGun);
+      if (esik) {
+        const denetim = await yonetim.denetimKaydi.deleteMany({
+          where: { tenantId: id, createdAt: { lt: esik } },
+        });
+        const posta = await yonetim.epostaKaydi.deleteMany({
+          where: { tenantId: id, createdAt: { lt: esik } },
+        });
+        sonuc.temizlenen += denetim.count + posta.count;
+      }
+    } catch (e) {
+      sonuc.hata.push(`${id} saklama: ${e instanceof Error ? e.message : e}`);
     }
 
     // Kuyruk EN SONDA işlenir: iş akışlarının ve senkronun ürettiği

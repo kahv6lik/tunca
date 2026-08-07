@@ -36,6 +36,8 @@ const IZINLI = [
   "src/lib/platform-db.ts", // Faz 5: admin panel, yönetim bağlamı (tek kapı)
   "src/lib/davet-db.ts", // Faz 5: davet akışı, oturum öncesi (tek kapı)
   "src/lib/zamanlanmis.ts", // Faz 8: zamanlanmış işler, oturumsuz (tek kapı)
+  "src/lib/giris-guvenlik.ts", // Faz 12: giriş güvenliği, oturum öncesi (tek kapı)
+  "src/lib/iki-faktor.ts", // Faz 12: yedek kod tüketimi, oturum öncesi
 ];
 
 /**
@@ -50,6 +52,17 @@ const YONETIM_BAGLAMI_IZINLI = [
   // Faz 8: zamanlanmış işleri çalıştıran bir oturum yoktur; kiracı LİSTESİ
   // yönetim bağlamıyla okunur, her kiracının işi kendi bağlamında yapılır.
   "src/lib/zamanlanmis.ts",
+];
+
+/**
+ * Giriş güvenliği bağlamı (`girisIstemcisi`) kimlik doğrulanmadan ÖNCE yazma
+ * yapar. Dar kapsamlıdır (User, Tenant, Oturum, SifreSifirlama,
+ * GirisDenemesi + kuyruğa INSERT) ve yalnızca şu dosyalardan kullanılır.
+ */
+const GIRIS_BAGLAMI_IZINLI = [
+  "src/lib/rls.ts", // bağlamı tanımlayan dosya
+  "src/lib/giris-guvenlik.ts",
+  "src/lib/iki-faktor.ts",
 ];
 
 describe("Veri erişimi kiracı katmanından geçiyor", () => {
@@ -103,6 +116,20 @@ describe("Platform katmanı kiracı sınırını dar bir kapıdan aşıyor (Faz 
       ihlaller,
       "Yönetim bağlamı kiracı sınırını aşar; yalnızca platform-db.ts ve\n" +
         "davet-db.ts üzerinden kullanılmalıdır.\nİhlaller:\n" + ihlaller.join("\n")
+    ).toEqual([]);
+  });
+
+  it("giriş güvenliği bağlamı yalnızca izinli dosyalarda kullanılıyor (Faz 12)", () => {
+    const ihlaller = KAYNAK_DOSYALAR.filter(
+      (d) =>
+        !GIRIS_BAGLAMI_IZINLI.includes(d) &&
+        /\bgirisIstemcisi\s*\(/.test(readFileSync(d, "utf8"))
+    );
+
+    expect(
+      ihlaller,
+      "Giriş bağlamı kimlik doğrulanmadan yazma yapar; yalnızca\n" +
+        "giris-guvenlik.ts üzerinden kullanılmalıdır.\nİhlaller:\n" + ihlaller.join("\n")
     ).toEqual([]);
   });
 
@@ -236,6 +263,18 @@ describe("Şema kuralları", () => {
      *                       silmede tam tablo taraması yapardı. Kiracı sınırı
      *                       RLS + tenantId'li diğer indeksle zaten korunur.
      *
+     *   @@index([sonKullanma]) / @@index([createdAt]) / @@index([email, createdAt])
+     *   @@index([ip, createdAt])
+     *                     → Faz 12 güvenlik tabloları. Oturum ve
+     *                       SifreSifirlama'da süresi dolan kayıtlar KİRACIDAN
+     *                       BAĞIMSIZ olarak (zamanlanmış temizlik) silinir;
+     *                       tenantId önde olsaydı temizlik her kiracı için ayrı
+     *                       tarama yapardı. GirisDenemesi ise tasarımı gereği
+     *                       kiracıya bağlı değildir (giriş öncesi kaydedilir;
+     *                       e-postanın hangi kiracıda olduğu o an bilinmez).
+     *                       Kiracı sınırı bu tablolarda RLS + tenantId'li
+     *                       diğer indekslerle korunur.
+     *
      * Yeni bir istisna eklemek isteyen, önce bunun neden gerekli olduğunu
      * buraya yazmalıdır.
      */
@@ -245,6 +284,10 @@ describe("Şema kuralları", () => {
       "@@index([firmaId])",
       "@@index([kisiId])",
       "@@index([firsatId])",
+      "@@index([sonKullanma])",
+      "@@index([createdAt])",
+      "@@index([email, createdAt])",
+      "@@index([ip, createdAt])",
     ];
 
     const indeksler = sema.match(/@@index\(\[[^\]]+\]\)/g) ?? [];
@@ -255,7 +298,7 @@ describe("Şema kuralları", () => {
 
     // İstisna listesi sessizce büyümesin.
     const istisnaSayisi = indeksler.filter((i) => ISTISNALAR.includes(i)).length;
-    expect(istisnaSayisi, "belgelenmemiş istisna eklenmiş olabilir").toBeLessThanOrEqual(5);
+    expect(istisnaSayisi, "belgelenmemiş istisna eklenmiş olabilir").toBeLessThanOrEqual(10);
   });
 
   it("PostgreSQL kullanılıyor", () => {
@@ -309,6 +352,11 @@ describe("Yetkilendirme her yazma yolunda zorunlu (Faz 4)", () => {
   const KISISEL_TERCIH_DOSYALARI = [
     "src/app/(app)/pano-actions.ts",
     "src/app/(app)/gorunum-actions.ts",
+    // Faz 12: kullanıcının KENDİ güvenlik ayarları ve KVKK rızası. Sahiplik
+    // session.userId ile kurulur, iş verisi yazılmaz. Yine de bu iki dosya
+    // güvenlik olaylarını denetim günlüğüne yazar (denetimYaz çağrılıdır).
+    "src/app/(app)/guvenlik/actions.ts",
+    "src/app/(app)/kvkk/actions.ts",
   ];
 
   const ACTION_DOSYALARI = KAYNAK_DOSYALAR.filter(

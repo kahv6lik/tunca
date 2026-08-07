@@ -4,7 +4,9 @@ import { jwtVerify } from "jose";
 const COOKIE_NAME = "gezegen_session";
 // Giriş gerektirmeyen yollar. `/davet` bilinçlidir: davet edilen kişinin
 // henüz hesabı yoktur, hesabı bu sayfada oluşturur (Faz 5 / B3).
-const PUBLIC_PATHS = ["/login", "/davet"];
+// Şifre sıfırlama da giriş gerektirmez (Faz 12 / F1): kullanıcı zaten
+// giremediği için buradadır.
+const PUBLIC_PATHS = ["/login", "/davet", "/sifremi-unuttum", "/sifre-sifirla"];
 
 function getSecret(): Uint8Array {
   return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");

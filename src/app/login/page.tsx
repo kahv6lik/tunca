@@ -3,7 +3,8 @@
 import { useFormState, useFormStatus } from "react-dom";
 import { motion } from "framer-motion";
 import { Building2, Wallet, GraduationCap, ShieldCheck, ArrowRight } from "lucide-react";
-import { loginAction, type LoginState } from "./actions";
+import Link from "next/link";
+import { loginAction, ikiFaktorAction, type LoginState } from "./actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -26,6 +27,9 @@ const FEATURES = [
 
 export default function LoginPage() {
   const [state, formAction] = useFormState<LoginState, FormData>(loginAction, {});
+  // İkinci aşama (F2) kendi action'ını kullanır; bilet ilk aşamadan gelir.
+  const [ikiState, ikiAction] = useFormState<LoginState, FormData>(ikiFaktorAction, {});
+  const bilet = ikiState.ikiFaktor ?? state.ikiFaktor;
 
   return (
     <div className="dark relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
@@ -106,6 +110,36 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {bilet ? (
+            <form action={ikiAction} className="space-y-4">
+              <input type="hidden" name="bilet" value={bilet} />
+              <div>
+                <label className="label" htmlFor="kod">Doğrulama Kodu</label>
+                <input
+                  id="kod"
+                  name="kod"
+                  inputMode="text"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                  className="input h-11 text-center tracking-[0.3em]"
+                  placeholder="000000"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Doğrulama uygulamanızdaki 6 haneli kodu girin. Telefonunuza
+                  erişemiyorsanız yedek kodlarınızdan birini yazabilirsiniz.
+                </p>
+              </div>
+
+              {ikiState.error && (
+                <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
+                  {ikiState.error}
+                </p>
+              )}
+
+              <SubmitButton />
+            </form>
+          ) : (
           <form action={formAction} className="space-y-4">
             <div>
               <label className="label" htmlFor="email">E-posta</label>
@@ -159,7 +193,14 @@ export default function LoginPage() {
             )}
 
             <SubmitButton />
+
+            <p className="text-center text-sm">
+              <Link href="/sifremi-unuttum" className="text-muted-foreground hover:text-primary">
+                Şifremi unuttum
+              </Link>
+            </p>
           </form>
+          )}
 
           <p className="mt-6 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground">
             Demo giriş: <span className="font-medium text-foreground">admin@gezegen.com</span> / admin123

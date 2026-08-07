@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.12.0** | **Faz 12** — Hesap güvenliği ve KVKK: şifre politikası, şifremi unuttum, 2FA (TOTP + yedek kodlar), oturum yönetimi, hız sınırlama, KVKK aydınlatma/rıza/veri kopyası | Girişte **Şifremi unuttum**; profil menüsünden **Hesap Güvenliği** → 2FA kur; 5 kez yanlış şifre dene | Sıfırlama yanıtı hesap olsa da olmasa da aynı; 2FA açılınca girişte kod istenir; 5. denemeden sonra hesap 15 dk kilitlenir | 369 |
 | **v1.11.2** | Arayüz: sıkı ve kaydırılabilir sol menü; kanban dar sütunlarla tam genişliğe yayılır | Menüde en alttaki "Yedekler"i gör; `/firsatlar`da 5 sütunun tamamına bak | Menünün tamamı görünür (taşarsa içinde kaydırılır); kanban sağdan kesilmez | 328 |
 | **v1.11.1** | Geri bildirim düzeltmeleri: kronolojik zaman akışı, portal modallar, tam genişlik kanban, menüde "Yönetim" bölümü + `/kullanicilar` (davet, rol, durum, şifre) | Firma detayında akışın yönüne bak; **Yeni Fırsat**'a bas; `/kullanicilar`dan davet oluştur | Akış en eskiden bugüne akar; fırsat formu ekranın ortasında pencere olarak açılır; davet bağlantısı bir kez gösterilir, üye `/kullanicilar`a giremez | 328 |
 | **v1.11.0** | **Faz 11** — Kiracıya özel alanlar: firma/kişi/fırsat formlarına beş tipli alan tanımlama, liste filtresi, dışa aktarım ve yedek bütünleşmesi | `/ozel-alanlar`da alan tanımla → firma formunda doldur → listede filtrele → dışa aktar | Alan formda kendiliğinden görünür; seçim tipli alan filtre olur; dosyada sütun olarak çıkar; komşu kiracı alanı hiç görmez | 324 |
@@ -201,6 +202,30 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 9 | `admin@anadolu.com` ile `/firmalar/yeni` | Gezegen'in alanları YOK — alanlar kiracıya özeldir |
 | 10 | Bir alanı sil (değerli olanı) | Onay metni kaç kayıtta değer olduğunu söyler; silince değerler de gider |
 | 11 | `/yedekler` → yedek al → alanı sil → geri yükle | Alan tanımı ve değerleri yedekten geri gelir |
+
+---
+
+### v1.12.0 — Hesap güvenliği ve KVKK (Faz 12)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Giriş ekranında **Şifremi unuttum** → kayıtlı e-postanı gir | "Kayıtlı bir hesap varsa bağlantı gönderildi" |
+| 2 | Aynı formu OLMAYAN bir e-postayla dene | **Aynı mesaj** — hesabın var olup olmadığı sızmaz |
+| 3 | `/sifre-sifirla/uydurma-token` aç | "Bağlantı geçersiz"; hiçbir hesap adı görünmez |
+| 4 | Gerçek bağlantıyla "12345678" gibi zayıf bir şifre dene | Politika reddeder (en az 10 karakter, büyük/küçük harf, rakam) |
+| 5 | Geçerli şifre belirle | Şifre değişir ve **tüm oturumların kapandığı** söylenir |
+| 6 | Bir hesapla 5 kez yanlış şifre gir, sonra DOĞRU şifreyle dene | Hesap 15 dakika kilitli; doğru şifre bile girmiyor |
+| 7 | Profil menüsü → **Hesap Güvenliği** → İki Faktörü Kur | Kurulum anahtarı çıkar; doğrulama uygulamasına elle eklenir |
+| 8 | Uygulamadaki 6 haneli kodu gir | 2FA açılır ve **yedek kodlar bir kez** gösterilir |
+| 9 | Çıkış yapıp yeniden giriş yap | Şifreden sonra doğrulama kodu istenir |
+| 10 | Kod yerine bir yedek kodu kullan | Giriş olur; o kod bir daha çalışmaz (kalan sayısı düşer) |
+| 11 | Hesap Güvenliği → Açık Oturumlar | Cihaz, IP ve son etkinlik listelenir; "bu cihaz" işaretli |
+| 12 | Başka bir tarayıcıdan gir, ilk tarayıcıdan o oturumu **Sonlandır** | İkinci tarayıcı bir sonraki istekte girişe düşer |
+| 13 | `/kvkk` aç | Sürümlü aydınlatma metni; onay kutusu ile rıza |
+| 14 | Onayla → `/denetim` | "KVKK aydınlatma metni onaylandı (sürüm …)" kaydı |
+| 15 | `/kvkk` → **Verilerimi İndir** | JSON iner; şifre özeti ve 2FA sırrı **içinde yoktur** |
+| 16 | `/kullanicilar` → Güvenlik Politikası → 2FA'yı zorunlu kıl | Ayar kaydolur; kurulumu olmayan kullanıcı sayısı gösterilir |
+| 17 | Üye hesabıyla `/guvenlik` | Açılır — kişisel güvenlik herkesin hakkıdır |
 
 ---
 

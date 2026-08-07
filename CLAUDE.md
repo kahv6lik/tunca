@@ -42,7 +42,8 @@ prisma/
                        # EpostaAyari, EpostaKuyrugu, EpostaKaydi,
                        # IsAkisi, IsAkisiCalismasi,
                        # PanoTercihi, KayitliGorunum, Yedek,
-                       # OzelAlan, OzelAlanDeger
+                       # OzelAlan, OzelAlanDeger,
+                       # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -52,6 +53,8 @@ src/
   app/
     login/             # giriş sayfası + actions
     davet/[token]/     # davet kabul — giriş gerektirmez (Faz 5)
+    sifremi-unuttum/   # şifre sıfırlama isteği — giriş gerektirmez (Faz 12)
+    sifre-sifirla/[token]/  # yeni şifre belirleme — giriş gerektirmez (Faz 12)
     admin/             # platform yönetimi — yalnızca platform_admin (Faz 5)
                        #   kiracilar/ (liste, detay, yeni), paketler/, page.tsx
     (app)/             # oturum gerektiren panel
@@ -69,13 +72,16 @@ src/
       teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
       yedekler/        # yedek al/indir/geri yükle — yedek.yonet (Faz 10)
       ozel-alanlar/    # özel alan tanımları — ozelalan.yonet (Faz 11)
-      kullanicilar/    # kuruluş içi ekip yönetimi — kullanici.yonet (v1.11.1)
+      kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
+      guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
+      kvkk/            # aydınlatma metni + açık rıza kaydı (Faz 12)
       pano-actions.ts, gorunum-actions.ts  # kişisel tercih action'ları (Faz 10)
     api/
       gorevler/        # zamanlanmış iş çalıştırıcısı — anahtarla korunur
       takvim.ics/      # takvim dışa aktarımı (oturum gerektirir)
       disa-aktar/      # Excel/CSV dışa aktarımı (izin + denetim) (Faz 9)
       yedek/           # yedek indirme — yedek.yonet + denetim (Faz 10)
+      kvkk/verilerim/  # kişisel veri kopyası (KVKK m. 11) (Faz 12)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -98,6 +104,9 @@ src/
     otomasyon/         # KuralPanel, EpostaAyarFormu (Faz 8)
     yedekler/          # YedekPanel (Faz 10)
     ozel-alanlar/      # OzelAlanPanel (Faz 11)
+    guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
+    kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
+    ui/ModalKatman     # modalları portala taşır (v1.11.1)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
     GorunumBar,         # kayıtlı görünümler (Faz 10)
     OzelAlanGirdileri   # özel alan form girdileri (Faz 11)
@@ -122,6 +131,11 @@ src/
     gorunum.ts            # kayıtlı görünümler (+ -tanimlar: sorguTemizle) (Faz 10)
     yedek.ts              # yedekleme (+ -saf: bütün mantık, testler onu sınar) (Faz 10)
     ozel-alan.ts          # kiracıya özel alanlar (+ -tanimlar: doğrulama saf) (Faz 11)
+    giris-guvenlik.ts     # giriş güvenliği, oturum ÖNCESİ — TEK KAPI (Faz 12)
+    guvenlik-tanimlar.ts  # şifre politikası, kilit, base32 — saf, istemciye de girer
+    guvenlik-totp.ts      # TOTP + yedek kod üretimi (node:crypto) (Faz 12)
+    iki-faktor.ts         # ikinci aşama bileti, yedek kod yönetimi (Faz 12)
+    kvkk-tanimlar.ts      # aydınlatma metni + saklama politikası — saf (Faz 12)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -137,7 +151,8 @@ src/
 `TeklifKalemi`, Faz 8 ile `Bildirim`, `BildirimTercihi`, `EpostaAyari`,
 `EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
 `PanoTercihi`, `KayitliGorunum` ve `Yedek`, Faz 11 ile `OzelAlan` ve
-`OzelAlanDeger` eklendi.
+`OzelAlanDeger`, Faz 12 ile `Oturum`, `SifreSifirlama` ve `GirisDenemesi`
+eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -200,6 +215,7 @@ kullanılmadığını sürekli denetler:
 | Admin panel | `src/lib/platform-db.ts` | `platform_admin` | Platform sahibi bütün müşterileri yönetir |
 | Davet kabulü | `src/lib/davet-db.ts` | token sahibi | Davet edilen kişinin henüz hesabı yok |
 | Zamanlanmış iş | `src/lib/zamanlanmis.ts` | `GOREV_ANAHTARI` | Cron'un oturumu olamaz (Faz 8) |
+| Giriş güvenliği | `src/lib/giris-guvenlik.ts` | herkes (oturum öncesi) | Kilit sayacı ve sıfırlama kimlik doğrulanmadan YAZILIR (Faz 12) |
 
 ```ts
 const db = await getPlatformDb();   // her çağrıda platform_admin doğrulanır
@@ -325,6 +341,7 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 | `app.tenant_id` | `kiraciIstemcisi()` — normal trafik | O kiracının satırları |
 | `app.kimlik_dogrulama` | `kimlikIstemcisi()` — yalnızca giriş | User+Tenant, salt okuma |
 | `app.yonetim` | `yonetimIstemcisi()` — kurulum betikleri | Tam erişim |
+| `app.giris` | `girisIstemcisi()` — yalnızca giriş güvenliği | User, Tenant, Oturum, SifreSifirlama, GirisDenemesi |
 
 Bağlam ayarlanmazsa veritabanı **sıfır satır** döndürür. Yani uygulama
 katmanında bir sorgu filtreyi unutsa bile veri sızmaz.
@@ -337,7 +354,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**328 kontrol**.
+**369 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -345,10 +362,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (192 test, ~7 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (219 test, ~7 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 115)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 129)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -429,7 +446,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 9  | Excel/CSV dışa-içe aktarım, PDF (E1, E2, E5) | `v1.9.0` | ✅ tamamlandı |
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | ✅ tamamlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | ✅ tamamlandı |
-| 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | planlandı |
+| 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | ✅ tamamlandı |
 | 13 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.13.0` | planlandı |
 
 Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
@@ -486,6 +503,13 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   sütunları ekrana yayılır; menüde "Yönetim" bölümü ve `/kullanicilar`
   ekranı (kuruluş yöneticisi kendi ekibini davet eder, rol/durum/şifre
   yönetir; platform rolü kiracı içinden verilemez).
+- **v1.12.0** — **Faz 12:** Hesap güvenliği ve KVKK. Tek merkezli şifre
+  politikası ve e-postayla şifre sıfırlama; TOTP tabanlı iki faktörlü
+  doğrulama (yedek kodlar, kuruluş bazında zorunlu kılma); sunucu tarafı
+  oturum kaydı ve uzaktan sonlandırma; IP + hesap bazlı hız sınırlama ve
+  geçici kilit; sürümlü KVKK aydınlatma metni, açık rıza kaydı, saklama
+  süresi temizliği ve kişisel veri kopyası. Dördüncü dar kapı:
+  `giris-guvenlik.ts` (`app.giris` bağlamı).
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

@@ -41,6 +41,16 @@ model Tenant {
   anaRenk String? // "#6366f1" gibi
   altAlan String? @unique // "musteri" → musteri.crm.com
 
+  // ── Güvenlik ve KVKK politikaları (Faz 12) ──
+  // Kuruluş 2FA'yı zorunlu kılabilir: açıkken kurulumu olmayan kullanıcı
+  // girişten sonra doğrudan kurulum ekranına yönlendirilir.
+  ikiFaktorZorunlu Boolean @default(false)
+  // Veri saklama süresi (gün, 0 = süresiz): denetim günlüğü ve e-posta
+  // kayıtları bu süreden eskiyse zamanlanmış iş tarafından silinir (F7).
+  veriSaklamaGun   Int     @default(0)
+  // Oturum ömrü (gün) — kuruluş kendi politikasını belirler.
+  oturumOmruGun    Int     @default(7)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -72,6 +82,8 @@ model Tenant {
   Yedek            Yedek[]
   OzelAlan         OzelAlan[]
   OzelAlanDeger    OzelAlanDeger[]
+  Oturum           Oturum[]
+  SifreSifirlama   SifreSifirlama[]
 
   @@index([durum])
 }
@@ -89,7 +101,24 @@ model User {
   durum     String   @default("aktif") // "aktif" | "pasif"
   createdAt DateTime @default(now())
 
-  gruplar KullaniciGrup[]
+  // ── Hesap güvenliği (Faz 12) ──
+  sifreGuncellendi DateTime? // son şifre değişikliği (politika ve denetim)
+  // TOTP sırrı AES-256-GCM ile şifreli saklanır (sifreleme.ts) — veritabanını
+  // okuyan biri ikinci faktörü taklit edememelidir.
+  ikiFaktorSir     String?
+  ikiFaktorAktif   Boolean   @default(false)
+  // Yedek kodlar bcrypt ÖZETİ olarak saklanır; kod bir kez kullanılır ve
+  // listeden düşer. Açık saklamak, 2FA'yı ikinci bir parolaya çevirirdi.
+  yedekKodlar      String[]  @default([])
+  // Hız sınırlama sayaçları — yalnızca giriş güvenliği kapısı yazar.
+  basarisizGiris   Int       @default(0)
+  kilitBitis       DateTime?
+  // KVKK açık rıza kaydı (F7): ne zaman, hangi metin sürümü onaylandı.
+  kvkkOnayTarihi   DateTime?
+  kvkkSurum        String?
+
+  gruplar   KullaniciGrup[]
+  oturumlar Oturum[]
 
   // E-posta yalnızca kiracı içinde benzersiz; farklı kiracılarda aynı e-posta olabilir.
   @@unique([tenantId, email])
@@ -823,4 +852,68 @@ model OzelAlanDeger {
   @@index([firmaId])
   @@index([kisiId])
   @@index([firsatId])
+}
+
+// ── Hesap güvenliği ve KVKK (Faz 12 / F1-F4, F7) ────────────────────────────
+
+// Sunucu tarafı oturum kaydı (F3).
+//
+// Oturum çerezi hâlâ JWT'dir, ama artık bir `jti` taşır ve o jti burada bir
+// satıra karşılık gelir. Böylece oturum UZAKTAN SONLANDIRILABİLİR: JWT
+// kendi başına iptal edilemez, sunucuda karşılığı olmayan jti reddedilir.
+model Oturum {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jti         String   @unique
+  cihaz       String? // User-Agent özeti ("Chrome · macOS")
+  ip          String?
+  sonGorulme  DateTime @default(now())
+  sonKullanma DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([sonKullanma])
+}
+
+// Şifre sıfırlama isteği (F1).
+//
+// Davet akışıyla aynı desen: token'ın KENDİSİ saklanmaz, yalnızca sha256
+// özeti. Veritabanını okuyan biri kimsenin hesabını ele geçiremez.
+model SifreSifirlama {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+
+  tokenOzeti  String    @unique // sha256(token)
+  sonKullanma DateTime
+  kullanildi  DateTime?
+  istekIp     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, userId])
+  @@index([sonKullanma])
+}
+
+// Giriş denemesi günlüğü (F4) — hız sınırlama ve brute-force koruması.
+//
+// KİRACIYA BAĞLI DEĞİLDİR ve bu bilinçlidir: deneme, kimlik doğrulanmadan
+// ÖNCE kaydedilir; o anda e-postanın hangi kiracıya ait olduğu (ya da var
+// olup olmadığı) bilinmez ve bilinmemelidir. Erişim yalnızca giriş güvenliği
+// kapısındandır (src/lib/giris-guvenlik.ts).
+model GirisDenemesi {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  basarili  Boolean  @default(false)
+  sebep     String? // "sifre" | "kilit" | "2fa" | "pasif"
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
 }

@@ -22,6 +22,7 @@ import {
   BarChart3,
   Users,
   ScrollText,
+  FileLock2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ export const NAV: NavItem[] = [
   { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet", bolum: "yonetim" },
   { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule", bolum: "yonetim" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule", bolum: "yonetim" },
+  // KVKK herkese açıktır: aydınlatma metni ve kendi rızası kişisel bir haktır.
+  { href: "/kvkk", label: "KVKK", icon: FileLock2, bolum: "yonetim" },
   { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet", bolum: "yonetim" },
 ];
 

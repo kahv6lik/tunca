@@ -109,7 +109,7 @@ export default function KullaniciSatiri({
             type="text"
             minLength={8}
             required
-            placeholder="Yeni şifre (en az 8 karakter)"
+            placeholder="Yeni şifre"
             className="input h-9 max-w-xs py-0 text-sm"
           />
           <SifreKaydet />

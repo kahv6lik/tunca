@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { sifreDogrula } from "@/lib/guvenlik-tanimlar";
 import { redirect } from "next/navigation";
 import { createSession } from "@/lib/session";
 import { davetiKullan } from "@/lib/davet-db";
@@ -22,8 +23,10 @@ export async function davetKabul(
   const sifre = String(formData.get("sifre") ?? "");
   const sifreTekrar = String(formData.get("sifreTekrar") ?? "");
 
-  if (sifre.length < 8) return { error: "Şifre en az 8 karakter olmalı." };
   if (sifre !== sifreTekrar) return { error: "Şifreler eşleşmiyor." };
+
+  const politika = sifreDogrula(sifre);
+  if (!politika.ok) return { error: politika.hata };
 
   const sonuc = await davetiKullan(token, await bcrypt.hash(sifre, 10));
   if ("hata" in sonuc) return { error: sonuc.hata };

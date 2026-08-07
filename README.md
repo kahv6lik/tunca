@@ -224,6 +224,9 @@ olarak yayınlar; TLS ve alan adı yönlendirmesi mevcut Nginx tarafından yöne
 - **KayitliGorunum** — listelerin adlandırılmış filtreleri; paylaşım kiracı içidir (Faz 10)
 - **Yedek** — kiracının iş verisi yedeği; geri yükleme ekleyicidir (Faz 10)
 - **OzelAlan / OzelAlanDeger** — kiracıya özel form alanları ve değerleri; değer kayda gerçek FK ile bağlı (Faz 11)
+- **Oturum** — sunucu tarafı oturum kaydı; uzaktan sonlandırmayı mümkün kılar (Faz 12)
+- **SifreSifirlama** — süreli, tek kullanımlık sıfırlama isteği; token saklanmaz, özeti tutulur (Faz 12)
+- **GirisDenemesi** — hız sınırlama günlüğü; kiracıya bağlı DEĞİLDİR (giriş öncesi yazılır) (Faz 12)
 
 Bir firma silindiğinde ilişkili tüm yatırım/eğitim/hizmet/kişi/fırsat kayıtları
 da silinir (cascade). İçinde fırsat olan bir aşama silinemez; bir kişi

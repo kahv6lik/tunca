@@ -3,13 +3,26 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "gezegen_session";
-const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 gün (saniye)
+const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 gün (saniye) — varsayılan
 
 export type SessionPayload = {
   userId: string;
   email: string;
   name: string;
   role: string;
+
+  /**
+   * Oturum kimliği (Faz 12 / F3).
+   *
+   * JWT kendi başına iptal edilemez; bu `jti`, sunucudaki `Oturum` satırına
+   * karşılık gelir. Satır silinince oturum geçersizleşir — "oturumu uzaktan
+   * sonlandır" özelliğini mümkün kılan şey budur.
+   *
+   * İsteğe bağlıdır çünkü Faz 12 ÖNCESİ çerezler jti taşımaz; onlar doğal
+   * ömürleri dolana kadar geçerli sayılır (kullanıcıları toptan çıkarmamak
+   * için bilinçli bir geçiş kararı).
+   */
+  jti?: string;
   // Çok kiracılılık bağlamı (Faz 1 / A2) — her sorgu bu kiracıyla sınırlanır.
   tenantId: string;
   tenantSlug: string;
@@ -34,11 +47,14 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSession(payload: SessionPayload): Promise<void> {
+export async function createSession(
+  payload: SessionPayload,
+  omurSaniye: number = SESSION_DURATION
+): Promise<void> {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_DURATION}s`)
+    .setExpirationTime(`${omurSaniye}s`)
     .sign(getSecret());
 
   (await cookies()).set(COOKIE_NAME, token, {
@@ -46,7 +62,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_DURATION,
+    maxAge: omurSaniye,
   });
 }
 
@@ -60,11 +76,26 @@ export async function getSession(): Promise<SessionPayload | null> {
     // eski çerezler). Aksi halde tenantId'siz sorgu çalıştırma riski doğar.
     if (!payload.tenantId) return null;
 
+    /**
+     * Oturum iptali (F3): jti taşıyan çerezlerde sunucudaki kayıt aranır.
+     *
+     * Bu kontrol middleware'de DEĞİL burada yapılır: middleware Edge
+     * çalışma zamanındadır ve Prisma oraya girmez. Uygulamanın her sayfası
+     * ve action'ı `requireSession`/`getSession` üzerinden geçtiği için
+     * koruma etkin — middleware yalnızca imza ve süre bakar.
+     */
+    const jti = (payload.jti as string) || undefined;
+    if (jti) {
+      const { oturumGecerliMi } = await import("./giris-guvenlik");
+      if (!(await oturumGecerliMi(jti))) return null;
+    }
+
     return {
       userId: payload.userId as string,
       email: payload.email as string,
       name: payload.name as string,
       role: payload.role as string,
+      jti,
       tenantId: payload.tenantId as string,
       tenantSlug: payload.tenantSlug as string,
       tenantAd: payload.tenantAd as string,

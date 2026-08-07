@@ -720,6 +720,82 @@ async function main() {
     uyeEkip.url
   );
 
+  // 15 — Hesap güvenliği ve KVKK (Faz 12)
+  console.log("\n15. Hesap güvenliği ve KVKK — şifre, 2FA, oturum, aydınlatma");
+
+  // Şifremi unuttum akışı oturumsuz açılmalı (middleware'de açık yol).
+  const unuttum = await fetch(`${BASE}/sifremi-unuttum`, { redirect: "manual" });
+  kontrol(
+    "Şifremi unuttum sayfası oturumsuz açılıyor",
+    unuttum.status === 200,
+    `HTTP ${unuttum.status}`
+  );
+  const unuttumGovde = await unuttum.text();
+  kontrol(
+    "Giriş ekranında şifremi unuttum bağlantısı var",
+    (await (await fetch(`${BASE}/login`)).text()).includes("Şifremi unuttum")
+  );
+  kontrol("Sıfırlama formu e-posta istiyor", unuttumGovde.includes("Sıfırlama Bağlantısı"));
+
+  // Geçersiz token hiçbir ayrıntı sızdırmamalı.
+  const bozukToken = await fetch(`${BASE}/sifre-sifirla/gecersiz-token-xyz`, {
+    redirect: "manual",
+  });
+  const bozukGovde = await bozukToken.text();
+  kontrol(
+    "Geçersiz sıfırlama bağlantısı reddediliyor",
+    bozukToken.status === 200 && bozukGovde.includes("Bağlantı geçersiz")
+  );
+  kontrol(
+    "Geçersiz bağlantı hiçbir hesap bilgisi sızdırmıyor",
+    !bozukGovde.includes("@gezegen.com")
+  );
+
+  const guvenlik = await sayfaGetir("admin@gezegen.com", "admin123", "/guvenlik");
+  kontrol(
+    "Hesap güvenliği ekranı açılıyor",
+    !guvenlik.url.includes("/yetkisiz") && guvenlik.govde.includes("İki Faktörlü Doğrulama")
+  );
+  kontrol(
+    "Açık oturumlar listeleniyor (bu cihaz işaretli)",
+    guvenlik.govde.includes("Açık Oturumlar") && guvenlik.govde.includes("bu cihaz")
+  );
+  kontrol("Şifre değiştirme mevcut şifreyi istiyor", guvenlik.govde.includes("Mevcut şifreniz"));
+
+  // Güvenlik ekranı KİŞİSELDİR: her rol kendi hesabını yönetebilmeli.
+  const uyeGuvenlik = await sayfaGetir("kullanici@gezegen.com", "user123", "/guvenlik");
+  kontrol(
+    "Üye de kendi güvenlik ayarlarını açabiliyor",
+    !uyeGuvenlik.url.includes("/yetkisiz"),
+    uyeGuvenlik.url
+  );
+
+  const kvkk = await sayfaGetir("admin@gezegen.com", "admin123", "/kvkk");
+  kontrol(
+    "KVKK aydınlatma metni açılıyor",
+    !kvkk.url.includes("/yetkisiz") && kvkk.govde.includes("Veri sorumlusu")
+  );
+  kontrol(
+    "Metin sürümlü ve rıza isteniyor",
+    kvkk.govde.includes("Metin sürümü") && kvkk.govde.includes("onaylıyorum")
+  );
+  kontrol("Veri kopyası indirme sunuluyor", kvkk.govde.includes("Verilerimi İndir"));
+
+  // Kuruluş güvenlik politikası yönetim ekranındadır.
+  kontrol(
+    "Kuruluş güvenlik politikası kullanıcılar ekranında",
+    ekip.govde.includes("Güvenlik Politikası") &&
+      ekip.govde.includes("İki faktörlü doğrulamayı zorunlu kıl")
+  );
+
+  // KVKK veri kopyası oturumsuz indirilemez.
+  const oturumsuzKvkk = await fetch(`${BASE}/api/kvkk/verilerim`, { redirect: "manual" });
+  kontrol(
+    "Oturumsuz KVKK veri indirme engelleniyor",
+    oturumsuzKvkk.status >= 300 && oturumsuzKvkk.status < 400,
+    `HTTP ${oturumsuzKvkk.status}`
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

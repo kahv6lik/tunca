@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { sifreDogrula } from "@/lib/guvenlik-tanimlar";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPlatformDb, platformOturumu, impersonatorOku } from "@/lib/platform-db";
@@ -195,12 +196,16 @@ export async function kullaniciSifreSifirla(
 ): Promise<FormState> {
   const db = await getPlatformDb();
   const sifre = String(formData.get("sifre") ?? "");
-  if (sifre.length < 8) return { error: "Şifre en az 8 karakter olmalı." };
+
+  // Şifre politikası TEK yerdedir (guvenlik-tanimlar.ts) ve bütün belirleme
+  // noktalarında aynıdır; bir kapıda gevşek kural politikayı hükümsüz kılar.
+  const politika = sifreDogrula(sifre);
+  if (!politika.ok) return { error: politika.hata };
 
   const hash = await bcrypt.hash(sifre, 10);
   const kullanici = await db.user.update({
     where: { id: userId },
-    data: { password: hash },
+    data: { password: hash, sifreGuncellendi: new Date() },
   });
 
   revalidatePath(`/admin/kiracilar/${kullanici.tenantId}`);
