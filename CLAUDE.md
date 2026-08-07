@@ -486,3 +486,7 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   sütunları ekrana yayılır; menüde "Yönetim" bölümü ve `/kullanicilar`
   ekranı (kuruluş yöneticisi kendi ekibini davet eder, rol/durum/şifre
   yönetir; platform rolü kiracı içinden verilemez).
+- **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
+  taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
+  dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"
+  ekrana kaydırmasız sığar.
