@@ -73,6 +73,19 @@ const MODELLER = [
   // firma/kisi/firsat FK'leri de yukarıdaki sıralar sayesinde hazırdır.
   "ozelAlan",
   "ozelAlanDeger",
+  // Faz 14 — ticari çekirdek. Sıra FK bağlarını korur: ürün paketten,
+  // paket paket kaleminden, kampanya kapsam satırlarından önce gelir.
+  // Stok HAREKETLERİ de yedeğe dahildir: bakiye hareketlerin toplamıdır,
+  // yalnızca özeti geri yüklemek defterle bakiyeyi ayrıştırırdı.
+  "urun",
+  "paket",
+  "paketKalemi",
+  "kampanya",
+  "kampanyaUrun",
+  "kampanyaPaket",
+  "kampanyaFirma",
+  "kampanyaKullanim",
+  "stokHareketi",
 ] as const;
 
 type YedekModeli = (typeof MODELLER)[number];
@@ -92,6 +105,15 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   hizmet: ["tarih", "createdAt"],
   ozelAlan: ["createdAt", "updatedAt"],
   ozelAlanDeger: ["updatedAt"],
+  urun: ["createdAt", "updatedAt"],
+  paket: ["createdAt", "updatedAt"],
+  paketKalemi: [],
+  kampanya: ["baslangic", "bitis", "createdAt", "updatedAt"],
+  kampanyaUrun: [],
+  kampanyaPaket: [],
+  kampanyaFirma: [],
+  kampanyaKullanim: ["createdAt"],
+  stokHareketi: ["createdAt"],
 };
 
 export type YedekIcerigi = {

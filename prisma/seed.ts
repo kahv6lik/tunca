@@ -119,6 +119,122 @@ async function kullaniciOlustur(
   });
 }
 
+/**
+ * Ticari çekirdek demo verisi (Faz 14).
+ *
+ * Yalnızca Gezegen kiracısında üretilir; katalogun kiracıya özel olduğu elle
+ * de görülsün. Stok bakiyesi doğrudan yazılmaz — HAREKETLE yüklenir, çünkü
+ * bakiye defterin toplamıdır (T7) ve demo veri bu kuralı bozmamalıdır.
+ */
+async function ticariVeri(tenantId: string) {
+  const mevcut = await prisma.urun.count({ where: { tenantId } });
+  if (mevcut > 0) {
+    console.log("ℹ️  Ticari veri zaten var, üretim atlanıyor.");
+    return;
+  }
+
+  const urunTanimlari = [
+    { kod: "DAN-001", ad: "Yatırım Teşvik Danışmanlığı", kategori: "Danışmanlık", birim: "saat", listeFiyat: 2500, stokTakibi: false, kritikStok: 0 },
+    { kod: "DAN-002", ad: "KOSGEB Başvuru Desteği", kategori: "Danışmanlık", birim: "hizmet", listeFiyat: 18000, stokTakibi: false, kritikStok: 0 },
+    { kod: "EGT-001", ad: "İhracat Eğitimi (2 gün)", kategori: "Eğitim", birim: "adet", listeFiyat: 12000, stokTakibi: false, kritikStok: 0 },
+    { kod: "EGT-002", ad: "Kalite Yönetimi Eğitimi", kategori: "Eğitim", birim: "adet", listeFiyat: 9500, stokTakibi: false, kritikStok: 0 },
+    { kod: "YAZ-001", ad: "CRM Kullanıcı Lisansı (yıllık)", kategori: "Yazılım", birim: "yıl", listeFiyat: 4800, stokTakibi: true, kritikStok: 20 },
+    { kod: "DON-001", ad: "Barkod Okuyucu", kategori: "Donanım", birim: "adet", listeFiyat: 3200, stokTakibi: true, kritikStok: 10 },
+    { kod: "DON-002", ad: "El Terminali", kategori: "Donanım", birim: "adet", listeFiyat: 14500, stokTakibi: true, kritikStok: 5 },
+    { kod: "SRF-001", ad: "Sarf Malzeme Paketi", kategori: "Sarf", birim: "kutu", listeFiyat: 850, stokTakibi: true, kritikStok: 30 },
+  ];
+
+  const urunler: Record<string, string> = {};
+  for (const u of urunTanimlari) {
+    const kayit = await prisma.urun.create({
+      data: { tenantId, ...u, paraBirimi: "TRY", kdvOrani: 20, durum: "aktif" },
+    });
+    urunler[u.kod] = kayit.id;
+  }
+
+  // Stok girişleri — biri bilinçli olarak KRİTİK seviyenin altında bırakılır
+  // ki uyarı bandı demo veride de görünsün.
+  const girisler: [string, number][] = [
+    ["YAZ-001", 150], ["DON-001", 45], ["DON-002", 3], ["SRF-001", 120],
+  ];
+  for (const [kod, miktar] of girisler) {
+    await prisma.urun.update({
+      where: { id: urunler[kod] },
+      data: { stokMiktar: miktar },
+    });
+    await prisma.stokHareketi.create({
+      data: {
+        tenantId,
+        urunId: urunler[kod],
+        tur: "giris",
+        miktar,
+        sonrakiBakiye: miktar,
+        aciklama: "Açılış stoğu",
+      },
+    });
+  }
+
+  // Paket: iki ürünü sabit fiyatla birleştirir.
+  const paket = await prisma.paket.create({
+    data: {
+      tenantId,
+      kod: "PKT-BASLANGIC",
+      ad: "Başlangıç Paketi",
+      aciklama: "Lisans + barkod okuyucu",
+      sabitFiyat: true,
+      fiyat: 7000, // liste toplamı 8000
+      paraBirimi: "TRY",
+      durum: "aktif",
+    },
+  });
+  await prisma.paketKalemi.createMany({
+    data: [
+      { tenantId, paketId: paket.id, urunId: urunler["YAZ-001"], miktar: 1, sira: 0 },
+      { tenantId, paketId: paket.id, urunId: urunler["DON-001"], miktar: 1, sira: 1 },
+    ],
+  });
+
+  const bugun = new Date();
+  const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
+  const aySonu = new Date(bugun.getFullYear(), bugun.getMonth() + 1, 0, 23, 59, 59);
+
+  await prisma.kampanya.create({
+    data: {
+      tenantId,
+      kod: "BAHAR20",
+      ad: "Bahar Kampanyası",
+      aciklama: "Eğitimlerde %20 indirim",
+      tip: "yuzde",
+      durum: "aktif",
+      baslangic: ayBasi,
+      bitis: aySonu,
+      deger: 20,
+      kota: 50,
+      kullanilan: 12,
+    },
+  });
+
+  await prisma.kampanya.create({
+    data: {
+      tenantId,
+      kod: "3AL2ODE",
+      ad: "3 Al 2 Öde — Sarf",
+      tip: "alnodem",
+      durum: "aktif",
+      baslangic: ayBasi,
+      bitis: aySonu,
+      alN: 3,
+      odeM: 2,
+      kota: 0,
+    },
+  });
+
+  console.log(
+    `✅ Ticari veri: ${urunTanimlari.length} ürün, 1 paket, 2 kampanya, ` +
+      `${girisler.length} stok girişi.`
+  );
+}
+
 async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   const mevcut = await prisma.firma.count({ where: { tenantId } });
   if (mevcut > 0) {
@@ -565,6 +681,9 @@ async function main() {
     if (!mevcut) await prisma.ozelAlan.create({ data: { tenantId: gezegen.id, ...a } });
   }
   console.log("✅ Örnek özel alanlar hazır (Müşteri No, Segment, LinkedIn, İhale No).");
+
+  // --- Ticari çekirdek (Faz 14) — katalog, paket, kampanya, stok ---
+  await ticariVeri(gezegen.id);
 
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");

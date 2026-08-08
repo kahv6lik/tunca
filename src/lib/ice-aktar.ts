@@ -7,6 +7,7 @@ import {
   type TenantClient,
 } from "./tenant-db";
 import { sayacIstemcisi, siradakiFirmaNo } from "./firma-no-saf";
+import { kodNormalize } from "./urun-tanimlar";
 import { veriKumesiBul } from "./disa-aktar-tanimlar";
 import {
   AZAMI_SATIR,
@@ -206,6 +207,31 @@ async function satirYaz(
       adres: v.adres || null,
       durum: v.durum?.toLocaleLowerCase("tr").startsWith("pas") ? "pasif" : "aktif",
       notlar: v.notlar || null,
+    });
+    return;
+  }
+
+  // Ürün kataloğu (Faz 14 / T1) — firmaya bağlı DEĞİLDİR.
+  if (kume === "urunler") {
+    const kod = kodNormalize(v.kod ?? "");
+    const mevcut = await db.urun.findFirst({ where: { kod }, select: { id: true } });
+    // Aynı kodlu ürün ikinci kez açılmaz: kod bir kimliktir, kopyası stoğu
+    // ikiye böler.
+    if (mevcut) throw new Error(`"${kod}" kodlu ürün zaten kayıtlı`);
+
+    await tenantOlustur(db, "urun", {
+      kod,
+      ad: v.ad,
+      kategori: v.kategori || null,
+      birim: v.birim || "adet",
+      listeFiyat: sayiya(v.listeFiyat) ?? 0,
+      paraBirimi: ["TRY", "USD", "EUR"].includes(v.paraBirimi) ? v.paraBirimi : "TRY",
+      kdvOrani: sayiya(v.kdvOrani) ?? 20,
+      durum: v.durum?.toLocaleLowerCase("tr").startsWith("pas") ? "pasif" : "aktif",
+      aciklama: v.aciklama || null,
+      // Stok bakiyesi dosyadan YAZILMAZ (T7): bakiye hareket defterinin
+      // toplamıdır. İçe aktarılan ürün 0 bakiyeyle başlar, giriş hareketiyle
+      // yüklenir.
     });
     return;
   }

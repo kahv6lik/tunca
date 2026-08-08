@@ -221,6 +221,50 @@ async function satirlariOku(
       return kayitlar.map((e) => ({ ...e, firmaAd: e.firma.ad }));
     }
 
+    // ── Ticari çekirdek (Faz 14) ──
+    case "urunler": {
+      const kayitlar = await db.urun.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("kod", "ad", "kategori") } : {},
+            durum ? { durum } : {},
+            filtre.kategori ? { kategori: filtre.kategori } : {},
+          ],
+        },
+        orderBy: { ad: "asc" },
+        take: AZAMI_SATIR,
+      });
+      return kayitlar;
+    }
+
+    case "kampanyalar": {
+      const kayitlar = await db.kampanya.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("kod", "ad") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: { baslangic: "desc" },
+        take: AZAMI_SATIR,
+      });
+      return kayitlar;
+    }
+
+    case "stokHareketleri": {
+      const kayitlar = await db.stokHareketi.findMany({
+        where: filtre.urun ? { urunId: filtre.urun } : {},
+        orderBy: { createdAt: "desc" },
+        take: AZAMI_SATIR,
+        include: { urun: { select: { kod: true, ad: true } } },
+      });
+      return kayitlar.map((h) => ({
+        ...h,
+        urunKod: h.urun.kod,
+        urunAd: h.urun.ad,
+      }));
+    }
+
     case "hizmetler": {
       const kayitlar = await db.hizmet.findMany({
         where: {

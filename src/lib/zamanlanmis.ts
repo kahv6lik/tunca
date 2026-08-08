@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "./db";
 import { yonetimIstemcisi, kiraciIstemcisi } from "./rls";
 import { tenantClient, type TenantClient } from "./tenant-db";
+import { kampanyaIstemcisi, sureniDolduranlariKapat } from "./kampanya";
 import { kiracininKurallariniCalistir } from "./is-akisi";
 import { kuyruguIsle } from "./eposta";
 import { gelenKutusuSenkron } from "./eposta-gelen";
@@ -31,6 +32,7 @@ export type CalistirmaSonucu = {
   senkron: { okunan: number; eslesen: number };
   yedek: number; // bu çalıştırmada alınan otomatik yedek sayısı
   temizlenen: number; // saklama süresi dolan kayıtlar (Faz 12 / F7)
+  kampanya: number; // süresi dolup kapatılan kampanya sayısı (Faz 14 / T3)
   hata: string[];
 };
 
@@ -67,6 +69,7 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
     senkron: { okunan: 0, eslesen: 0 },
     yedek: 0,
     temizlenen: 0,
+    kampanya: 0,
     hata: [],
   };
 
@@ -142,6 +145,21 @@ export async function zamanlanmisIsleriCalistir(): Promise<CalistirmaSonucu> {
       }
     } catch (e) {
       sonuc.hata.push(`${id} saklama: ${e instanceof Error ? e.message : e}`);
+    }
+
+    /**
+     * Süresi dolan kampanyaları kapat (Faz 14 / T3).
+     *
+     * Durumu her sorguda tarihe bakarak hesaplamak yerine kaydetmek
+     * bilinçlidir: kullanıcı listede "sona erdi" görmek ve ona göre
+     * süzmek ister. Kota düşümü zaten aktif olmayan kampanyayı reddeder,
+     * yani gecikmiş bir kapatma yanlış indirim üretmez.
+     */
+    try {
+      const kapanan = await sureniDolduranlariKapat(kampanyaIstemcisi(db), id);
+      sonuc.kampanya += kapanan;
+    } catch (e) {
+      sonuc.hata.push(`${id} kampanya: ${e instanceof Error ? e.message : e}`);
     }
 
     // Kuyruk EN SONDA işlenir: iş akışlarının ve senkronun ürettiği

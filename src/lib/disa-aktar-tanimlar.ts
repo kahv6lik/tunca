@@ -199,6 +199,62 @@ export const VERI_KUMELERI: VeriKumesi[] = [
       { anahtar: "aciklama", etiket: "Açıklama" },
     ],
   },
+  // ── Ticari çekirdek (Faz 14) ──
+  {
+    deger: "urunler",
+    etiket: "Ürünler",
+    izin: "urun.goruntule",
+    iceAktarilir: true,
+    sutunlar: [
+      { anahtar: "kod", etiket: "Ürün Kodu", zorunlu: true },
+      { anahtar: "ad", etiket: "Ürün Adı", zorunlu: true },
+      { anahtar: "kategori", etiket: "Kategori" },
+      { anahtar: "birim", etiket: "Birim" },
+      { anahtar: "listeFiyat", etiket: "Liste Fiyatı", tur: "sayi" },
+      { anahtar: "paraBirimi", etiket: "Para Birimi" },
+      { anahtar: "kdvOrani", etiket: "KDV Oranı", tur: "sayi" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      // Stok bakiyesi hareket defterinden gelir; dosyadan yazılamaz (T7).
+      { anahtar: "stokMiktar", etiket: "Stok Miktarı", saltDisa: true, tur: "sayi" },
+      { anahtar: "aciklama", etiket: "Açıklama" },
+    ],
+  },
+  {
+    deger: "kampanyalar",
+    etiket: "Kampanyalar",
+    izin: "kampanya.goruntule",
+    // Kampanya içe aktarıma KAPALI: tip + kapsam + kota birlikte anlamlıdır
+    // ve düz bir tabloda doğrulanamaz (fırsat/teklif ile aynı gerekçe).
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "kod", etiket: "Kod" },
+      { anahtar: "ad", etiket: "Kampanya" },
+      { anahtar: "tip", etiket: "Tip" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "baslangic", etiket: "Başlangıç", tur: "tarih" },
+      { anahtar: "bitis", etiket: "Bitiş", tur: "tarih" },
+      { anahtar: "deger", etiket: "Değer", tur: "sayi" },
+      { anahtar: "kota", etiket: "Kota", tur: "sayi" },
+      { anahtar: "kullanilan", etiket: "Kullanılan", tur: "sayi" },
+    ],
+  },
+  {
+    deger: "stokHareketleri",
+    etiket: "Stok Hareketleri",
+    izin: "stok.goruntule",
+    // Defter DEĞİŞTİRİLEMEZ; dosyadan hareket yazmak onu anlamsız kılardı.
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "createdAt", etiket: "Tarih", tur: "tarih" },
+      { anahtar: "urunKod", etiket: "Ürün Kodu" },
+      { anahtar: "urunAd", etiket: "Ürün" },
+      { anahtar: "tur", etiket: "Hareket Türü" },
+      { anahtar: "miktar", etiket: "Miktar", tur: "sayi" },
+      { anahtar: "sonrakiBakiye", etiket: "Sonraki Bakiye", tur: "sayi" },
+      { anahtar: "referans", etiket: "Referans" },
+      { anahtar: "aciklama", etiket: "Açıklama" },
+    ],
+  },
 ];
 
 export function veriKumesiBul(deger: string): VeriKumesi | undefined {
