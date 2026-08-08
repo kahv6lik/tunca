@@ -11,6 +11,7 @@ import { LEAD_DURUM, durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +50,12 @@ export default async function AdaylarPage(
     AND: [
       ara
         ? {
-            OR: [
-              { ad: { contains: ara, mode: "insensitive" as const } },
-              { firmaAd: { contains: ara, mode: "insensitive" as const } },
-              { email: { contains: ara, mode: "insensitive" as const } },
-              { telefon: { contains: ara } },
-            ],
+            OR: metinArama<Prisma.LeadWhereInput>(ara, [
+              "ad",
+              "firmaAd",
+              "email",
+              "telefon",
+            ]),
           }
         : {},
       durum ? { durum } : {},

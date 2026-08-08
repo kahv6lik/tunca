@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatPara, formatTarih } from "@/lib/format";
 import { YATIRIM_DURUM } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -29,10 +30,7 @@ export default async function YatirimlarPage(
     AND: [
       ara
         ? {
-            OR: [
-              { baslik: { contains: ara } },
-              { firma: { ad: { contains: ara } } },
-            ],
+            OR: metinArama<Prisma.YatirimDestegiWhereInput>(ara, ["baslik", "firma.ad"]),
           }
         : {},
       durum ? { durum } : {},

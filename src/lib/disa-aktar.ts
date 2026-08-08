@@ -4,6 +4,7 @@ import type { TenantClient } from "./tenant-db";
 import { veriKumesiBul, type Bicim, type VeriKumesi } from "./disa-aktar-tanimlar";
 import { degerBicimle, csvUret } from "./disa-aktar-saf";
 import { firmaNoMu } from "./firma-no-saf";
+import { metinArama } from "./arama";
 import {
   alanlariGetir,
   topluDegerHaritasi,
@@ -57,8 +58,13 @@ async function satirlariOku(
 ): Promise<Record<string, unknown>[]> {
   const ara = (filtre.ara ?? "").trim();
   const durum = (filtre.durum ?? "").trim();
-  const metin = (alan: string) =>
-    ara ? { [alan]: { contains: ara, mode: "insensitive" as const } } : {};
+  /**
+   * Liste ekranlarıyla AYNI arama kuralı (Faz 13 / H2): Türkçe büyük/küçük
+   * harf farkı yok sayılır. Dışa aktarım filtreye saygılıdır; ekranda görünen
+   * kayıt kümesiyle dosyadaki küme aynı olmalıdır.
+   */
+  const metin = (...alanlar: string[]) =>
+    ara ? metinArama<Record<string, unknown>>(ara, alanlar) : [];
 
   switch (kume.deger) {
     case "firmalar": {
@@ -71,10 +77,7 @@ async function satirlariOku(
                   // tam eşleşme aranır, aksi halde metin alanlarında geçen.
                   OR: [
                     ...(firmaNoMu(ara) ? [{ firmaNo: ara.toUpperCase() }] : []),
-                    metin("ad"),
-                    metin("vergiNo"),
-                    metin("il"),
-                    metin("sektor"),
+                    ...metin("ad", "vergiNo", "il", "sektor"),
                   ],
                 }
               : {},
@@ -92,7 +95,7 @@ async function satirlariOku(
     case "kisiler": {
       const kayitlar = await db.kisi.findMany({
         where: ara
-          ? { OR: [metin("ad"), metin("unvan"), metin("email"), { firma: metin("ad") }] }
+          ? { OR: metin("ad", "unvan", "email", "firma.ad") }
           : {},
         orderBy: [{ birincil: "desc" }, { ad: "asc" }],
         take: AZAMI_SATIR,
@@ -105,7 +108,7 @@ async function satirlariOku(
       const kayitlar = await db.lead.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("ad"), metin("firmaAd"), metin("email")] } : {},
+            ara ? { OR: metin("ad", "firmaAd", "email") } : {},
             durum ? { durum } : {},
             filtre.kaynak ? { kaynak: filtre.kaynak } : {},
           ],
@@ -120,7 +123,7 @@ async function satirlariOku(
       const kayitlar = await db.firsat.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("baslik"), { firma: metin("ad") }] } : {},
+            ara ? { OR: metin("baslik", "firma.ad") } : {},
             durum ? { durum } : {},
             filtre.sorumlu ? { sorumluId: filtre.sorumlu } : {},
           ],
@@ -152,7 +155,7 @@ async function satirlariOku(
       const kayitlar = await db.teklif.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("no"), metin("baslik"), { firma: metin("ad") }] } : {},
+            ara ? { OR: metin("no", "baslik", "firma.ad") } : {},
             durum ? { durum } : {},
           ],
         },
@@ -167,7 +170,7 @@ async function satirlariOku(
       const kayitlar = await db.aktivite.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("baslik"), metin("aciklama")] } : {},
+            ara ? { OR: metin("baslik", "aciklama") } : {},
             filtre.tur ? { tur: filtre.tur } : {},
             filtre.atanan && filtre.atanan !== "herkes"
               ? { atananId: filtre.atanan }
@@ -192,7 +195,7 @@ async function satirlariOku(
       const kayitlar = await db.yatirimDestegi.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("baslik"), { firma: metin("ad") }] } : {},
+            ara ? { OR: metin("baslik", "firma.ad") } : {},
             durum ? { durum } : {},
           ],
         },
@@ -207,7 +210,7 @@ async function satirlariOku(
       const kayitlar = await db.egitim.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("baslik"), { firma: metin("ad") }] } : {},
+            ara ? { OR: metin("baslik", "firma.ad") } : {},
             durum ? { durum } : {},
           ],
         },
@@ -222,7 +225,7 @@ async function satirlariOku(
       const kayitlar = await db.hizmet.findMany({
         where: {
           AND: [
-            ara ? { OR: [metin("baslik"), { firma: metin("ad") }] } : {},
+            ara ? { OR: metin("baslik", "firma.ad") } : {},
             durum ? { durum } : {},
           ],
         },

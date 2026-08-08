@@ -15,6 +15,7 @@ import { durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 
@@ -55,10 +56,7 @@ export default async function FirsatlarPage(
     AND: [
       ara
         ? {
-            OR: [
-              { baslik: { contains: ara, mode: "insensitive" as const } },
-              { firma: { ad: { contains: ara, mode: "insensitive" as const } } },
-            ],
+            OR: metinArama<Prisma.FirsatWhereInput>(ara, ["baslik", "firma.ad"]),
           }
         : {},
       sorumlu ? { sorumluId: sorumlu } : {},

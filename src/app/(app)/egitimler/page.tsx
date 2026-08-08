@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih } from "@/lib/format";
 import { EGITIM_DURUM } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -28,7 +29,9 @@ export default async function EgitimlerPage(
   const where: Prisma.EgitimWhereInput = {
     AND: [
       ara
-        ? { OR: [{ baslik: { contains: ara } }, { firma: { ad: { contains: ara } } }] }
+        ? {
+            OR: metinArama<Prisma.EgitimWhereInput>(ara, ["baslik", "firma.ad"]),
+          }
         : {},
       durum ? { durum } : {},
     ],

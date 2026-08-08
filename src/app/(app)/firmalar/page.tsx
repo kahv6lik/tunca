@@ -12,6 +12,7 @@ import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 import { alanlariGetir, degerleEslesenKayitlar, ozelAlanGirdiAdi } from "@/lib/ozel-alan";
 import { firmaNoMu } from "@/lib/firma-no-saf";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 
@@ -75,15 +76,17 @@ export default async function FirmalarPage(
               ...(firmaNoMu(ara)
                 ? [{ firmaNo: ara.trim().toUpperCase() } as Prisma.FirmaWhereInput]
                 : []),
-              { ad: { contains: ara, mode: "insensitive" } },
-              { vergiNo: { contains: ara, mode: "insensitive" } },
-              { yetkiliAd: { contains: ara, mode: "insensitive" } },
-              { sektor: { contains: ara, mode: "insensitive" } },
+              ...metinArama<Prisma.FirmaWhereInput>(ara, [
+                "ad",
+                "vergiNo",
+                "yetkiliAd",
+                "sektor",
+              ]),
             ],
           }
         : {},
       durum ? { durum } : {},
-      il ? { il: { contains: il, mode: "insensitive" } } : {},
+      il ? { OR: metinArama<Prisma.FirmaWhereInput>(il, ["il"]) } : {},
       ...ozelKisitlar,
     ],
   };

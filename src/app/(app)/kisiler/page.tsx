@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
+import { metinArama } from "@/lib/arama";
 
 export const dynamic = "force-dynamic";
 const SAYFA_BOYUTU = 25;
@@ -35,14 +36,14 @@ export default async function KisilerPage(
 
   const where: Prisma.KisiWhereInput = ara
     ? {
-        OR: [
-          { ad: { contains: ara, mode: "insensitive" } },
-          { unvan: { contains: ara, mode: "insensitive" } },
-          { departman: { contains: ara, mode: "insensitive" } },
-          { email: { contains: ara, mode: "insensitive" } },
-          { telefon: { contains: ara } },
-          { firma: { ad: { contains: ara, mode: "insensitive" } } },
-        ],
+        OR: metinArama<Prisma.KisiWhereInput>(ara, [
+          "ad",
+          "unvan",
+          "departman",
+          "email",
+          "telefon",
+          "firma.ad",
+        ]),
       }
     : {};
 
