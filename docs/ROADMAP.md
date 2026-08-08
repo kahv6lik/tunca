@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.14.0` — Faz 14: ürün, paket, kampanya, stok |
-| **Sıradaki faz** | **Faz 15** — Sipariş, yönetici onayı, depo/sevkiyat (`v1.15.0`) |
-| **Sonrası** | Faz 16–20: saha geri bildirimleri · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.15.0` — Faz 15: sipariş, onay akışı, sevkiyat |
+| **Sıradaki faz** | **Faz 16** — Proje, destek kaydı, SSS (`v1.16.0`) |
+| **Sonrası** | Faz 17–20: saha geri bildirimleri · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -149,7 +149,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
 | 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | ✅ tamamlandı | — |
 | 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | ✅ tamamlandı | — |
-| 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | planlandı | |
+| 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | ✅ tamamlandı | — |
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | planlandı | |
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | planlandı | |
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | planlandı | |
@@ -1024,23 +1024,23 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ## Faz 15 — Sipariş, Onay Akışı ve Sevkiyat → `v1.15.0`
 
-- [ ] **S1 — Sipariş modülü.** Firma, kalemler (ürün/paket, adet, birim
+- [x] **S1 — Sipariş modülü.** Firma, kalemler (ürün/paket, adet, birim
       fiyat, iskonto, KDV), toplamlar, uygulanan kampanya, para birimi.
       Tutarlar **sunucuda** hesaplanır ve saklanır (teklifteki desen).
-- [ ] **S2 — Projeye ve teklife bağlama.** Sipariş; bir teklif ve/veya bir
+- [x] **S2 — Projeye ve teklife bağlama.** Sipariş; bir teklif ve/veya bir
       projeyle ilişkilendirilebilir (Faz 16'daki proje modülüyle bütünleşir).
       Tekliften tek tuşla sipariş oluşturma.
-- [ ] **S3 — Yönetici onay akışı.** Satış personelinin girdiği her sipariş
+- [x] **S3 — Yönetici onay akışı.** Satış personelinin girdiği her sipariş
       "onay bekliyor" durumunda açılır. Yönetici onaylar ya da reddeder
       (gerekçeyle). Onay yetkisi ayrı bir izindir (`siparis.onayla`).
       **Onaylanmadan sevkiyata hiçbir bildirim gitmez** — bu, akışın
       sözüdür ve testle sabitlenir.
-- [ ] **S4 — Depo / Sevkiyat modülü.** Onaylanan siparişler sevkiyat
+- [x] **S4 — Depo / Sevkiyat modülü.** Onaylanan siparişler sevkiyat
       kuyruğuna düşer. Sevkiyat durumu: hazırlanıyor · sevk edildi ·
       teslim edildi · iptal. Kargo/taşıyıcı ve takip numarası alanı.
-- [ ] **S5 — Sevkiyat raporu.** Durum kırılımı, bekleme süreleri, gecikenler,
+- [x] **S5 — Sevkiyat raporu.** Durum kırılımı, bekleme süreleri, gecikenler,
       tarih aralığı süzgeci.
-- [ ] **S6 — Bildirimler.** Onay bekleyen sipariş → yöneticiye; onay/ret →
+- [x] **S6 — Bildirimler.** Onay bekleyen sipariş → yöneticiye; onay/ret →
       satış personeline; onaylandı → depo ekibine. Mevcut bildirim kapısından
       (`bildirim.ts`) geçer, kullanıcı tercihine saygılıdır.
 
@@ -1049,6 +1049,30 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
   stok bakiyesi düşer; stok yetersizse onay verilemez ve gerekçe gösterilir. ✅
 - Onay **tek kademelidir** (yönetici). Tutara göre kademeli onay şimdilik
   yok; gerekirse sonradan eklenir. ✅
+
+### Uygulama notları (v1.15.0)
+
+- **Akışın sözü tek kapıdan geçer:** `sevkiyatAcilabilirMi`. Sevkiyat kaydı
+  yalnızca onaylanmış siparişten doğar ve **depo bildirimi de yalnızca onay
+  anında** gönderilir. Kural izinle değil VERİYLE korunur — depo yetkisi
+  olan bir kullanıcı bile onaysız siparişe sevkiyat açamaz. Testle sabit.
+- **Onay ayrı bir izindir** (`siparis.onayla`) ve üyede YOKTUR: siparişi
+  giren kişi kendi siparişini onaylayamaz. Onay bir durum alanı değil, bir
+  yetki ayrımıdır.
+- **Onay atomiktir ve geri alınabilir:** stok yeterliliği önce toptan
+  kontrol edilir, sonra satır satır atomik düşülür. Bir satır yarı yolda
+  düşerse (araya başka bir onay girdiyse) o ana kadar düşülenler TERS
+  HAREKETLE iade edilir ve onay reddedilir — yarım düşülmüş stok en zor
+  düzeltilen durumdur.
+- **Onaylanmış sipariş düzenlenemez, silinemez.** Onaylanan rakam stok ve
+  kota düşümünün dayandığı rakamdır; değişmesi gerekiyorsa iptal edilip
+  yenisi açılır (teklif revizyonundaki gerekçe). İptal, stoğu iade
+  HAREKETİYLE geri verir; sevk edilmiş sipariş iptal edilemez.
+- **Belge numarası yıl bazında atomik sayaçtan** gelir (`SIP-2026-0001`,
+  `SVK-2026-0001`) — firma numarasındaki (Faz 13 / H1) desen.
+- **Projeye bağlama (S2) Faz 16'ya bırakıldı:** proje modeli henüz yok.
+  Sipariş şimdilik TEKLİFE bağlanıyor; kabul edilen tekliften tek tuşla
+  sipariş açılıyor. Proje geldiğinde `Siparis.projeId` eklenecek.
 
 ---
 

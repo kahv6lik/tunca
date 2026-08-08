@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.15.0** | **Faz 15** — Sipariş, yönetici onay akışı, sevkiyat kuyruğu ve raporu | Üye ile sipariş gir → yönetici ile onayla → sevkiyat aç → durumu ilerlet | Sipariş onaya düşer; onayda stok ve kampanya kotası düşer; sevkiyat düğmesi ancak ONAYDAN SONRA çıkar; stok yetersizse onay verilmez ve hiçbir şey düşmez | 498 |
 | **v1.14.0** | **Faz 14** — Ürün kataloğu, müşteriye özel paketler, kampanya (kota + kullanım raporu), fiyat motoru, gerçek stok takibi | `/urunler`de ürün ekle → `/paketler`de iki ürünü paketle → `/kampanyalar`da kotalı kampanya aç → `/stok`ta giriş/çıkış gir | Paket önizlemesi müşteri avantajını gösterir; kampanya kotası her kullanımda düşer ve tükenince reddeder; stok çıkışı eldekinden fazlaysa hata verir ve hareket yazılmaz | 465 |
 | **v1.13.0** | **Faz 13** — Firma numarası (`A0001`), Türkçe duyarsız arama, Kontaklar adı + menü düzeni, Adaylar fırsatlar sekmesi, fırsattan firma/teklif, takvim kategori süzgeci, raporlarda tarih aralığı | Firmalar listesinde bir numarayı arama kutusuna yaz; `/firsatlar`da **+ Yeni firma ekle** ile fırsat aç | Numara tam eşleşmeyle o firmayı getirir; fırsat ve firma tek işlemde açılır, firma sıradaki numarayı ve denetim kaydını alır | 400 |
 | **v1.12.1** | Kişi kaydına departman alanı: 40 seçenekli sabit listeden aramalı seçim; kişiler listesinde ve firma detayında sütun | Firma detayı → **Kişi Ekle** → Departman kutusuna bas, "insan" yaz | Küçük arama penceresi süzer ("İnsan Kaynakları"); elle metin yazılamaz; seçim listede ve dışa aktarımda görünür | 373 |
@@ -280,6 +281,32 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
 | 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
 | 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
+
+---
+
+### v1.15.0 — Sipariş, onay ve sevkiyat (Faz 15)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `kullanici@gezegen.com` ile `/siparisler` → **Yeni Sipariş** | Form açılır; ürün seçince fiyat, birim ve KDV katalogdan gelir |
+| 2 | Stokta olandan fazla miktar gir | Sarı stok uyarısı çıkar ama kayıt ENGELLENMEZ (asıl kontrol onayda) |
+| 3 | Kaydet | Sipariş `SIP-YIL-0001` numarasıyla **onay bekliyor** durumunda açılır |
+| 4 | Aynı ekranda "Onayla" düğmesini ara | YOK — üye kendi siparişini onaylayamaz |
+| 5 | `admin@gezegen.com` ile `/siparisler` | Üstte "Onayınızı bekleyen …" kuyruğu; zilde bildirim |
+| 6 | Siparişi aç → sevkiyat bölümüne bak | "Sipariş onay bekliyor. Onaylanmadan sevkiyat açılamaz." — düğme yok |
+| 7 | Stoğu yetmeyen siparişi **Onayla** | "Stok yetersiz" hatası kalem kalem listelenir; stok DEĞİŞMEZ |
+| 8 | `/stok`tan giriş yapıp yeniden onayla | Onaylanır; stok düşer, harekette referans olarak sipariş no yazar |
+| 9 | Kampanyalı bir siparişi onayla | Kampanya kotası düşer, kullanım defterine referanslı satır girer |
+| 10 | Onaylı siparişi **Düzenle** | Engellenir: "Onaylanmış sipariş düzenlenemez" |
+| 11 | Onaylı siparişte **Sevkiyat Aç** | Taşıyıcı/takip no formu; sevkiyat `SVK-YIL-0001` numarasıyla açılır |
+| 12 | `/sevkiyat` | Durum kırılımı kutuları; "sevkiyat bekleyen onaylı siparişler" bandı |
+| 13 | Sevkiyatı **Sevk Et** → **Teslim Edildi** | Tarihler kendiliğinden damgalanır; bekleme günü listede görünür |
+| 14 | Sevk edilmiş siparişi **iptal** etmeyi dene | Engellenir: "Sevk edilmiş sipariş iptal edilemez" |
+| 15 | Sevkiyatı iptal edip siparişi iptal et | Stok iade HAREKETİYLE geri gelir (`/stok` defterinde görünür) |
+| 16 | Bir siparişi gerekçeyle **Reddet** | Gerekçe zorunlu; siparişi girene bildirim gider, detayda kırmızı bantta yazar |
+| 17 | Reddedilen siparişi düzenleyip kaydet | Yeniden "onay bekliyor" olur, gerekçe temizlenir |
+| 18 | Kabul edilmiş bir teklifte **Sipariş Oluştur** | Form firma ve kalemlerle dolu gelir |
+| 19 | `admin@anadolu.com` ile `/siparisler` | Gezegen'in siparişlerinden hiçbiri görünmez |
 
 ---
 

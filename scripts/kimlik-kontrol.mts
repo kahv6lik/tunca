@@ -980,6 +980,113 @@ async function main() {
       !anadoluKatalog.govde.includes("Barkod Okuyucu")
   );
 
+  // 19 — Faz 15: sipariş, onay akışı, sevkiyat
+  console.log("\n19. Faz 15 — sipariş onayı ve sevkiyat kapısı");
+
+  const siparisler = await sayfaGetir("admin@gezegen.com", "admin123", "/siparisler");
+  kontrol(
+    "Yönetici sipariş listesini açabiliyor",
+    !siparisler.url.includes("/yetkisiz") && siparisler.govde.includes("SIP-")
+  );
+  kontrol(
+    "Onay kuyruğu yöneticiye gösteriliyor",
+    siparisler.govde.toLocaleLowerCase("tr").includes("onayınızı bekleyen")
+  );
+
+  // Onay bekleyen siparişte sevkiyat AÇILAMAZ — akışın sözü.
+  const bekleyenSiparis = await prisma.siparis.findFirst({
+    where: { tenant: { slug: "gezegen" }, durum: "onaybekliyor" },
+    select: { id: true },
+  });
+  if (bekleyenSiparis) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/siparisler/${bekleyenSiparis.id}`
+    );
+    kontrol(
+      "Onay bekleyen siparişte 'Sevkiyat Aç' düğmesi YOK",
+      !detay.govde.includes("Sevkiyat Aç")
+    );
+    kontrol(
+      "Sebebi ekranda yazılı (onaylanmadan sevkiyat açılamaz)",
+      detay.govde.includes("Onaylanmadan sevkiyat açılamaz")
+    );
+    // NOT: "Onayla" ile aramak YANILTICIDIR — bilgi kartındaki "Onaylayan"
+    // etiketi de eşleşir (bir kez yaşandı). "Reddet" düğmesi tekil bir
+    // dizedir: durum etiketi "Reddedildi" bunu içermez.
+    kontrol("Onay/ret düğmeleri yöneticide var", detay.govde.includes("Reddet"));
+  }
+
+  // Onaylanmış siparişte sevkiyat açılabilir.
+  const onayliSiparis = await prisma.siparis.findFirst({
+    where: { tenant: { slug: "gezegen" }, durum: "onaylandi" },
+    select: { id: true },
+  });
+  if (onayliSiparis) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/siparisler/${onayliSiparis.id}`
+    );
+    kontrol(
+      "Onaylanmış siparişte 'Sevkiyat Aç' düğmesi VAR",
+      detay.govde.includes("Sevkiyat Aç")
+    );
+  }
+
+  // Reddedilen siparişin gerekçesi görünür.
+  const redSiparis = await prisma.siparis.findFirst({
+    where: { tenant: { slug: "gezegen" }, durum: "reddedildi" },
+    select: { id: true },
+  });
+  if (redSiparis) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/siparisler/${redSiparis.id}`
+    );
+    kontrol(
+      "Ret gerekçesi sipariş detayında görünüyor",
+      detay.govde.toLocaleLowerCase("tr").includes("ret gerekçesi")
+    );
+  }
+
+  // Yetki ayrımı: üye sipariş girer ama ONAYLAYAMAZ.
+  const uyeSiparis = await sayfaGetir("kullanici@gezegen.com", "user123", "/siparisler");
+  kontrol(
+    "Üye sipariş listesini görüyor",
+    !uyeSiparis.url.includes("/yetkisiz")
+  );
+  kontrol(
+    "Üyede onay kuyruğu YOK (onay yöneticinin işi)",
+    !uyeSiparis.govde.toLocaleLowerCase("tr").includes("onayınızı bekleyen")
+  );
+  if (bekleyenSiparis) {
+    const uyeDetay = await sayfaGetir(
+      "kullanici@gezegen.com",
+      "user123",
+      `/siparisler/${bekleyenSiparis.id}`
+    );
+    kontrol(
+      "Üye onay/ret düğmelerini GÖRMÜYOR",
+      !uyeDetay.govde.includes("Reddet")
+    );
+  }
+
+  const sevkiyat = await sayfaGetir("admin@gezegen.com", "admin123", "/sevkiyat");
+  kontrol(
+    "Sevkiyat ekranı açılıyor ve kuyruğu gösteriyor",
+    !sevkiyat.url.includes("/yetkisiz") && sevkiyat.govde.includes("SVK-")
+  );
+
+  // Kiracı sınırı.
+  const anadoluSiparis = await sayfaGetir("admin@anadolu.com", "anadolu123", "/siparisler");
+  kontrol(
+    "Komşu kiracı Gezegen'in siparişlerini GÖRMÜYOR",
+    !anadoluSiparis.govde.includes("SIP-")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

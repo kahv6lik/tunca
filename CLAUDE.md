@@ -45,6 +45,7 @@ prisma/
                        # OzelAlan, OzelAlanDeger, FirmaNoSayac,
                        # Urun, Paket, PaketKalemi, Kampanya(+Urun/Paket/Firma),
                        # KampanyaKullanim, StokHareketi,
+                       # Siparis, SiparisKalemi, Sevkiyat, BelgeSayac,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -78,6 +79,8 @@ src/
       paketler/        # ürün paketleri, firmaya özel fiyat (Faz 14)
       kampanyalar/     # kampanya tanımı, kota, kullanım raporu (Faz 14)
       stok/            # stok durumu ve hareket defteri (Faz 14)
+      siparisler/      # sipariş, onay/ret, tekliften sipariş (Faz 15)
+      sevkiyat/        # sevkiyat kuyruğu ve raporu (Faz 15)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
       kvkk/            # aydınlatma metni + açık rıza kaydı (Faz 12)
@@ -112,6 +115,8 @@ src/
     ozel-alanlar/      # OzelAlanPanel (Faz 11)
     urunler/           # UrunPanel, PaketPanel, KampanyaPanel, StokPanel,
                        # KullanimPanel (Faz 14)
+    siparisler/        # SiparisForm, OnayPanel, SevkiyatPanel,
+                       # DurumDugmeleri (Faz 15)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -152,6 +157,7 @@ src/
     kampanya.ts           # atomik kota sayacı + kullanım defteri (Faz 14)
     stok.ts               # stok hareket defteri + atomik bakiye (Faz 14)
     urun-tanimlar.ts      # kod normalize, stok durumu — saf (Faz 14)
+    siparis.ts            # onay akışı + sevkiyat kapısı + belge no (Faz 15)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -359,6 +365,27 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **`urun`, `kampanya`, `stok` birer paket modülüdür**; hizmet satan bir
   kuruluş katalogu kullanır ama stok tutmaz.
 
+### Sipariş, Onay ve Sevkiyat (Faz 15)
+
+- **AKIŞIN SÖZÜ:** sevkiyat YALNIZCA onaylanmış siparişten doğar ve depo
+  bildirimi de yalnızca onay anında gönderilir. Kural tek kapıdadır
+  (`sevkiyatAcilabilirMi`) ve izinle değil VERİYLE korunur — depo yetkisi
+  olan kullanıcı bile onaysız siparişe sevkiyat açamaz.
+- **Onay ayrı izindir** (`siparis.onayla`, üyede YOK): siparişi giren kişi
+  kendi siparişini onaylayamaz. Onay bir durum alanı değil, yetki ayrımıdır.
+- **Onay atomiktir:** stok önce toptan kontrol edilir, sonra satır satır
+  atomik düşülür; bir satır yarı yolda düşerse o ana kadar düşülenler ters
+  hareketle İADE EDİLİR ve onay reddedilir. Sipariş onaylanmadıysa stok da
+  düşmemiş olur.
+- **Onaylanmış sipariş düzenlenemez ve silinemez** — onaylanan rakam stok ve
+  kota düşümünün dayandığı rakamdır. Değişiklik gerekiyorsa iptal edilip
+  yenisi açılır; iptal stoğu iade HAREKETİYLE geri verir. **Sevk edilmiş
+  sipariş iptal edilemez** (mal yola çıkmıştır).
+- **Belge numarası yıl bazında atomik sayaçtan** gelir (`SIP-2026-0001`);
+  `BelgeSayac` firma numarasındaki desenin aynısıdır.
+- **Kabul edilen tekliften tek tuşla sipariş** açılır; kalemler teklifin
+  kalemlerinden hazır gelir.
+
 ### Arayüz ve Veri Düzeltmeleri (Faz 13)
 
 - **Firma numarası oluşturmada verilir ve DEĞİŞMEZ** (`A0001`–`Z9999`,
@@ -425,7 +452,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**465 kontrol**.
+**498 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -433,10 +460,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (293 test, ~10 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (314 test, ~12 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 151)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 163)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -520,7 +547,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | ✅ tamamlandı |
 | 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | ✅ tamamlandı |
 | 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | ✅ tamamlandı |
-| 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | planlandı |
+| 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | ✅ tamamlandı |
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | planlandı |
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | planlandı |
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | planlandı |
@@ -619,6 +646,13 @@ etkiliyor.
   tanımı (dört tip, kapsam, durum akışı, **atomik kota**); kampanya kullanım
   defteri ve raporu; tek saf fonksiyonlu fiyat motoru; hareket defterine
   dayalı gerçek stok takibi, sayım farkı ve kritik seviye uyarısı.
+- **v1.15.0** — **Faz 15:** Sipariş, yönetici onayı ve sevkiyat. Kalemli
+  sipariş (tutarlar sunucuda, fiyat motoruyla); "onay bekliyor" varsayılan
+  durumu ve ayrı onay izni; onayda atomik stok + kampanya kotası düşümü,
+  yarı kalan düşümlerin ters hareketle iadesi; onaylı siparişten doğan
+  sevkiyat kuyruğu, taşıyıcı/takip no ve durum akışı; sevkiyat raporu
+  (durum kırılımı, bekleme süresi, gecikenler); onay/ret/sevkiyat
+  bildirimleri; kabul edilen tekliften tek tuşla sipariş.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"
