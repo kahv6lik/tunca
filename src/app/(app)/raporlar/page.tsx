@@ -7,12 +7,28 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { durumBadge } from "@/lib/constants";
 import { DURUM_RENK } from "@/lib/chart-theme";
+import { tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function RaporlarPage() {
+export default async function RaporlarPage(props: {
+  searchParams: Promise<{ bas?: string; bit?: string }>;
+}) {
+  const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.raporGoruntule);
   const db = await getTenantDb();
+
+  /**
+   * Tarih aralığı (Faz 13 / H9). Firma kayıtlarında EKLENME tarihi,
+   * yatırım/eğitim/hizmet kayıtlarında işin KENDİ tarihi süzülür — "ağustosta
+   * ne yaptık" sorusunda beklenen budur, kaydın ne zaman girildiği değil.
+   */
+  const aralik = tarihAraligi(searchParams.bas, searchParams.bit);
+  const kayitSuzgeci = aralik ? { tarih: aralik } : {};
+  const firmaSuzgeci = aralik ? { createdAt: aralik } : {};
+  const aralikEtiketi = araliktanEtiket(aralik);
+
   const [
     firmaSayisi,
     yatirimByDurum,
@@ -25,25 +41,36 @@ export default async function RaporlarPage() {
     yatirimTryAgg,
     topFirmalarRaw,
   ] = await Promise.all([
-    db.firma.count(),
-    db.yatirimDestegi.groupBy({ by: ["durum"], _count: { _all: true } }),
+    db.firma.count({ where: firmaSuzgeci }),
+    db.yatirimDestegi.groupBy({
+      by: ["durum"],
+      where: kayitSuzgeci,
+      _count: { _all: true },
+    }),
     db.yatirimDestegi.groupBy({
       by: ["tur"],
-      where: { paraBirimi: "TRY" },
+      where: { paraBirimi: "TRY", ...kayitSuzgeci },
       _sum: { tutar: true },
     }),
-    db.egitim.groupBy({ by: ["durum"], _count: { _all: true } }),
-    db.hizmet.groupBy({ by: ["durum"], _count: { _all: true } }),
-    db.firma.groupBy({ by: ["il"], _count: { _all: true } }),
-    db.firma.groupBy({ by: ["sektor"], _count: { _all: true } }),
-    db.egitim.aggregate({ _sum: { sureSaat: true, katilimci: true } }),
+    db.egitim.groupBy({ by: ["durum"], where: kayitSuzgeci, _count: { _all: true } }),
+    db.hizmet.groupBy({ by: ["durum"], where: kayitSuzgeci, _count: { _all: true } }),
+    db.firma.groupBy({ by: ["il"], where: firmaSuzgeci, _count: { _all: true } }),
+    db.firma.groupBy({ by: ["sektor"], where: firmaSuzgeci, _count: { _all: true } }),
+    db.egitim.aggregate({
+      where: kayitSuzgeci,
+      _sum: { sureSaat: true, katilimci: true },
+    }),
     db.yatirimDestegi.aggregate({
-      where: { paraBirimi: "TRY", durum: { in: ["onaylandi", "tamamlandi"] } },
+      where: {
+        paraBirimi: "TRY",
+        durum: { in: ["onaylandi", "tamamlandi"] },
+        ...kayitSuzgeci,
+      },
       _sum: { tutar: true },
     }),
     db.yatirimDestegi.groupBy({
       by: ["firmaId"],
-      where: { paraBirimi: "TRY" },
+      where: { paraBirimi: "TRY", ...kayitSuzgeci },
       _sum: { tutar: true },
       orderBy: { _sum: { tutar: "desc" } },
       take: 8,
@@ -95,8 +122,41 @@ export default async function RaporlarPage() {
     <div className="space-y-6">
       <PageHeader
         title="Raporlar"
-        subtitle="Firma, yatırım, eğitim ve hizmet istatistikleri"
+        subtitle={
+          aralikEtiketi
+            ? `Firma, yatırım, eğitim ve hizmet istatistikleri · ${aralikEtiketi}`
+            : "Firma, yatırım, eğitim ve hizmet istatistikleri · tüm zamanlar"
+        }
       />
+
+      {/* Tarih aralığı süzgeci (Faz 13 / H9) — querystring'de yaşar, yani
+          seçilen dönem paylaşılabilir ve yer imine eklenebilir. */}
+      <form method="get" className="card flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <label className="label" htmlFor="bas">Başlangıç</label>
+          <input
+            id="bas"
+            name="bas"
+            type="date"
+            defaultValue={searchParams.bas ?? ""}
+            className="input"
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="bit">Bitiş</label>
+          <input
+            id="bit"
+            name="bit"
+            type="date"
+            defaultValue={searchParams.bit ?? ""}
+            className="input"
+          />
+        </div>
+        <button type="submit" className="btn-primary">Uygula</button>
+        {(searchParams.bas || searchParams.bit) && (
+          <Link href="/raporlar" className="btn-secondary">Temizle</Link>
+        )}
+      </form>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard index={0} label="Toplam Firma" value={firmaSayisi} icon="building" accent="#6366f1" />

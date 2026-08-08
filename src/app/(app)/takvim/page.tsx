@@ -4,6 +4,13 @@ import { getTenantContext } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, etkinIzinler } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { takvimOgeleri, type TakvimOgesi } from "@/lib/takvim";
+import {
+  TAKVIM_TURLERI,
+  TUR_ETIKET,
+  TUR_IZIN,
+  turleriCoz,
+  type TakvimTuru,
+} from "@/lib/takvim-tanimlar";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +32,7 @@ const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
  */
 export default async function TakvimPage(
   props: {
-    searchParams: Promise<{ ay?: string; kim?: string }>;
+    searchParams: Promise<{ ay?: string; kim?: string; tur?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -43,12 +50,20 @@ export default async function TakvimPage(
   const aySonu = new Date(yil, ay + 1, 0, 23, 59, 59, 999);
 
   const bana = searchParams.kim !== "herkes";
+
+  /**
+   * Kategori süzgeci (Faz 13 / H8). Ortağın bulgusu: "takvimde kategori
+   * filtresi olsun". Seçim querystring'de yaşar; böylece bağlantı
+   * paylaşılabilir ve ay değiştirince kaybolmaz.
+   */
+  const seciliTurler = turleriCoz(searchParams.tur);
   const ogeler = await takvimOgeleri(
     db,
     izinler,
     ayBasi,
     aySonu,
-    bana ? session.userId : undefined
+    bana ? session.userId : undefined,
+    seciliTurler
   );
 
   // Izgara pazartesiden başlar (TR alışkanlığı; JS'te 0 = pazar).
@@ -67,6 +82,28 @@ export default async function TakvimPage(
   const ayParam = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   const kimParam = bana ? "" : "&kim=herkes";
+  const turParam = searchParams.tur ? `&tur=${searchParams.tur}` : "";
+
+  // Kullanıcının göremediği kategori süzgeçte de görünmez.
+  const gorunurTurler = TAKVIM_TURLERI.filter((t) => izinler.has(TUR_IZIN[t]));
+
+  /** Bir kategoriyi seçime ekleyip çıkaran bağlantı. */
+  const turQs = (t: TakvimTuru) => {
+    const acik = new Set(seciliTurler);
+    // Hepsi seçiliyken bir kategoriye basmak "yalnızca onu göster" demektir;
+    // beş kez tıklayıp diğerlerini kapatmak yerine beklenen davranış budur.
+    const yeni =
+      acik.size === gorunurTurler.length
+        ? [t]
+        : acik.has(t)
+          ? gorunurTurler.filter((x) => x !== t && acik.has(x))
+          : gorunurTurler.filter((x) => x === t || acik.has(x));
+
+    const deger = yeni.length === 0 || yeni.length === gorunurTurler.length
+      ? ""
+      : `&tur=${yeni.join(",")}`;
+    return `/takvim?ay=${ayParam(ayBasi)}${kimParam}${deger}`;
+  };
 
   const ayAdi = new Intl.DateTimeFormat("tr-TR", {
     month: "long",
@@ -82,7 +119,7 @@ export default async function TakvimPage(
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-xl border border-border/70">
               <Link
-                href={`/takvim?ay=${ayParam(new Date(yil, ay, 1))}`}
+                href={`/takvim?ay=${ayParam(new Date(yil, ay, 1))}${turParam}`}
                 className={`px-3 py-2 text-sm ${
                   bana ? "bg-secondary/70 text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
@@ -90,7 +127,7 @@ export default async function TakvimPage(
                 Bana ait
               </Link>
               <Link
-                href={`/takvim?ay=${ayParam(new Date(yil, ay, 1))}&kim=herkes`}
+                href={`/takvim?ay=${ayParam(new Date(yil, ay, 1))}&kim=herkes${turParam}`}
                 className={`border-l border-border/70 px-3 py-2 text-sm ${
                   bana ? "text-muted-foreground hover:text-foreground" : "bg-secondary/70 text-foreground"
                 }`}
@@ -100,7 +137,7 @@ export default async function TakvimPage(
             </div>
 
             <a
-              href={`/api/takvim.ics?ay=${ayParam(ayBasi)}${kimParam}`}
+              href={`/api/takvim.ics?ay=${ayParam(ayBasi)}${kimParam}${turParam}`}
               className="btn-secondary"
             >
               <Download className="h-4 w-4" /> .ics indir
@@ -112,7 +149,7 @@ export default async function TakvimPage(
       <div className="card mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-2">
           <Link
-            href={`/takvim?ay=${ayParam(oncekiAy)}${kimParam}`}
+            href={`/takvim?ay=${ayParam(oncekiAy)}${kimParam}${turParam}`}
             aria-label="Önceki ay"
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 text-muted-foreground hover:text-foreground"
           >
@@ -122,34 +159,46 @@ export default async function TakvimPage(
             {ayAdi}
           </span>
           <Link
-            href={`/takvim?ay=${ayParam(sonrakiAy)}${kimParam}`}
+            href={`/takvim?ay=${ayParam(sonrakiAy)}${kimParam}${turParam}`}
             aria-label="Sonraki ay"
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 text-muted-foreground hover:text-foreground"
           >
             <ChevronRight className="h-4 w-4" />
           </Link>
           <Link
-            href={`/takvim?ay=${ayParam(bugun)}${kimParam}`}
+            href={`/takvim?ay=${ayParam(bugun)}${kimParam}${turParam}`}
             className="btn-secondary h-9 px-3 text-sm"
           >
             <CalendarDays className="h-4 w-4" /> Bugün
           </Link>
         </div>
 
-        <div className="flex flex-wrap gap-2 text-xs">
-          {(Object.keys(RENK) as TakvimOgesi["tur"][]).map((t) => (
-            <span key={t} className={`rounded-lg px-2 py-1 font-medium ${RENK[t]}`}>
-              {t === "gorev"
-                ? "Görev"
-                : t === "firsat"
-                  ? "Fırsat"
-                  : t === "teklif"
-                    ? "Teklif"
-                    : t === "egitim"
-                      ? "Eğitim"
-                      : "Hizmet"}
-            </span>
-          ))}
+        {/* Renk açıklaması aynı zamanda kategori süzgecidir (Faz 13 / H8):
+            ayrı bir filtre kutusu koymak yerine var olan gösterge tıklanır. */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {gorunurTurler.map((t) => {
+            const secili = seciliTurler.has(t);
+            return (
+              <Link
+                key={t}
+                href={turQs(t)}
+                aria-pressed={secili}
+                className={`rounded-lg px-2 py-1 font-medium transition-opacity ${RENK[t]} ${
+                  secili ? "" : "opacity-35 hover:opacity-60"
+                }`}
+              >
+                {TUR_ETIKET[t]}
+              </Link>
+            );
+          })}
+          {seciliTurler.size < gorunurTurler.length && (
+            <Link
+              href={`/takvim?ay=${ayParam(ayBasi)}${kimParam}`}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Tümü
+            </Link>
+          )}
         </div>
       </div>
 

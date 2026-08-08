@@ -1,5 +1,12 @@
 import "server-only";
 import type { TenantClient } from "./tenant-db";
+import {
+  TAKVIM_TURLERI,
+  TUR_ETIKET,
+  type TakvimTuru,
+} from "./takvim-tanimlar";
+
+export * from "./takvim-tanimlar";
 
 /**
  * Takvim — Faz 8 / D4.
@@ -15,7 +22,7 @@ import type { TenantClient } from "./tenant-db";
 
 export type TakvimOgesi = {
   id: string;
-  tur: "gorev" | "firsat" | "teklif" | "egitim" | "hizmet";
+  tur: TakvimTuru;
   baslik: string;
   tarih: Date;
   aciklama?: string | null;
@@ -28,12 +35,18 @@ export async function takvimOgeleri(
   izinler: Set<string>,
   baslangic: Date,
   bitis: Date,
-  kullaniciId?: string
+  kullaniciId?: string,
+  /**
+   * Kategori süzgeci (Faz 13 / H8). Verilmezse hepsi gelir. Süzgeç dışındaki
+   * kategorinin SORGUSU HİÇ ÇALIŞMAZ — pano kartlarındaki kural burada da
+   * geçerli: göstermeyeceğimiz veriyi okumayız.
+   */
+  turler: Set<TakvimTuru> = new Set(TAKVIM_TURLERI)
 ): Promise<TakvimOgesi[]> {
   const ogeler: TakvimOgesi[] = [];
   const isler: Promise<void>[] = [];
 
-  if (izinler.has("aktivite.goruntule")) {
+  if (izinler.has("aktivite.goruntule") && turler.has("gorev")) {
     isler.push(
       db.aktivite
         .findMany({
@@ -60,7 +73,7 @@ export async function takvimOgeleri(
     );
   }
 
-  if (izinler.has("firsat.goruntule")) {
+  if (izinler.has("firsat.goruntule") && turler.has("firsat")) {
     isler.push(
       db.firsat
         .findMany({
@@ -87,7 +100,7 @@ export async function takvimOgeleri(
     );
   }
 
-  if (izinler.has("teklif.goruntule")) {
+  if (izinler.has("teklif.goruntule") && turler.has("teklif")) {
     isler.push(
       db.teklif
         .findMany({
@@ -113,7 +126,7 @@ export async function takvimOgeleri(
     );
   }
 
-  if (izinler.has("egitim.goruntule")) {
+  if (izinler.has("egitim.goruntule") && turler.has("egitim")) {
     isler.push(
       db.egitim
         .findMany({
@@ -135,7 +148,7 @@ export async function takvimOgeleri(
     );
   }
 
-  if (izinler.has("hizmet.goruntule")) {
+  if (izinler.has("hizmet.goruntule") && turler.has("hizmet")) {
     isler.push(
       db.hizmet
         .findMany({
@@ -195,14 +208,6 @@ export function icsUret(ogeler: TakvimOgesi[], takvimAdi = "Gezegen CRM"): strin
   satirlar.push("END:VCALENDAR");
   return satirlar.map(katla).join("\r\n") + "\r\n";
 }
-
-const TUR_ETIKET: Record<TakvimOgesi["tur"], string> = {
-  gorev: "Görev",
-  firsat: "Fırsat",
-  teklif: "Teklif",
-  egitim: "Eğitim",
-  hizmet: "Hizmet",
-};
 
 function etiketli(o: TakvimOgesi): string {
   return `[${TUR_ETIKET[o.tur]}] ${o.baslik}`;

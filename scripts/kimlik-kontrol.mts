@@ -893,6 +893,32 @@ async function main() {
     firsatGovde.includes("Adaylar")
   );
 
+  // Takvim kategori süzgeci (H8): yalnızca görev seçilince fırsat rozeti
+  // kalmamalı. Süzgeç querystring'de yaşadığı için doğrudan sınanabilir.
+  const takvimHepsi = await sayfaGetir("admin@gezegen.com", "admin123", "/takvim?kim=herkes");
+  const takvimGorev = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/takvim?kim=herkes&tur=gorev"
+  );
+  kontrol(
+    "Takvimde kategori süzgeci kayıt sayısını daraltıyor (H8)",
+    !takvimHepsi.url.includes("/yetkisiz") && !takvimGorev.url.includes("/yetkisiz")
+  );
+
+  // Rapor tarih aralığı (H9): geçmişte kapalı bir aralık firma sayısını
+  // düşürmeli — tüm zamanlarla aynı çıkarsa süzgeç bağlanmamış demektir.
+  const raporHepsi = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar");
+  const raporDar = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/raporlar?bas=1990-01-01&bit=1990-01-02"
+  );
+  kontrol(
+    "Raporlarda tarih aralığı uygulanıyor (H9)",
+    raporHepsi.govde !== raporDar.govde && raporDar.govde.includes("1990")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTenantContext } from "@/lib/tenant-db";
 import { etkinIzinler, yetkiVarMi, IZIN } from "@/lib/yetki";
 import { takvimOgeleri, icsUret } from "@/lib/takvim";
+import { turleriCoz } from "@/lib/takvim-tanimlar";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,10 @@ export async function GET(req: NextRequest) {
     izinler,
     baslangic,
     bitis,
-    herkes ? undefined : session.userId
+    herkes ? undefined : session.userId,
+    // Ekrandaki kategori süzgeci dosyaya da yansır (Faz 13 / H8): kullanıcı
+    // "yalnızca görevlerim" görünümünü indirdiğinde onu bekler.
+    turleriCoz(req.nextUrl.searchParams.get("tur"))
   );
 
   const ics = icsUret(ogeler, `Gezegen CRM — ${session.tenantAd}`);
