@@ -265,6 +265,51 @@ async function satirlariOku(
       }));
     }
 
+    // ── Sipariş ve sevkiyat (Faz 15) ──
+    case "siparisler": {
+      const kayitlar = await db.siparis.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("no", "firma.ad") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: AZAMI_SATIR,
+        include: { firma: { select: { ad: true } } },
+      });
+      const kullanicilar = await db.user.findMany({ select: { id: true, name: true } });
+      const adOf = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+      return kayitlar.map((s) => ({
+        ...s,
+        firmaAd: s.firma.ad,
+        olusturanAd: s.olusturanId ? adOf.get(s.olusturanId) ?? null : null,
+        onaylayanAd: s.onaylayanId ? adOf.get(s.onaylayanId) ?? null : null,
+      }));
+    }
+
+    case "sevkiyatlar": {
+      const kayitlar = await db.sevkiyat.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("no", "takipNo", "siparis.firma.ad") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: AZAMI_SATIR,
+        include: {
+          siparis: { select: { no: true, firma: { select: { ad: true } } } },
+        },
+      });
+      return kayitlar.map((s) => ({
+        ...s,
+        siparisNo: s.siparis.no,
+        firmaAd: s.siparis.firma.ad,
+      }));
+    }
+
     case "hizmetler": {
       const kayitlar = await db.hizmet.findMany({
         where: {

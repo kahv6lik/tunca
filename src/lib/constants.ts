@@ -149,6 +149,13 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   // kampanya (Faz 14)
   duraklatildi: { label: "Duraklatıldı", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
   sonaerdi: { label: "Sona Erdi", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
+  // sipariş ve sevkiyat (Faz 15)
+  // NOT: "onaylandi" ve "reddedildi" zaten yatırım desteğinden geliyor;
+  // etiketleri sipariş için de doğru, ikinci kez tanımlanmıyor.
+  onaybekliyor: { label: "Onay Bekliyor", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  hazirlaniyor: { label: "Hazırlanıyor", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  sevkedildi: { label: "Sevk Edildi", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
+  teslim: { label: "Teslim Edildi", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
 };
 
 // ── Ticari çekirdek (Faz 14) ───────────────────────────────────────────────
@@ -196,6 +203,35 @@ export const STOK_HAREKET_TUR = [
 
 export type StokHareketTuru = (typeof STOK_HAREKET_TUR)[number]["deger"];
 
+// ── Sipariş ve sevkiyat (Faz 15) ───────────────────────────────────────────
+
+/**
+ * Sipariş durumları.
+ *
+ * `onaybekliyor` VARSAYILANDIR: satış personelinin girdiği her sipariş
+ * yöneticinin önüne düşer. "taslak" yalnızca kullanıcının kendi hazırlığıdır
+ * ve onay kuyruğuna girmez.
+ */
+export const SIPARIS_DURUM = [
+  "taslak",
+  "onaybekliyor",
+  "onaylandi",
+  "reddedildi",
+  "iptal",
+] as const;
+
+export type SiparisDurumu = (typeof SIPARIS_DURUM)[number];
+
+/** Sevkiyat durumları — yalnızca ONAYLANMIŞ siparişten doğar. */
+export const SEVKIYAT_DURUM = [
+  "hazirlaniyor",
+  "sevkedildi",
+  "teslim",
+  "iptal",
+] as const;
+
+export type SevkiyatDurumu = (typeof SEVKIYAT_DURUM)[number];
+
 // Kiracı (kuruluş) durumları — admin panelde kullanılır
 export const KIRACI_DURUM = ["aktif", "askida", "pasif"] as const;
 
@@ -225,6 +261,10 @@ export const PAKET_MODULLERI = [
   { deger: "urun", etiket: "Ürünler ve Paketler", izin: "urun.goruntule" },
   { deger: "kampanya", etiket: "Kampanyalar", izin: "kampanya.goruntule" },
   { deger: "stok", etiket: "Stok Takibi", izin: "stok.goruntule" },
+  // Faz 15 — sipariş ve sevkiyat. Sevkiyat ayrıdır: hizmet satan bir kuruluş
+  // sipariş alır ama kargo göndermez.
+  { deger: "siparis", etiket: "Siparişler", izin: "siparis.goruntule" },
+  { deger: "sevkiyat", etiket: "Sevkiyat", izin: "sevkiyat.goruntule" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

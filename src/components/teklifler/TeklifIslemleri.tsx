@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Copy, Send, Check, XCircle, Trash2, Printer } from "lucide-react";
+import { Copy, Send, Check, XCircle, Trash2, Printer, ShoppingCart } from "lucide-react";
 import {
   teklifDurumDegistir,
   teklifRevizeEt,
@@ -21,6 +21,7 @@ export default function TeklifIslemleri({
   duzenleyebilir,
   olusturabilir,
   silebilir,
+  siparisAcabilir = false,
 }: {
   id: string;
   no: string;
@@ -28,6 +29,8 @@ export default function TeklifIslemleri({
   duzenleyebilir: boolean;
   olusturabilir: boolean;
   silebilir: boolean;
+  /** Sipariş oluşturma izni var mı? (Faz 15 / S2) */
+  siparisAcabilir?: boolean;
 }) {
   const [bekliyor, basla] = useTransition();
   const dondurulmus = durum === "revizyon";
@@ -39,6 +42,14 @@ export default function TeklifIslemleri({
       <a href={`/teklifler/${id}/yazdir`} className="btn-secondary h-9 px-3 text-sm">
         <Printer className="h-4 w-4" /> Yazdır / PDF
       </a>
+
+      {/* Kabul edilen tekliften tek tuşla sipariş (Faz 15 / S2): kalemler
+          teklifin kalemlerinden hazır gelir, satış yeniden yazmaz. */}
+      {siparisAcabilir && durum === "kabul" && (
+        <a href={`/siparisler/yeni?teklif=${id}`} className="btn-primary h-9 px-3 text-sm">
+          <ShoppingCart className="h-4 w-4" /> Sipariş Oluştur
+        </a>
+      )}
 
       {duzenleyebilir && !dondurulmus && durum !== "gonderildi" && (
         <button

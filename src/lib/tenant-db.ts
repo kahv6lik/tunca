@@ -63,6 +63,10 @@ const KIRACI_MODELLERI = new Set([
   "KampanyaFirma",
   "KampanyaKullanim",
   "StokHareketi",
+  // Faz 15 — sipariş ve sevkiyat
+  "Siparis",
+  "SiparisKalemi",
+  "Sevkiyat",
   // Davet kiracıya bağlıdır ve RLS'te kiracı politikası vardır; kuruluş
   // yöneticisi kendi ekibini /kullanicilar üzerinden davet eder.
   "Davet",
@@ -207,7 +211,11 @@ export type KiraciModeli =
   | "kampanyaPaket"
   | "kampanyaFirma"
   | "kampanyaKullanim"
-  | "stokHareketi";
+  | "stokHareketi"
+  // Faz 15 — sipariş ve sevkiyat
+  | "siparis"
+  | "siparisKalemi"
+  | "sevkiyat";
 
 export async function sahiplikDogrula(
   db: TenantClient,

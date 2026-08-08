@@ -94,6 +94,10 @@ model Tenant {
   KampanyaFirma    KampanyaFirma[]
   KampanyaKullanim KampanyaKullanim[]
   StokHareketi     StokHareketi[]
+  Siparis          Siparis[]
+  SiparisKalemi    SiparisKalemi[]
+  Sevkiyat         Sevkiyat[]
+  BelgeSayac       BelgeSayac[]
 
   @@index([durum])
 }
@@ -171,6 +175,7 @@ model Firma {
   Paket            Paket[]
   KampanyaFirma    KampanyaFirma[]
   KampanyaKullanim KampanyaKullanim[]
+  Siparis          Siparis[]
 
   @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
@@ -362,6 +367,7 @@ model Kisi {
   firsatlar    Firsat[]
   aktiviteler  Aktivite[]
   ozelDegerler OzelAlanDeger[]
+  Siparis      Siparis[]
 
   @@index([tenantId, firmaId])
   @@index([tenantId, ad])
@@ -550,6 +556,7 @@ model Teklif {
   updatedAt      DateTime @updatedAt
 
   kalemler TeklifKalemi[]
+  Siparis  Siparis[]
 
   @@unique([tenantId, no])
   @@index([tenantId, firmaId])
@@ -997,6 +1004,7 @@ model Urun {
   paketKalemleri  PaketKalemi[]
   kampanyaKapsam  KampanyaUrun[]
   stokHareketleri StokHareketi[]
+  SiparisKalemi   SiparisKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum, ad])
@@ -1031,6 +1039,7 @@ model Paket {
 
   kalemler       PaketKalemi[]
   kampanyaKapsam KampanyaPaket[]
+  SiparisKalemi  SiparisKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum])
@@ -1085,10 +1094,11 @@ model Kampanya {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  urunler     KampanyaUrun[]
-  paketler    KampanyaPaket[]
-  firmalar    KampanyaFirma[]
-  kullanimlar KampanyaKullanim[]
+  urunler       KampanyaUrun[]
+  paketler      KampanyaPaket[]
+  firmalar      KampanyaFirma[]
+  kullanimlar   KampanyaKullanim[]
+  SiparisKalemi SiparisKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum, baslangic])
@@ -1184,4 +1194,146 @@ model StokHareketi {
 
   @@index([tenantId, urunId, createdAt])
   @@index([tenantId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SİPARİŞ, ONAY VE SEVKİYAT (Faz 15)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Sipariş (S1).
+//
+// AKIŞIN SÖZÜ: satış personelinin girdiği sipariş "onay bekliyor" durumunda
+// açılır ve ONAYLANMADAN sevkiyata düşmez. Sevkiyat kaydı yalnızca onaylanmış
+// siparişten doğar; bu kural `siparis.ts` içinde tek kapıdan geçer ve testle
+// sabitlenmiştir.
+//
+// Tutarlar SUNUCUDA hesaplanır ve saklanır (teklifteki desen): formdaki
+// toplam yalnızca önizlemedir. Onaylanmış bir siparişin rakamı, o gün
+// müşteriye söylenen rakamdır — sonradan fiyat listesi değişse bile
+// değişmemelidir.
+model Siparis {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  no      String
+  firmaId String
+  firma   Firma   @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  kisiId  String?
+  kisi    Kisi?   @relation(fields: [kisiId], references: [id], onDelete: SetNull)
+
+  // Tekliften doğan sipariş kaynağını taşır (S2). Teklif silinse bile
+  // sipariş ayakta kalır: satış gerçekleşmiştir.
+  teklifId String?
+  teklif   Teklif? @relation(fields: [teklifId], references: [id], onDelete: SetNull)
+
+  durum String @default("onaybekliyor") // constants.ts → SIPARIS_DURUM
+
+  araToplam     Float  @default(0)
+  indirimTutari Float  @default(0)
+  kdvTutari     Float  @default(0)
+  toplam        Float  @default(0)
+  paraBirimi    String @default("TRY")
+
+  notlar String?
+
+  // ── Onay akışı (S3) ──
+  olusturanId String?
+  onaylayanId String?
+  onayTarihi  DateTime?
+  redSebebi   String?
+
+  // Onayda düşülen stok/kota geri alınabilsin diye işaretlenir: iptal
+  // edilen bir sipariş, düşülmemiş stoğu iade etmeye kalkmamalıdır.
+  stokDusuldu Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kalemler    SiparisKalemi[]
+  sevkiyatlar Sevkiyat[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, durum, createdAt])
+  @@index([tenantId, firmaId])
+}
+
+model SiparisKalemi {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  siparisId String
+  siparis   Siparis @relation(fields: [siparisId], references: [id], onDelete: Cascade)
+
+  // Ürün silinse bile satır kalır: sipariş geçmişi bozulmamalı. Bu yüzden
+  // açıklama ve fiyat satırın KENDİSİNDE saklanır, ürüne bakılarak
+  // hesaplanmaz (teklif kalemindeki desen).
+  urunId  String?
+  urun    Urun?   @relation(fields: [urunId], references: [id], onDelete: SetNull)
+  paketId String?
+  paket   Paket?  @relation(fields: [paketId], references: [id], onDelete: SetNull)
+
+  sira         Int    @default(0)
+  aciklama     String
+  miktar       Float  @default(1)
+  birim        String @default("adet")
+  birimFiyat   Float  @default(0)
+  iskontoOrani Float  @default(0)
+  kdvOrani     Float  @default(20)
+
+  // Uygulanan kampanya ve indirimi satır bazında saklanır: "bu satıra neden
+  // bu fiyat verildi?" sorusu sonradan da yanıtlanabilmeli.
+  kampanyaId    String?
+  kampanya      Kampanya? @relation(fields: [kampanyaId], references: [id], onDelete: SetNull)
+  indirimTutari Float     @default(0)
+  tutar         Float     @default(0) // KDV hariç net
+
+  @@index([tenantId, siparisId])
+}
+
+// Sevkiyat (S4).
+//
+// YALNIZCA ONAYLANMIŞ siparişten doğar. Bir siparişin birden çok sevkiyatı
+// olabilir (kısmi sevkiyat); bu yüzden ayrı bir tablodur.
+model Sevkiyat {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  siparisId String
+  siparis   Siparis @relation(fields: [siparisId], references: [id], onDelete: Cascade)
+
+  no       String
+  durum    String  @default("hazirlaniyor") // constants.ts → SEVKIYAT_DURUM
+  tasiyici String?
+  takipNo  String?
+  adres    String?
+
+  sevkTarihi   DateTime?
+  teslimTarihi DateTime?
+  notlar       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, no])
+  @@index([tenantId, durum, createdAt])
+  @@index([tenantId, siparisId])
+}
+
+// Sipariş ve sevkiyat numarası sayacı (Faz 15).
+//
+// Firma numarasındaki (Faz 13) atomik sayaç deseni: "en büyüğü bul + 1"
+// yarış koşuludur. `tur` alanı sayacı ayırır ("siparis" | "sevkiyat") ve
+// numara YIL bazında sıfırlanır — muhasebe alışkanlığı böyledir.
+model BelgeSayac {
+  tenantId String
+  tur      String
+  yil      Int
+
+  sonSira   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, tur, yil])
 }

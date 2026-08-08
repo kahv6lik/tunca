@@ -86,6 +86,11 @@ const MODELLER = [
   "kampanyaFirma",
   "kampanyaKullanim",
   "stokHareketi",
+  // Faz 15 — sipariş ve sevkiyat. Sipariş kalemden, sevkiyat siparişten
+  // önce gelir (FK sırası).
+  "siparis",
+  "siparisKalemi",
+  "sevkiyat",
 ] as const;
 
 type YedekModeli = (typeof MODELLER)[number];
@@ -114,6 +119,9 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   kampanyaFirma: [],
   kampanyaKullanim: ["createdAt"],
   stokHareketi: ["createdAt"],
+  siparis: ["onayTarihi", "createdAt", "updatedAt"],
+  siparisKalemi: [],
+  sevkiyat: ["sevkTarihi", "teslimTarihi", "createdAt", "updatedAt"],
 };
 
 export type YedekIcerigi = {

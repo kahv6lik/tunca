@@ -106,6 +106,17 @@ export const IZIN = {
   stokGoruntule: "stok.goruntule",
   stokHareket: "stok.hareket",
 
+  // ── Faz 15: sipariş ve sevkiyat ──────────────────────────────────────────
+  // ONAYLAMA ayrı bir izindir ve bilinçli olarak oluşturmadan ayrıdır:
+  // siparişi giren kişi kendi siparişini onaylayamamalıdır.
+  siparisGoruntule: "siparis.goruntule",
+  siparisOlustur: "siparis.olustur",
+  siparisDuzenle: "siparis.duzenle",
+  siparisSil: "siparis.sil",
+  siparisOnayla: "siparis.onayla",
+  sevkiyatGoruntule: "sevkiyat.goruntule",
+  sevkiyatYonet: "sevkiyat.yonet",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -171,6 +182,13 @@ export const IZIN_ETIKET: Record<string, string> = {
   "kampanya.yonet": "Kampanyaları yönet",
   "stok.goruntule": "Stok durumunu görüntüle",
   "stok.hareket": "Stok hareketi gir",
+  "siparis.goruntule": "Siparişleri görüntüle",
+  "siparis.olustur": "Sipariş oluştur",
+  "siparis.duzenle": "Sipariş düzenle",
+  "siparis.sil": "Sipariş sil",
+  "siparis.onayla": "Siparişleri onayla / reddet",
+  "sevkiyat.goruntule": "Sevkiyatları görüntüle",
+  "sevkiyat.yonet": "Sevkiyat oluştur ve güncelle",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -193,6 +211,14 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Ürünler ve Paketler", izinler: [IZIN.urunGoruntule, IZIN.urunYonet] },
   { ad: "Kampanyalar", izinler: [IZIN.kampanyaGoruntule, IZIN.kampanyaYonet] },
   { ad: "Stok", izinler: [IZIN.stokGoruntule, IZIN.stokHareket] },
+  {
+    ad: "Siparişler",
+    izinler: [
+      IZIN.siparisGoruntule, IZIN.siparisOlustur, IZIN.siparisDuzenle,
+      IZIN.siparisSil, IZIN.siparisOnayla,
+    ],
+  },
+  { ad: "Sevkiyat", izinler: [IZIN.sevkiyatGoruntule, IZIN.sevkiyatYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
@@ -231,6 +257,9 @@ const GORUNTULEME: Izin[] = [
   IZIN.urunGoruntule,
   IZIN.kampanyaGoruntule,
   IZIN.stokGoruntule,
+  // Faz 15: siparişi görmek satış ekibinin günlük işidir.
+  IZIN.siparisGoruntule,
+  IZIN.sevkiyatGoruntule,
 ];
 
 const IS_VERISI_TAM: Izin[] = [
@@ -247,6 +276,12 @@ const IS_VERISI_TAM: Izin[] = [
   // Stok hareketi günlük iştir (mal kabul, sevkiyat); üye de girebilir.
   // Katalog ve kampanya YÖNETİMİ ise bilinçli olarak dışarıdadır.
   IZIN.stokHareket,
+  // Faz 15: sipariş girmek satış işidir. ONAYLAMA burada YOKTUR — siparişi
+  // giren kişi onu onaylayamamalıdır; onay yöneticinin işidir.
+  IZIN.siparisOlustur, IZIN.siparisDuzenle, IZIN.siparisSil,
+  // Sevkiyat kaydı depo işidir; onaylanmamış siparişten sevkiyat açılamaz
+  // (kural veri katmanında, izinle değil).
+  IZIN.sevkiyatYonet,
 ];
 
 /**
@@ -280,6 +315,8 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     // Faz 14: katalog, paket ve kampanya TANIMI fiyat politikasıdır.
     IZIN.urunYonet,
     IZIN.kampanyaYonet,
+    // Faz 15: onay yetkisi yöneticidedir.
+    IZIN.siparisOnayla,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

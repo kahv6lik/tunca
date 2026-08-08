@@ -24,6 +24,11 @@ export const BILDIRIM_TURLERI = [
   { deger: "teklif.durum", etiket: "Teklifimin durumu değiştiğinde" },
   { deger: "lead.atandi", etiket: "Bana bir aday atandığında" },
   { deger: "otomasyon", etiket: "İş akışı kuralı çalıştığında" },
+  // Faz 15 — sipariş akışı. Depo bildirimi bilinçli olarak "onaylandı"ya
+  // bağlıdır: onaysız siparişten sevkiyat ekibine haber GİTMEZ.
+  { deger: "siparis.onaybekliyor", etiket: "Onayıma bir sipariş düştüğünde" },
+  { deger: "siparis.karar", etiket: "Siparişim onaylandığında ya da reddedildiğinde" },
+  { deger: "siparis.sevkiyat", etiket: "Sevkiyat için onaylı sipariş hazır olduğunda" },
 ] as const;
 
 export type BildirimTuru = (typeof BILDIRIM_TURLERI)[number]["deger"];

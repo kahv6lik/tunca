@@ -22,11 +22,13 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
   const params = await props.params;
   await yetkiGerektir(IZIN.teklifGoruntule);
 
-  const [duzenleyebilir, olusturabilir, silebilir] = await Promise.all([
-    yetkiVarMi(IZIN.teklifDuzenle),
-    yetkiVarMi(IZIN.teklifOlustur),
-    yetkiVarMi(IZIN.teklifSil),
-  ]);
+  const [duzenleyebilir, olusturabilir, silebilir, siparisAcabilir] =
+    await Promise.all([
+      yetkiVarMi(IZIN.teklifDuzenle),
+      yetkiVarMi(IZIN.teklifOlustur),
+      yetkiVarMi(IZIN.teklifSil),
+      yetkiVarMi(IZIN.siparisOlustur),
+    ]);
 
   const db = await getTenantDb();
 
@@ -84,6 +86,7 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               duzenleyebilir={duzenleyebilir}
               olusturabilir={olusturabilir}
               silebilir={silebilir}
+              siparisAcabilir={siparisAcabilir}
             />
           </div>
         }

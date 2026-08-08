@@ -255,6 +255,47 @@ export const VERI_KUMELERI: VeriKumesi[] = [
       { anahtar: "aciklama", etiket: "Açıklama" },
     ],
   },
+  // ── Sipariş ve sevkiyat (Faz 15) ──
+  {
+    deger: "siparisler",
+    etiket: "Siparişler",
+    izin: "siparis.goruntule",
+    // Sipariş içe aktarıma KAPALI: onay akışı, stok ve kota düşümü bir
+    // tablodan yeniden kurulamaz (teklif/fırsat ile aynı gerekçe).
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "no", etiket: "Sipariş No" },
+      { anahtar: "firmaAd", etiket: "Firma" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "araToplam", etiket: "Ara Toplam", tur: "sayi" },
+      { anahtar: "indirimTutari", etiket: "İndirim", tur: "sayi" },
+      { anahtar: "kdvTutari", etiket: "KDV", tur: "sayi" },
+      { anahtar: "toplam", etiket: "Genel Toplam", tur: "sayi" },
+      { anahtar: "paraBirimi", etiket: "Para Birimi" },
+      { anahtar: "olusturanAd", etiket: "Oluşturan" },
+      { anahtar: "onaylayanAd", etiket: "Onaylayan" },
+      { anahtar: "onayTarihi", etiket: "Onay Tarihi", tur: "tarih" },
+      { anahtar: "redSebebi", etiket: "Ret Gerekçesi" },
+      { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
+    ],
+  },
+  {
+    deger: "sevkiyatlar",
+    etiket: "Sevkiyatlar",
+    izin: "sevkiyat.goruntule",
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "no", etiket: "Sevkiyat No" },
+      { anahtar: "siparisNo", etiket: "Sipariş No" },
+      { anahtar: "firmaAd", etiket: "Firma" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "tasiyici", etiket: "Taşıyıcı" },
+      { anahtar: "takipNo", etiket: "Takip No" },
+      { anahtar: "sevkTarihi", etiket: "Sevk Tarihi", tur: "tarih" },
+      { anahtar: "teslimTarihi", etiket: "Teslim Tarihi", tur: "tarih" },
+      { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
+    ],
+  },
 ];
 
 export function veriKumesiBul(deger: string): VeriKumesi | undefined {

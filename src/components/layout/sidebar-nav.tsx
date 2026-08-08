@@ -24,6 +24,8 @@ import {
   Package,
   Ticket,
   Warehouse,
+  ShoppingCart,
+  Truck,
   FileLock2,
   type LucideIcon,
 } from "lucide-react";
@@ -72,6 +74,13 @@ export const NAV: NavItem[] = [
     izin: "urun.goruntule",
     esRotalar: ["/paketler"],
   },
+  {
+    href: "/siparisler",
+    label: "Siparişler",
+    icon: ShoppingCart,
+    izin: "siparis.goruntule",
+  },
+  { href: "/sevkiyat", label: "Sevkiyat", icon: Truck, izin: "sevkiyat.goruntule" },
   { href: "/kampanyalar", label: "Kampanyalar", icon: Ticket, izin: "kampanya.goruntule" },
   { href: "/stok", label: "Stok", icon: Warehouse, izin: "stok.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },

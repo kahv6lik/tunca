@@ -233,6 +233,150 @@ async function ticariVeri(tenantId: string) {
     `✅ Ticari veri: ${urunTanimlari.length} ürün, 1 paket, 2 kampanya, ` +
       `${girisler.length} stok girişi.`
   );
+
+  return urunler;
+}
+
+/**
+ * Sipariş ve sevkiyat demo verisi (Faz 15).
+ *
+ * ÜÇ DURUM üretilir: onay bekleyen, onaylanmış (sevkiyatı açık) ve
+ * reddedilmiş. Böylece onay kuyruğu, sevkiyat kuyruğu ve ret gerekçesi
+ * ekranları demo veride de dolu görünür.
+ *
+ * Onaylanan siparişin stoğu HAREKETLE düşülür — bakiye elle yazılmaz;
+ * demo veri de defterin kuralını bozmamalıdır (Faz 14 / T7).
+ */
+async function siparisVerisi(tenantId: string, urunler: Record<string, string>) {
+  const mevcut = await prisma.siparis.count({ where: { tenantId } });
+  if (mevcut > 0) {
+    console.log("ℹ️  Sipariş verisi zaten var, üretim atlanıyor.");
+    return;
+  }
+
+  const firmalar = await prisma.firma.findMany({
+    where: { tenantId },
+    take: 3,
+    select: { id: true },
+  });
+  if (firmalar.length === 0) return;
+
+  const yonetici = await prisma.user.findFirst({
+    where: { tenantId, role: { in: ["tenant_admin", "admin"] } },
+    select: { id: true },
+  });
+  const uye = await prisma.user.findFirst({
+    where: { tenantId, role: "uye" },
+    select: { id: true },
+  });
+
+  const yil = new Date().getFullYear();
+  let sira = 0;
+  const no = () => `SIP-${yil}-${String(++sira).padStart(4, "0")}`;
+
+  // 1) Onay bekleyen
+  const bekleyen = await prisma.siparis.create({
+    data: {
+      tenantId,
+      no: no(),
+      firmaId: firmalar[0].id,
+      durum: "onaybekliyor",
+      olusturanId: uye?.id ?? null,
+      araToplam: 9600, indirimTutari: 0, kdvTutari: 1920, toplam: 11520,
+    },
+  });
+  await prisma.siparisKalemi.create({
+    data: {
+      tenantId, siparisId: bekleyen.id, sira: 0,
+      urunId: urunler["YAZ-001"], aciklama: "CRM Kullanıcı Lisansı (yıllık)",
+      miktar: 2, birim: "yıl", birimFiyat: 4800, kdvOrani: 20, tutar: 9600,
+    },
+  });
+
+  // 2) Onaylanmış + sevkiyatı açık (stok hareketiyle düşülmüş)
+  const onayli = await prisma.siparis.create({
+    data: {
+      tenantId,
+      no: no(),
+      firmaId: firmalar[1]?.id ?? firmalar[0].id,
+      durum: "onaylandi",
+      olusturanId: uye?.id ?? null,
+      onaylayanId: yonetici?.id ?? null,
+      onayTarihi: new Date(Date.now() - 2 * 86_400_000),
+      stokDusuldu: true,
+      araToplam: 16000, indirimTutari: 0, kdvTutari: 3200, toplam: 19200,
+    },
+  });
+  await prisma.siparisKalemi.create({
+    data: {
+      tenantId, siparisId: onayli.id, sira: 0,
+      urunId: urunler["DON-001"], aciklama: "Barkod Okuyucu",
+      miktar: 5, birim: "adet", birimFiyat: 3200, kdvOrani: 20, tutar: 16000,
+    },
+  });
+
+  const barkod = await prisma.urun.findFirst({
+    where: { id: urunler["DON-001"] },
+    select: { stokMiktar: true },
+  });
+  const yeniBakiye = (barkod?.stokMiktar ?? 0) - 5;
+  await prisma.urun.update({
+    where: { id: urunler["DON-001"] },
+    data: { stokMiktar: yeniBakiye },
+  });
+  await prisma.stokHareketi.create({
+    data: {
+      tenantId, urunId: urunler["DON-001"], tur: "cikis", miktar: -5,
+      sonrakiBakiye: yeniBakiye, referans: onayli.no,
+      aciklama: `Sipariş onayı: ${onayli.no}`,
+    },
+  });
+  await prisma.sevkiyat.create({
+    data: {
+      tenantId, siparisId: onayli.id,
+      no: `SVK-${yil}-0001`,
+      durum: "hazirlaniyor",
+      tasiyici: "Aras Kargo",
+    },
+  });
+
+  // 3) Reddedilmiş — gerekçesiyle
+  const red = await prisma.siparis.create({
+    data: {
+      tenantId,
+      no: no(),
+      firmaId: firmalar[2]?.id ?? firmalar[0].id,
+      durum: "reddedildi",
+      olusturanId: uye?.id ?? null,
+      onaylayanId: yonetici?.id ?? null,
+      onayTarihi: new Date(Date.now() - 86_400_000),
+      redSebebi: "İskonto oranı satış yetkisini aşıyor; revize edip yeniden gönderin.",
+      araToplam: 29000, indirimTutari: 5800, kdvTutari: 4640, toplam: 27840,
+    },
+  });
+  await prisma.siparisKalemi.create({
+    data: {
+      tenantId, siparisId: red.id, sira: 0,
+      urunId: urunler["DON-002"], aciklama: "El Terminali",
+      miktar: 2, birim: "adet", birimFiyat: 14500, iskontoOrani: 20,
+      kdvOrani: 20, indirimTutari: 5800, tutar: 23200,
+    },
+  });
+
+  // Belge sayacı üretilen numaralarla hizalanır: arayüzden açılan ilk
+  // sipariş çakışan numara almasın.
+  await prisma.belgeSayac.upsert({
+    where: { tenantId_tur_yil: { tenantId, tur: "siparis", yil } },
+    create: { tenantId, tur: "siparis", yil, sonSira: sira },
+    update: { sonSira: sira },
+  });
+  await prisma.belgeSayac.upsert({
+    where: { tenantId_tur_yil: { tenantId, tur: "sevkiyat", yil } },
+    create: { tenantId, tur: "sevkiyat", yil, sonSira: 1 },
+    update: { sonSira: 1 },
+  });
+
+  console.log("✅ Sipariş verisi: 3 sipariş (onay bekleyen, onaylı, reddedilen) + 1 sevkiyat.");
 }
 
 async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
@@ -568,6 +712,7 @@ async function paketleriKur() {
         // ama seed paketleri SIFIRDAN yaratır; liste eksik kalırsa modül
         // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
         "urun", "kampanya", "stok",
+        "siparis", "sevkiyat",
       ],
     },
     {
@@ -583,6 +728,7 @@ async function paketleriKur() {
         // ama seed paketleri SIFIRDAN yaratır; liste eksik kalırsa modül
         // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
         "urun", "kampanya", "stok",
+        "siparis", "sevkiyat",
       ],
     },
   ];
@@ -693,9 +839,10 @@ async function main() {
   console.log("✅ Örnek özel alanlar hazır (Müşteri No, Segment, LinkedIn, İhale No).");
 
   // --- Ticari çekirdek (Faz 14) — katalog, paket, kampanya, stok ---
-  await ticariVeri(gezegen.id);
+  const ticariUrunler = await ticariVeri(gezegen.id);
 
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
+  if (ticariUrunler) await siparisVerisi(gezegen.id, ticariUrunler);
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");
