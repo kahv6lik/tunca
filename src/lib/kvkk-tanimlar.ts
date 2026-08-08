@@ -9,7 +9,7 @@
  * onay istenir — "bir kere onayladı" savunması, değişen bir metin için
  * geçerli değildir.
  */
-export const KVKK_SURUM = "2026-08-1";
+export const KVKK_SURUM = "2026-08-2";
 
 export const KVKK_BASLIK = "Kişisel Verilerin Korunması Aydınlatma Metni";
 
@@ -36,6 +36,24 @@ export const KVKK_METNI: KvkkBolum[] = [
     ],
   },
   {
+    baslik: "Saha çalışması ve konum verisi",
+    govde: [
+      "Saha ziyareti kaydı oluşturan çalışanların konum bilgisi, YALNIZCA " +
+        "ziyaretin başlatıldığı ve bitirildiği anda, cihazın konum servisinden " +
+        "alınır. Sürekli konum takibi YAPILMAZ; ziyaret dışındaki zamanlarda " +
+        "konum verisi toplanmaz.",
+      "Alınan konum, ziyaret edilen firmanın kayıtlı konumuyla karşılaştırılır " +
+        "ve yalnızca 'doğrulandı / doğrulanamadı' sonucu ile ziyaret süresi " +
+        "kaydedilir. Amaç, saha faaliyetinin doğruluğunu teyit etmek ve ziyaret " +
+        "süresini raporlayabilmektir.",
+      "Cihazın konum izni verilmediğinde ziyaret kaydı yine oluşturulur; " +
+        "yalnızca 'konum doğrulanamadı' olarak işaretlenir. Konum paylaşmamak " +
+        "çalışanın işini yapmasını engellemez.",
+      "Konum kayıtları, kuruluşun belirlediği saklama süresine tabidir ve süre " +
+        "dolduğunda diğer kayıtlarla birlikte silinir.",
+    ],
+  },
+  {
     baslik: "İşleme amacı ve hukuki sebep",
     govde: [
       "Hesap verileri, hizmetin sunulabilmesi ve sözleşmenin ifası için işlenir.",
@@ -43,12 +61,15 @@ export const KVKK_METNI: KvkkBolum[] = [
         "erişimin tespiti amacıyla, meşru menfaat kapsamında işlenir.",
       "Denetim günlüğü, işlemlerin izlenebilirliğini sağlamak ve hukuki yükümlülükleri " +
         "yerine getirmek amacıyla tutulur.",
+      "Saha ziyareti konum verisi, iş faaliyetinin doğruluğunun teyidi ve " +
+        "raporlanması amacıyla, işverenin meşru menfaati kapsamında işlenir.",
     ],
   },
   {
     baslik: "Saklama süresi",
     govde: [
-      "Kuruluş, denetim günlüğü ve e-posta kayıtları için bir saklama süresi belirler. " +
+      "Kuruluş; denetim günlüğü, e-posta kayıtları ve saha ziyareti kayıtları için " +
+        "bir saklama süresi belirler. " +
         "Süre dolduğunda bu kayıtlar sistem tarafından kendiliğinden silinir.",
       "Giriş denemesi kayıtları en fazla 90 gün saklanır.",
       "Hesap kapatıldığında kişisel veriler silinir; iş verileri kuruluşa aittir ve " +
@@ -61,7 +82,11 @@ export const KVKK_METNI: KvkkBolum[] = [
       "Veriler kuruluşun kendi alanı içinde tutulur; farklı kuruluşların verileri " +
         "birbirinden hem uygulama hem veritabanı düzeyinde yalıtılmıştır.",
       "Kuruluşun kendi e-posta sunucusu tanımlıysa bildirim iletileri o sunucu " +
-        "üzerinden gönderilir; bunun dışında üçüncü taraflara aktarım yapılmaz.",
+        "üzerinden gönderilir.",
+      "Firma adreslerinin harita üzerinde konumlandırılması için adres bilgisi " +
+        "bir harita hizmet sağlayıcısına iletilebilir. Bu aktarım yalnızca ADRES " +
+        "metnini kapsar; kişi, ziyaret ya da çalışan bilgisi içermez ve sonuç " +
+        "koordinat olarak saklandığı için her görüntülemede tekrarlanmaz.",
     ],
   },
   {

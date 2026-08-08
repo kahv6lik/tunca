@@ -16,8 +16,8 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 | | |
 |---|---|
 | **Son çıkan sürüm** | `v1.12.1` — kişi departmanı |
-| **Sıradaki faz** | **Faz 13** — AI özellikleri (`v1.13.0`) |
-| **Sonrası** | Faz 14–21: saha geri bildirimlerinden türeyen ikinci tur (35 bulgu) |
+| **Sıradaki faz** | **Faz 13** — Arayüz ve veri düzeltmeleri (`v1.13.0`) |
+| **Sonrası** | Faz 14–20: saha geri bildirimleri (35 bulgu) · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -147,15 +147,15 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | ✅ tamamlandı | — |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
-| 13 | G1–G3 — AI özellikleri | `v1.13.0` | planlandı | |
-| 14 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.14.0` | planlandı | |
-| 15 | T1–T6 — Ürün kataloğu, paket, kampanya ve fiyat motoru | `v1.15.0` | planlandı | |
-| 16 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.16.0` | planlandı | |
-| 17 | P1–P4 — Proje, destek kaydı, SSS | `v1.17.0` | planlandı | |
-| 18 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.18.0` | planlandı | |
-| 19 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.19.0` | planlandı | |
-| 20 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.20.0` | planlandı | |
-| 21 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.21.0` | planlandı | |
+| 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | planlandı | |
+| 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | planlandı | |
+| 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | planlandı | |
+| 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | planlandı | |
+| 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | planlandı | |
+| 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | planlandı | |
+| 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | planlandı | |
+| 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | planlandı | |
+| 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | planlandı | |
 
 ## Yeni Katılan İçin Hızlı Başlangıç
 
@@ -848,21 +848,9 @@ sırlarıdır.
 
 ---
 
-## Faz 13 — AI Özellikleri (G1–G3) → `v1.13.0`
-
-- [ ] **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
-- [ ] **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
-- [ ] **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
-
-**Kural:** AI çağrıları kiracı verisini kiracı sınırının dışına taşımaz; hangi
-verinin modele gönderildiği kiracı yöneticisine açıkça bildirilir ve
-kapatılabilir olur.
-
 ---
 
----
-
-# İKİNCİ TUR — Saha Geri Bildirimleri (Faz 14–21)
+# İKİNCİ TUR — Saha Geri Bildirimleri (Faz 13–20)
 
 Aşağıdaki fazlar, ürün ortağının kullanım sonrası tespitlerinden türetildi
 (35 bulgu). Bulgular olduğu gibi bırakılmadı; **birbirine bağımlı olanlar aynı
@@ -873,23 +861,33 @@ faza toplandı** ve bağımlılık sırasına dizildi:
 - Mali raporlar sipariş/sevkiyat verisini okur → **onlardan sonra**.
 - Birleşik ekran bütün modülleri kapsar → **en sona**.
 
-> **Karar bekleyen konular** her fazın sonunda "Açık sorular" başlığı altında
-> listelidir. Bunlar yanıtlanmadan o faz başlatılmaz.
+> **Kararlar alındı.** İlk turda sorulan yedi soru yanıtlandı ve her fazın
+> sonundaki **"Kararlar"** başlığına işlendi (stok takibi eklendi, kampanya
+> tekil uygulanır, firma numarası `A0001`–`Z9999`, dosya depolama yerel
+> volume, geocoding Google Maps, konum izni reddi engel değil, AI en sona
+> alındı). Faz 16 ve 19'da yalnızca iki küçük tasarım sorusu açık kaldı;
+> ikisi de o faz başlarken netleşebilir.
 
 ---
 
-## Faz 14 — Arayüz ve Veri Düzeltmeleri → `v1.14.0`
+## Faz 13 — Arayüz ve Veri Düzeltmeleri → `v1.13.0`
 
 Küçük ama günlük kullanımı doğrudan etkileyen düzeltmeler. Yeni modül yok;
 bu yüzden ilk sıradadır — hızlı kazanç.
 
 - [ ] **H1 — Firma numarası.** Her firmaya kiracı içinde **değiştirilemez**,
-      otomatik artan `A0001` biçiminde numara. Liste, detay, arama ve dışa
-      aktarımda görünür.
+      otomatik artan numara. Liste, detay, arama ve dışa aktarımda görünür.
+      **KARAR: biçim `A0001` → `Z9999`.** Sayaç 9999'a ulaşınca harf ilerler
+      (`A9999` → `B0001`); toplam kapasite **259.974 firma/kiracı**.
       *Tasarım:* numara kiracı BAŞINA sayılır (her kuruluş A0001'den başlar);
-      üretimi veritabanı düzeyinde tekil kısıtla korunur, eşzamanlı iki kayıt
-      aynı numarayı alamaz. Mevcut firmalara migration ile `createdAt`
-      sırasına göre numara verilir.
+      üretim veritabanı düzeyinde tekil kısıtla korunur, eşzamanlı iki kayıt
+      aynı numarayı alamaz. Sıradaki numara `(tenantId, sayac)` satırından
+      atomik artırmayla alınır — "en büyüğü bul, bir ekle" yarış koşuludur.
+      Harf+rakam dönüşümü saf bir fonksiyondur (`firma-no-saf.ts`) ve testler
+      sınır durumları (A9999→B0001, Z9999 tükendi) doğrudan sınar.
+      Mevcut firmalara migration ile `createdAt` sırasına göre numara verilir.
+      Z9999 tükenirse kayıt açılmaz ve açık bir hata döner (sessizce
+      numarasız kayıt açmak, alanın "değiştirilemez kimlik" sözünü bozardı).
 - [ ] **H2 — Filtrelerde büyük/küçük harf duyarsızlığı.** Bütün liste
       aramaları `mode: "insensitive"` kullanır.
       *Bulgu doğrulandı:* şu an firmalar, adaylar, kişiler (telefon),
@@ -924,15 +922,12 @@ bu yüzden ilk sıradadır — hızlı kazanç.
       tarih aralığı süzgecine bağlanır (hazır seçenekler: bu ay, geçen ay,
       bu çeyrek, bu yıl, özel aralık). Süzgeç querystring'de yaşar.
 
-### Açık sorular
-- Firma numarası 4 hane (`A0001`) → **en fazla 9999 firma**. Demo kiracıda
-  zaten 800 firma var. 9999'a ulaşınca ne olsun: beş haneye mi geçilsin
-  (`A10000`), yoksa harf mi ilerlesin (`B0001`)? **Önerim: beş haneye taşsın**
-  — biçim bozulmaz, numara benzersiz kalır.
+### Kararlar
+- Numara biçimi `A0001`–`Z9999` (harf ilerler, 259.974 kapasite). ✅
 
 ---
 
-## Faz 15 — Ürün Kataloğu, Paket ve Kampanya → `v1.15.0`
+## Faz 14 — Ürün Kataloğu, Stok, Paket ve Kampanya → `v1.14.0`
 
 Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
@@ -959,24 +954,33 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
       fonksiyondan geçer: liste fiyatı → firmaya özel paket → geçerli kampanya
       → son fiyat. Sıra ve öncelik yazılıdır; testler bu fonksiyonu
       veritabanı olmadan sınar (`fiyat-saf.ts`).
+- [ ] **T7 — Stok takibi.** Ürün bazında stok miktarı ve **stok hareketi**
+      defteri: giriş (mal kabul), çıkış (sevkiyat), düzeltme, sayım. Her
+      hareket kim/ne zaman/neden bilgisiyle kaydedilir ve SİLİNMEZ — stok
+      bakiyesi hareketlerin toplamıdır, elle yazılan bir sayı değildir.
+      *Kritik:* bakiye düşümü, kampanya kotasıyla aynı gerekçeyle atomik
+      olmalıdır; iki temsilci son ürünü aynı anda satamamalı.
+- [ ] **T8 — Stok uyarıları ve raporu.** Kritik stok seviyesi tanımı, altına
+      düşünce bildirim; stok durumu, hareket dökümü ve devir hızı raporu.
 
-### Açık sorular
-- Aynı siparişe **birden çok kampanya** uygulanabilir mi, yoksa en avantajlı
-  tek kampanya mı seçilsin? **Önerim: tek kampanya** (en avantajlı olan
-  otomatik seçilir, kullanıcı isterse değiştirir) — üst üste binen indirimler
-  hem hesaplaması hem savunması zor rakamlar üretir.
-- Kota **adet** üzerinden mi, **tutar** üzerinden mi tükenecek? Bulguda adet
-  yazıyor; ikisi birden gerekiyorsa şimdi söylenmeli.
+### Kararlar
+- **Tek kampanya uygulanır:** en avantajlı olan otomatik seçilir, kullanıcı
+  isterse değiştirir. Üst üste binen indirimler hem hesaplaması hem müşteriye
+  savunması zor rakamlar üretirdi. ✅
+- **Gerçek stok takibi VAR** (T7, T8). Kampanya kotası ile stok bakiyesi
+  AYRI iki sayaçtır: kota "bu kampanyadan kaç adet verilebilir", stok "elde
+  kaç adet var". Bir sipariş ikisini birden düşürür.
+- Kota **adet** üzerinden tükenir (bulguda böyle yazıyor).
 
 ---
 
-## Faz 16 — Sipariş, Onay Akışı ve Sevkiyat → `v1.16.0`
+## Faz 15 — Sipariş, Onay Akışı ve Sevkiyat → `v1.15.0`
 
 - [ ] **S1 — Sipariş modülü.** Firma, kalemler (ürün/paket, adet, birim
       fiyat, iskonto, KDV), toplamlar, uygulanan kampanya, para birimi.
       Tutarlar **sunucuda** hesaplanır ve saklanır (teklifteki desen).
 - [ ] **S2 — Projeye ve teklife bağlama.** Sipariş; bir teklif ve/veya bir
-      projeyle ilişkilendirilebilir (Faz 17'deki proje modülüyle bütünleşir).
+      projeyle ilişkilendirilebilir (Faz 16'daki proje modülüyle bütünleşir).
       Tekliften tek tuşla sipariş oluşturma.
 - [ ] **S3 — Yönetici onay akışı.** Satış personelinin girdiği her sipariş
       "onay bekliyor" durumunda açılır. Yönetici onaylar ya da reddeder
@@ -992,17 +996,15 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
       satış personeline; onaylandı → depo ekibine. Mevcut bildirim kapısından
       (`bildirim.ts`) geçer, kullanıcı tercihine saygılıdır.
 
-### Açık sorular
-- **Gerçek stok takibi var mı?** Bulguda yalnızca kampanya adedi düşmesi
-  isteniyor. Ürünün genel stok miktarı da tutulacaksa bu ayrı bir iştir
-  (stok hareketi, giriş/çıkış, sayım) ve fazı belirgin biçimde büyütür.
-  **Varsayımım: gerçek stok YOK**, yalnızca kampanya kotası düşüyor.
-- Onay **tek kademeli** mi (yönetici), yoksa tutara göre kademeli mi
-  (ör. 100.000 TL üstü genel müdür)? **Varsayımım: tek kademeli.**
+### Kararlar
+- **Stok Faz 14'te kuruldu.** Sipariş onaylandığında hem kampanya kotası hem
+  stok bakiyesi düşer; stok yetersizse onay verilemez ve gerekçe gösterilir. ✅
+- Onay **tek kademelidir** (yönetici). Tutara göre kademeli onay şimdilik
+  yok; gerekirse sonradan eklenir. ✅
 
 ---
 
-## Faz 17 — Proje, Destek Kaydı ve SSS → `v1.17.0`
+## Faz 16 — Proje, Destek Kaydı ve SSS → `v1.16.0`
 
 - [ ] **P1 — Proje modülü.** Firma, ad, kod, sorumlu, başlangıç/bitiş,
       durum, bütçe. Projeye bağlı **teklifler ve siparişler** proje
@@ -1026,7 +1028,7 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ---
 
-## Faz 18 — Saha Çalışması: Ek Dosyalar ve Konum Doğrulama → `v1.18.0`
+## Faz 17 — Saha Çalışması: Ek Dosyalar ve Konum Doğrulama → `v1.17.0`
 
 - [ ] **A1 — Dosya eki altyapısı.** Aktivite (ve sonraki fazda destek kaydı,
       sipariş) kaydına dosya eklenebilir. Boyut ve tür sınırı, kiracı bazlı
@@ -1044,30 +1046,38 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
       aktiviteye açıklayıcı not düşer ve **yöneticiye bildirim gider**.
       Yarıçap kuruluş ayarıdır (varsayılan öneri: 300 m).
 
-### Açık sorular — bu faz başlamadan yanıtlanmalı
-1. **KVKK.** Personel konumu kişisel veridir. Aydınlatma metnine "çalışan
-   konum verisi" bölümü eklenmeli, metin sürümü artmalı ve personelden
-   **yeniden rıza** alınmalıdır. Konumun yalnızca ziyaret anında alındığı,
-   sürekli takip yapılmadığı açıkça yazılmalı. Bu, teknik değil hukuki bir
-   karardır; onaysız başlanmaz.
-2. **Dosya depolama.** Şu an uygulamanın kalıcı disk alanı YOK (yalnızca
-   veritabanı volume'ü var). İki seçenek: (a) sunucuya Docker volume ekleyip
-   yerel diske yazmak — basit, ama yedekleme ayrı düşünülmeli; (b) S3 uyumlu
-   bir nesne deposu — dayanıklı, ama ek servis/maliyet. **Önerim: (a) yerel
-   volume**, mevcut ölçek için yeterli; yedeğe dahil edilir.
-3. **Geocoding servisi.** Adresten koordinat üretmek dış servis ister
-   (Google Maps ücretli, OpenStreetMap/Nominatim ücretsiz ama kullanım
-   sınırlı). **Önerim: Nominatim** + koordinatın elle düzeltilebilmesi.
-   Alternatif: koordinat yalnızca elle/haritadan seçilsin, geocoding hiç
-   olmasın.
-4. Konum doğrulama **zorunlu mu**? Kullanıcı tarayıcı iznini reddederse
-   ziyaret kaydı açılamasın mı, yoksa "konum doğrulanamadı" (sarı) olarak mı
-   açılsın? **Önerim: sarı** — teknik bir aksaklık, personeli işini
-   yapamaz hâle getirmemeli.
+### Kararlar
+1. **KVKK metni ÖNCEDEN güncellendi** (v1.12.2): "Saha çalışması ve konum
+   verisi" bölümü eklendi, aktarım ve saklama bölümleri genişletildi, metin
+   sürümü `2026-08-2`ye çıkarıldı. Sürüm arttığı için tüm kullanıcılardan
+   **yeniden rıza** istenir. Metnin verdiği sözler bu fazın uygulamasını
+   BAĞLAR: sürekli takip yok, konum yalnızca ziyaret başında/sonunda alınır,
+   yalnızca "doğrulandı/doğrulanamadı" sonucu saklanır. ✅
+2. **Dosya depolama: yerel Docker volume.** `docker-compose` dosyalarına
+   `gezegen-dosya` volume'ü eklenir, uygulama oraya yazar. Yedek kapsamına
+   dahil edilir ve `docs/DEPLOY.md`'ye yedekleme adımı yazılır. ✅
+3. **Geocoding: Google Maps.** `GOOGLE_MAPS_API_KEY` ortam değişkeni.
+   **Maliyet koruması zorunlu:** koordinat bir kez üretilip firma kaydında
+   SAKLANIR, her görüntülemede yeniden istenmez; adres değişmedikçe yeni
+   istek gitmez; anahtar tanımsızsa özellik kapalıdır (koordinat elle
+   girilir) — "anahtar yoksa çalışmasın" davranışı, sessizce ücretli çağrı
+   yapmaktan iyidir. ✅
+4. **Konum izni reddedilirse ziyaret yine açılır**, "konum doğrulanamadı"
+   (sarı) olarak işaretlenir. Teknik bir aksaklık personeli işini yapamaz
+   hâle getirmemeli. ✅
+
+> **Faturalandırma notu (doğrulanmalı):** Google Maps Platform kullandıkça
+> öder; aylık sabit ücreti yoktur ve belirli bir kullanım eşiğine kadar
+> ücretsiz kotası vardır — ancak hesaba **kredi kartı tanımlanması
+> zorunludur** ve kota aşılırsa ücretlendirme başlar. Fiyatlandırma zaman
+> içinde değiştiği için anahtar alınmadan önce Google'ın güncel
+> fiyatlandırma sayfasından teyit edilmeli ve konsolda **günlük istek
+> sınırı (quota)** tanımlanmalıdır. Yukarıdaki önbellekleme kararı, tipik
+> kullanımda çağrı sayısını firma sayısı kadarla sınırlar.
 
 ---
 
-## Faz 19 — Raporlama Merkezi ve Firma Dosyası → `v1.19.0`
+## Faz 18 — Raporlama Merkezi ve Firma Dosyası → `v1.18.0`
 
 - [ ] **R1 — Rapor merkezi.** Bütün raporlar tek bir çatı altında: ortak
       tarih aralığı, ortak süzgeçler (firma, sorumlu, durum), ortak dışa
@@ -1090,7 +1100,7 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ---
 
-## Faz 20 — Anket → `v1.20.0`
+## Faz 19 — Anket → `v1.19.0`
 
 - [ ] **N1 — Anket tanımı.** Başlık, açıklama, sorular (metin, çoktan
       seçmeli, ölçek 1-5/1-10, evet-hayır), zorunluluk, sıra.
@@ -1111,7 +1121,7 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ---
 
-## Faz 21 — Birleşik Çalışma Ekranı → `v1.21.0`
+## Faz 20 — Birleşik Çalışma Ekranı → `v1.20.0`
 
 Bulgu: *"Modellerin içinden gezmemek için modeller kompleks yapıda çalışsın.
 Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek)."*
@@ -1128,14 +1138,29 @@ Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek).
 - [ ] **U4 — İlişkili kayıt zinciri.** Her kayıtta "bununla ilişkili" şeridi:
       fırsat → teklif → sipariş → sevkiyat zinciri tek bakışta izlenir.
 
-### Açık sorular
-- Odoo'nun neyi örnek alınıyor: **tek ekranda sekmeli çalışma** mı, yoksa
-  **her listede satır içi düzenleme** mi? İkisi çok farklı iştir.
-  **Önerim: yukarıdaki U1–U4** (komut paleti + yan panel + firma çalışma
-  ekranı); satır içi düzenleme ayrıca istenirse ek madde olur.
-- Bu faz mevcut ekranların ÜSTÜNE gelir, onları değiştirmez — böylece
-  alışkanlıklar bozulmaz. Onaylanırsa bu kural yazılı hâle getirilir.
+### Kararlar
+- Kapsam **U1–U4**'tür: komut paleti + yan panel + firma çalışma ekranı +
+  ilişkili kayıt zinciri. Satır içi düzenleme kapsam DIŞIDIR; ayrıca
+  istenirse yeni madde olarak eklenir. ✅
+- Bu faz mevcut ekranların **ÜSTÜNE** gelir, onları değiştirmez — kullanıcı
+  alışkanlıkları bozulmaz, eski yollar çalışmaya devam eder. ✅
 
+
+---
+
+## Faz 21 — AI Özellikleri (G1–G3) → `v1.21.0`  ‹son faz›
+
+- [ ] **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
+- [ ] **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
+- [ ] **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
+
+**Kural:** AI çağrıları kiracı verisini kiracı sınırının dışına taşımaz; hangi
+verinin modele gönderildiği kiracı yöneticisine açıkça bildirilir ve
+kapatılabilir olur.
+
+---
+
+---
 
 ## Planlama Notları
 

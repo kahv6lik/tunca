@@ -448,9 +448,22 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | ✅ tamamlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | ✅ tamamlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | ✅ tamamlandı |
-| 13 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.13.0` | planlandı |
+| 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | planlandı |
+| 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | planlandı |
+| 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | planlandı |
+| 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | planlandı |
+| 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | planlandı |
+| 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | planlandı |
+| 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | planlandı |
+| 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | planlandı |
+| 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | planlandı |
 
 Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
+
+**Faz 13-20**, ürün ortağının kullanım sonrası bildirdiği 35 bulgudan türedi
+(ayrıntı ve kararlar: `docs/ROADMAP.md` → "İKİNCİ TUR"). AI fazı bilinçli
+olarak en sona alındı: saha geri bildirimleri günlük kullanımı doğrudan
+etkiliyor.
 
 ### Versiyon Geçmişi
 
@@ -516,6 +529,12 @@ Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
   metin olsaydı aynı departman farklı yazımlarla kaydolur ve gruplama
   anlamsızlaşırdı; unvan serbest kalır. Kişiler listesinde ve firma detayında
   sütun, aramada ve dışa aktarımda alan olarak yer alır.
+- **v1.12.2** — KVKK aydınlatma metnine **"Saha çalışması ve konum verisi"**
+  bölümü; aktarım (harita hizmeti) ve saklama bölümleri genişletildi. Metin
+  sürümü `2026-08-2` → herkesten yeniden rıza istenir. Faz 17 (konum
+  doğrulama) başlamadan önce rızanın toplanmış olması için ÖNDEN yapıldı;
+  metnin verdiği sözler o fazın uygulamasını bağlar. Ayrıca yol haritası:
+  saha geri bildirimlerinden Faz 13-20, AI en sona (Faz 21).
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"
