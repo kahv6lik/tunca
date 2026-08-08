@@ -9,6 +9,9 @@ import { FIRSAT_DURUM, PARA_BIRIMI, durumBadge } from "@/lib/constants";
 import OzelAlanGirdileri from "@/components/OzelAlanGirdileri";
 import type { OzelAlanTanimi } from "@/lib/ozel-alan-tanimlar";
 
+/** Firma seçicideki "yeni firma" sözde değeri — sunucu tarafıyla aynı. */
+const YENI_FIRMA = "__yeni__";
+
 type Secenek = { id: string; ad: string };
 type AsamaSecenek = { id: string; ad: string; olasilik: number };
 
@@ -44,6 +47,7 @@ export default function FirsatPanel({
   mevcut,
   ozelAlanlar = [],
   ozelDegerler = {},
+  yeniFirmaAcilabilir = false,
 }: {
   asamalar: AsamaSecenek[];
   firmalar?: Secenek[];
@@ -53,6 +57,8 @@ export default function FirsatPanel({
   mevcut?: FirsatDegerleri;
   ozelAlanlar?: OzelAlanTanimi[];
   ozelDegerler?: Record<string, string>;
+  /** Kullanıcının firma oluşturma izni var mı? (Faz 13 / H6) */
+  yeniFirmaAcilabilir?: boolean;
 }) {
   const [acik, setAcik] = useState(false);
   const duzenleme = Boolean(mevcut);
@@ -65,6 +71,7 @@ export default function FirsatPanel({
     mevcut?.olasilik ?? asamalar[0]?.olasilik ?? 0
   );
   const [durum, setDurum] = useState(mevcut?.durum ?? "acik");
+  const [firmaSecim, setFirmaSecim] = useState(mevcut?.firmaId ?? "");
 
   if (state.ok && acik) setTimeout(() => setAcik(false), 0);
 
@@ -125,16 +132,41 @@ export default function FirsatPanel({
                     id={`firma-${mevcut?.id ?? "yeni"}`}
                     name="firmaId"
                     required
-                    defaultValue={mevcut?.firmaId ?? ""}
+                    value={firmaSecim}
+                    onChange={(e) => setFirmaSecim(e.target.value)}
                     className="input"
                   >
                     <option value="">Seçin…</option>
+                    {/* Yeni firmayı akışı bırakmadan açmak (Faz 13 / H6).
+                        Yalnızca YENİ fırsatta sunulur: var olan bir fırsatı
+                        düzenlerken firmayı değiştirmek zaten ayrı bir karar. */}
+                    {yeniFirmaAcilabilir && !duzenleme && (
+                      <option value={YENI_FIRMA}>+ Yeni firma ekle…</option>
+                    )}
                     {(firmalar ?? []).map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.ad}
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {firmaSecim === YENI_FIRMA && (
+                <div>
+                  <label className="label" htmlFor="yeniFirmaAd">
+                    Yeni Firma Adı *
+                  </label>
+                  <input
+                    id="yeniFirmaAd"
+                    name="yeniFirmaAd"
+                    required
+                    className="input"
+                    placeholder="ör. Akdeniz Tekstil A.Ş."
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Firma kaydı açılır ve sıradaki firma numarasını alır.
+                  </p>
                 </div>
               )}
 

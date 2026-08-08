@@ -48,6 +48,9 @@ export default function TeklifForm({
   mevcut,
   varsayilanNo,
   sabitFirmaId,
+  varsayilanFirmaId,
+  varsayilanFirsatId,
+  varsayilanBaslik,
 }: {
   firmalar: Secenek[];
   firsatlar?: Secenek[];
@@ -55,6 +58,14 @@ export default function TeklifForm({
   mevcut?: TeklifDegerleri;
   varsayilanNo?: string;
   sabitFirmaId?: string;
+  /**
+   * Fırsattan gelindiğinde ön seçimler (Faz 13 / H7). "Teklif hazırla"
+   * bağlantısı firma ve fırsatı querystring'de taşır; kullanıcı aynı
+   * bilgileri ikinci kez seçmek zorunda kalmasın.
+   */
+  varsayilanFirmaId?: string;
+  varsayilanFirsatId?: string;
+  varsayilanBaslik?: string;
 }) {
   const duzenleme = Boolean(mevcut);
   const action = duzenleme ? teklifGuncelle.bind(null, mevcut!.id) : teklifOlustur;
@@ -103,7 +114,7 @@ export default function TeklifForm({
               id="baslik"
               name="baslik"
               required
-              defaultValue={mevcut?.baslik}
+              defaultValue={mevcut?.baslik ?? varsayilanBaslik}
               className="input"
               placeholder="ör. 2026 yılı danışmanlık hizmeti"
             />
@@ -120,7 +131,7 @@ export default function TeklifForm({
                 id="firmaId"
                 name="firmaId"
                 required
-                defaultValue={mevcut?.firmaId ?? ""}
+                defaultValue={mevcut?.firmaId ?? varsayilanFirmaId ?? ""}
                 className="input"
               >
                 <option value="">Seçin…</option>
@@ -141,7 +152,7 @@ export default function TeklifForm({
               <select
                 id="firsatId"
                 name="firsatId"
-                defaultValue={mevcut?.firsatId ?? ""}
+                defaultValue={mevcut?.firsatId ?? varsayilanFirsatId ?? ""}
                 className="input"
               >
                 <option value="">—</option>

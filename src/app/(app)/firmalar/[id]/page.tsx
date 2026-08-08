@@ -484,6 +484,16 @@ export default async function FirmaDetayPage(
                   <td className="td"><StatusBadge durum={f.durum} /></td>
                   <td className="td text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {/* Fırsattan teklife geçiş (Faz 13 / H7): firma ve
+                          başlık teklif formuna hazır gelir. */}
+                      {teklifEkler && (
+                        <Link
+                          href={`/teklifler/yeni?firsat=${f.id}`}
+                          className="btn-secondary h-9 px-3 text-xs"
+                        >
+                          Teklif Hazırla
+                        </Link>
+                      )}
                       {firsatDuzenler && (
                         <FirsatPanel
                           asamalar={asamalar}

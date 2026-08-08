@@ -19,6 +19,8 @@ import { denetimYaz } from "@/lib/denetim";
 import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 import { FIRSAT_DURUM } from "@/lib/constants";
 import { bildirimGonder } from "@/lib/bildirim";
+import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
+import { sayacIstemcisi, siradakiFirmaNo } from "@/lib/firma-no-saf";
 
 /**
  * Fırsat / Anlaşma işlemleri — Faz 6 / C2, C3.
@@ -103,13 +105,64 @@ function veriHazirla(d: z.infer<typeof schema>) {
   };
 }
 
+/**
+ * Formda "yeni firma" seçilmişse firmayı burada açar (Faz 13 / H6).
+ *
+ * Ortağın bulgusu: "yeni fırsat açarken müşteri de eklenebilmeli". Satış
+ * temsilcisi telefonda bir işi kaydederken firmayı ayrı ekranda açmak için
+ * akışı bırakmak zorunda kalıyordu.
+ *
+ * KISA YOL DEĞİL, AYNI KAPIDIR: firma oluşturma izni, paket firma limiti,
+ * sıradaki firma numarası ve denetim kaydı — hepsi normal firma
+ * oluşturmadaki gibi uygulanır. Aksi halde bu form, limitlerin arka kapısı
+ * olurdu.
+ */
+const YENI_FIRMA = "__yeni__";
+
+async function gerekirseFirmaAc(
+  db: TenantClient,
+  tenantId: string,
+  formData: FormData
+): Promise<{ firmaId?: string; hata?: string }> {
+  if (formData.get("firmaId") !== YENI_FIRMA) return {};
+
+  if (!(await yetkiVarMi(IZIN.firmaOlustur))) {
+    return { hata: "Yeni firma açma yetkiniz yok." };
+  }
+
+  const ad = String(formData.get("yeniFirmaAd") ?? "").trim();
+  if (!ad) return { hata: "Yeni firma için ad girin." };
+
+  const limitHatasi = await firmaLimitiAsildiMi();
+  if (limitHatasi) return { hata: limitHatasi };
+
+  const firmaNo = await siradakiFirmaNo(sayacIstemcisi(db), tenantId);
+  const firma = await tenantOlustur(db, "firma", { ad, durum: "aktif", firmaNo });
+
+  await denetimYaz({
+    islem: "olustur",
+    varlik: "Firma",
+    varlikId: firma.id,
+    ozet: `${firmaNo} — ${ad}`,
+    yeni: { ad, firmaNo, durum: "aktif", kaynak: "fırsat formu" },
+  });
+
+  // Form verisi gerçek id ile güncellenir; şema bundan sonra normal akışta.
+  formData.set("firmaId", firma.id);
+  return { firmaId: firma.id };
+}
+
 export async function createFirsat(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
   if (!(await yetkiVarMi(IZIN.firsatOlustur))) return { error: YETKISIZ };
 
-  const db = await getTenantDb();
+  const { db, tenantId } = await getTenantContext();
+
+  const yeniFirma = await gerekirseFirmaAc(db, tenantId, formData);
+  if (yeniFirma.hata) return { error: yeniFirma.hata };
+
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
@@ -132,6 +185,8 @@ export async function createFirsat(
     yeni: { ...veri, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
+  // Yeni firma açıldıysa firma listeleri de tazelenmeli (H6).
+  if (yeniFirma.firmaId) revalidatePath("/firmalar");
   revalidate(veri.firmaId);
   return { ok: true };
 }

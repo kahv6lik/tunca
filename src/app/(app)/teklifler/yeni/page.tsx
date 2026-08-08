@@ -26,7 +26,7 @@ export default async function YeniTeklifPage(
   const yil = new Date().getFullYear();
   const yilBasi = new Date(yil, 0, 1);
 
-  const [firmalar, firsatlar, kisiler, buYilSayi] = await Promise.all([
+  const [firmalar, firsatlar, buYilSayi] = await Promise.all([
     db.firma.findMany({ orderBy: { ad: "asc" }, take: 500, select: { id: true, ad: true } }),
     db.firsat.findMany({
       where: { durum: "acik" },
@@ -34,17 +34,33 @@ export default async function YeniTeklifPage(
       take: 200,
       select: { id: true, baslik: true, firma: { select: { ad: true } } },
     }),
-    searchParams.firma
-      ? db.kisi.findMany({
-          where: { firmaId: searchParams.firma },
-          orderBy: { ad: "asc" },
-          select: { id: true, ad: true },
-        })
-      : Promise.resolve([]),
     db.teklif.count({ where: { createdAt: { gte: yilBasi } } }),
   ]);
 
   const varsayilanNo = `TKF-${yil}-${String(buYilSayi + 1).padStart(4, "0")}`;
+
+  /**
+   * Fırsattan gelindiyse (Faz 13 / H7) firma, fırsat ve başlık önceden
+   * doldurulur. Fırsat kiracı katmanından okunur — querystring'den gelen id
+   * doğrulanmadan forma yazılmaz.
+   */
+  const kaynakFirsat = searchParams.firsat
+    ? await db.firsat.findFirst({
+        where: { id: searchParams.firsat },
+        select: { id: true, baslik: true, firmaId: true },
+      })
+    : null;
+
+  // Muhatap listesi, seçili firmaya göre gelir; fırsattan gelindiyse firma
+  // artık bellidir.
+  const secilenFirmaId = kaynakFirsat?.firmaId ?? searchParams.firma;
+  const kisiler = secilenFirmaId
+    ? await db.kisi.findMany({
+        where: { firmaId: secilenFirmaId },
+        orderBy: { ad: "asc" },
+        select: { id: true, ad: true },
+      })
+    : [];
 
   return (
     <div>
@@ -68,6 +84,9 @@ export default async function YeniTeklifPage(
         }))}
         kisiler={kisiler.length ? kisiler : undefined}
         varsayilanNo={varsayilanNo}
+        varsayilanFirmaId={secilenFirmaId}
+        varsayilanFirsatId={kaynakFirsat?.id}
+        varsayilanBaslik={kaynakFirsat?.baslik}
       />
     </div>
   );

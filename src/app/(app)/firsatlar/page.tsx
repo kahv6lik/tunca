@@ -38,11 +38,20 @@ export default async function FirsatlarPage(
   await varsayilanaYonlendir("firsatlar", searchParams);
   const gorunumler = await gorunumleriGetir("firsatlar");
 
-  const [ekleyebilir, duzenleyebilir, asamaYonetir, adayGorur] = await Promise.all([
+  const [
+    ekleyebilir,
+    duzenleyebilir,
+    asamaYonetir,
+    adayGorur,
+    firmaAcabilir,
+    teklifAcabilir,
+  ] = await Promise.all([
     yetkiVarMi(IZIN.firsatOlustur),
     yetkiVarMi(IZIN.firsatDuzenle),
     yetkiVarMi(IZIN.asamaYonet),
     yetkiVarMi(IZIN.leadGoruntule),
+    yetkiVarMi(IZIN.firmaOlustur),
+    yetkiVarMi(IZIN.teklifOlustur),
   ]);
 
   const db = await getTenantDb();
@@ -77,6 +86,9 @@ export default async function FirsatlarPage(
         firma: { select: { id: true, ad: true } },
         kisi: { select: { id: true, ad: true } },
         asama: { select: { id: true, ad: true, renk: true } },
+        // Fırsata bağlı teklif sayısı (Faz 13 / H7): listede "teklif var mı?"
+        // sorusu tek bakışta yanıtlansın.
+        _count: { select: { teklifler: true } },
       },
     }),
     db.user.findMany({
@@ -149,6 +161,7 @@ export default async function FirsatlarPage(
                 asamalar={asamalar.map((a) => ({ id: a.id, ad: a.ad, olasilik: a.olasilik }))}
                 firmalar={firmalar}
                 kullanicilar={kullanicilar}
+                yeniFirmaAcilabilir={firmaAcabilir}
                 ozelAlanlar={await alanlariGetir("firsat")}
               />
             )}
@@ -247,6 +260,7 @@ export default async function FirsatlarPage(
                       <th className="th">Kapanış</th>
                       <th className="th">Sorumlu</th>
                       <th className="th">Durum</th>
+                      <th className="th">Teklif</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -282,6 +296,26 @@ export default async function FirsatlarPage(
                         </td>
                         <td className="td">
                           <StatusBadge durum={f.durum} />
+                        </td>
+                        {/* Fırsattan teklife geçiş (Faz 13 / H7) */}
+                        <td className="td whitespace-nowrap">
+                          {f._count.teklifler > 0 ? (
+                            <Link
+                              href={`/teklifler?ara=${encodeURIComponent(f.baslik)}`}
+                              className="text-primary hover:underline"
+                            >
+                              {f._count.teklifler} teklif
+                            </Link>
+                          ) : teklifAcabilir ? (
+                            <Link
+                              href={`/teklifler/yeni?firsat=${f.id}`}
+                              className="text-muted-foreground hover:text-primary"
+                            >
+                              + Teklif hazırla
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                       </tr>
                     ))}
