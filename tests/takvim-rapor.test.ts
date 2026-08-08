@@ -63,3 +63,27 @@ describe("Rapor tarih aralığı (H9)", () => {
     expect(araliktanEtiket(tarihAraligi(null, "2026-08-31"))).toContain("öncesi");
   });
 });
+
+describe("Hazır rapor aralıkları (H9)", () => {
+  it("dört aralık üretir ve sınırları doğru hesaplar", async () => {
+    const { hazirAraliklar } = await import("../src/lib/tarih-araligi");
+    // 15 Ağustos 2026: 3. çeyrek (Tem-Eyl), geçen ay Temmuz.
+    const liste = hazirAraliklar(new Date(2026, 7, 15));
+    const bul = (a: string) => liste.find((x) => x.anahtar === a)!;
+
+    expect(liste).toHaveLength(4);
+    expect(bul("bu-ay")).toMatchObject({ bas: "2026-08-01", bit: "2026-08-31" });
+    expect(bul("gecen-ay")).toMatchObject({ bas: "2026-07-01", bit: "2026-07-31" });
+    expect(bul("bu-ceyrek")).toMatchObject({ bas: "2026-07-01", bit: "2026-09-30" });
+    expect(bul("bu-yil")).toMatchObject({ bas: "2026-01-01", bit: "2026-12-31" });
+  });
+
+  it("yıl sınırında geçen ay bir önceki yıla taşar", async () => {
+    const { hazirAraliklar } = await import("../src/lib/tarih-araligi");
+    const liste = hazirAraliklar(new Date(2026, 0, 10));
+    expect(liste.find((x) => x.anahtar === "gecen-ay")).toMatchObject({
+      bas: "2025-12-01",
+      bit: "2025-12-31",
+    });
+  });
+});

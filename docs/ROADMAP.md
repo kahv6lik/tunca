@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.12.1` — kişi departmanı |
-| **Sıradaki faz** | **Faz 13** — Arayüz ve veri düzeltmeleri (`v1.13.0`) |
-| **Sonrası** | Faz 14–20: saha geri bildirimleri (35 bulgu) · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.13.0` — Faz 13: arayüz ve veri düzeltmeleri |
+| **Sıradaki faz** | **Faz 14** — Ürün kataloğu, stok, paket, kampanya (`v1.14.0`) |
+| **Sonrası** | Faz 15–20: saha geri bildirimleri · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -147,7 +147,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 10 | E3, E4, E7 — Dashboard, kayıtlı görünüm, yedekleme | `v1.10.0` | ✅ tamamlandı | — |
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
-| 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | planlandı | |
+| 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | ✅ tamamlandı | — |
 | 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | planlandı | |
 | 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | planlandı | |
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | planlandı | |
@@ -875,7 +875,7 @@ faza toplandı** ve bağımlılık sırasına dizildi:
 Küçük ama günlük kullanımı doğrudan etkileyen düzeltmeler. Yeni modül yok;
 bu yüzden ilk sıradadır — hızlı kazanç.
 
-- [ ] **H1 — Firma numarası.** Her firmaya kiracı içinde **değiştirilemez**,
+- [x] **H1 — Firma numarası.** Her firmaya kiracı içinde **değiştirilemez**,
       otomatik artan numara. Liste, detay, arama ve dışa aktarımda görünür.
       **KARAR: biçim `A0001` → `Z9999`.** Sayaç 9999'a ulaşınca harf ilerler
       (`A9999` → `B0001`); toplam kapasite **259.974 firma/kiracı**.
@@ -888,7 +888,7 @@ bu yüzden ilk sıradadır — hızlı kazanç.
       Mevcut firmalara migration ile `createdAt` sırasına göre numara verilir.
       Z9999 tükenirse kayıt açılmaz ve açık bir hata döner (sessizce
       numarasız kayıt açmak, alanın "değiştirilemez kimlik" sözünü bozardı).
-- [ ] **H2 — Filtrelerde büyük/küçük harf duyarsızlığı.** Bütün liste
+- [x] **H2 — Filtrelerde büyük/küçük harf duyarsızlığı.** Bütün liste
       aramaları `mode: "insensitive"` kullanır.
       *Bulgu doğrulandı:* şu an firmalar, adaylar, kişiler (telefon),
       eğitimler, hizmetler ve yatırım destekleri listelerinde eksik — yani
@@ -897,33 +897,56 @@ bu yüzden ilk sıradadır — hızlı kazanç.
       "istanbul"u eşleştirir ama "Istanbul" ile "ıstanbul"u ayırır; arama
       terimi normalize edilir (SecimKutusu'ndaki yöntem ortak bir yardımcıya
       taşınır).
-- [ ] **H3 — Kişiler → Kontaklar.** Modülün adı her yerde değişir: menü,
+- [x] **H3 — Kişiler → Kontaklar.** Modülün adı her yerde değişir: menü,
       başlıklar, dışa aktarım etiketi, bildirim metinleri.
       *Dikkat:* URL `/kisiler` olarak KALIR (kayıtlı görünümler `liste`
       anahtarına bağlı; değiştirmek kullanıcıların görünümlerini kırardı).
       Yalnızca görünen ad değişir; gerekçe koda yazılır.
-- [ ] **H4 — Kontaklar menüde Raporlar'ın altına taşınır.**
-- [ ] **H5 — Adaylar, Fırsatlar'ın içine taşınır.** `/adaylar` ayrı menü
+- [x] **H4 — Kontaklar menüde Raporlar'ın altına taşınır.**
+- [x] **H5 — Adaylar, Fırsatlar'ın içine taşınır.** `/adaylar` ayrı menü
       öğesi olmaktan çıkar; Fırsatlar ekranında üçüncü bir sekme olur
       (Kanban · Liste · **Adaylar**). Adres korunur (kayıtlı görünümler için).
-- [ ] **H6 — Yeni fırsatta yerinde firma oluşturma.** Fırsat formundaki firma
+- [x] **H6 — Yeni fırsatta yerinde firma oluşturma.** Fırsat formundaki firma
       seçicisinde "+ Yeni firma" seçeneği; ad ve gerekli asgari alanlarla
       firma açılır ve fırsata bağlanır. Paket firma limitine tabidir.
-- [ ] **H7 — Fırsat "Teklif" aşamasına gelince teklif bağlanır.** Fırsat
+- [x] **H7 — Fırsat "Teklif" aşamasına gelince teklif bağlanır.** Fırsat
       detayında "Teklif Hazırla" düğmesi; üretilen teklif fırsata bağlanır ve
       fırsat kartında/detayında görünür.
       *Veri modeli:* `Teklif.firsatId` (opsiyonel FK, `onDelete: SetNull`).
       Bir fırsatın birden çok teklifi (ve revizyonu) olabilir.
-- [ ] **H8 — Takvimde kategori süzgeci.** Üstteki kategori rozetlerine
+- [x] **H8 — Takvimde kategori süzgeci.** Üstteki kategori rozetlerine
       tıklayınca yalnızca o tür öğe kalır (görev, fırsat, teklif, eğitim,
       hizmet); çoklu seçim ve "tümü" desteklenir. Süzgeç querystring'de
       yaşar — kayıtlı görünüm ve `.ics` çıktısı da ona uyar.
-- [ ] **H9 — Raporlarda tarih aralığı.** Bütün rapor kartları ortak bir
+- [x] **H9 — Raporlarda tarih aralığı.** Bütün rapor kartları ortak bir
       tarih aralığı süzgecine bağlanır (hazır seçenekler: bu ay, geçen ay,
       bu çeyrek, bu yıl, özel aralık). Süzgeç querystring'de yaşar.
 
 ### Kararlar
 - Numara biçimi `A0001`–`Z9999` (harf ilerler, 259.974 kapasite). ✅
+
+### Uygulama notları (v1.13.0)
+
+- **Numara dört yerde verilir** — firma formu, aday dönüşümü, içe aktarım ve
+  fırsat formundaki "yeni firma". Dördü de aynı `siradakiFirmaNo` kapısından
+  geçer; sayaç satırı `UPDATE … RETURNING` ile atomik artırılır.
+- **Numara dışa aktarılır, içe aktarılamaz.** Sütun tanımına `saltDisa`
+  bayrağı eklendi: dosyadan okunabilseydi kullanıcı iki firmaya aynı
+  numarayı verebilir ve alanın tekillik sözü bozulurdu.
+- **Geri yükleme numarayı korur.** Aynı kiracıya geri yüklemede numaralar
+  yerinde kalır; başka kuruluşa yüklenen bir dosyada çakışan numara
+  boşaltılır, kayıt yine de eklenir ve sonradan sıradaki numarayı alır.
+  Sayaç geri yükleme sonunda gerçek duruma çekilir.
+- **H2'nin asıl sorunu `insensitive` eksikliği değildi.** PostgreSQL'in ASCII
+  eşlemesinde `upper('ı')` = `'ı'`; yani "ısparta" yazan kullanıcı "ISPARTA"
+  kaydını ILIKE ile de bulamıyordu. Çözüm sütunu değil TERİMİ çoğaltmak:
+  `metinArama` arama metnini Türkçe büyük ve küçük hâlleriyle birlikte arar
+  (`src/lib/arama.ts`). Dokuz liste ve dışa aktarım aynı yardımcıyı kullanır.
+- **Takvim süzgeci sorguyu da kısar.** Seçilmeyen kategorinin sorgusu hiç
+  çalışmaz (pano kartlarındaki kural). Süzgeç `.ics` çıktısına da yansır.
+- **Ters tarih aralığı raporu boşaltmaz.** Başlangıç > bitiş yazıldığında
+  süzgeç uygulanmaz; boş bir rapor kullanıcıya "veri yok" der, oysa sorun
+  yazım hatasıdır.
 
 ---
 

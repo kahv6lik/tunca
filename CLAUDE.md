@@ -42,7 +42,7 @@ prisma/
                        # EpostaAyari, EpostaKuyrugu, EpostaKaydi,
                        # IsAkisi, IsAkisiCalismasi,
                        # PanoTercihi, KayitliGorunum, Yedek,
-                       # OzelAlan, OzelAlanDeger,
+                       # OzelAlan, OzelAlanDeger, FirmaNoSayac,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -123,7 +123,7 @@ src/
     eposta.ts             # SMTP gönderimi ve kuyruk (Faz 8)
     eposta-gelen.ts       # IMAP gelen kutusu senkronu (Faz 8)
     is-akisi.ts           # otomasyon motoru (+ -tanimlar.ts saf veri)
-    takvim.ts             # takvim öğeleri + .ics üretimi (Faz 8)
+    takvim.ts             # takvim öğeleri + .ics (+ -tanimlar: kategori) (Faz 8)
     sifreleme.ts          # AES-256-GCM — posta parolaları (Faz 8)
     zamanlanmis.ts        # oturumsuz zamanlanmış işler — TEK KAPI (Faz 8)
     disa-aktar.ts         # dışa aktarım — TEK KAPI (+ -saf, -tanimlar) (Faz 9)
@@ -137,6 +137,9 @@ src/
     guvenlik-totp.ts      # TOTP + yedek kod üretimi (node:crypto) (Faz 12)
     iki-faktor.ts         # ikinci aşama bileti, yedek kod yönetimi (Faz 12)
     kvkk-tanimlar.ts      # aydınlatma metni + saklama politikası — saf (Faz 12)
+    firma-no-saf.ts       # firma numarası A0001–Z9999 + atomik sayaç (Faz 13)
+    arama.ts              # Türkçe duyarsız liste araması — saf (Faz 13)
+    tarih-araligi.ts      # rapor tarih aralığı + hazır aralıklar — saf (Faz 13)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -315,6 +318,32 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   zorunluluğunun belgeli istisnasıdır (`tests/regresyon.test.ts` içindeki
   `KISISEL_TERCIH_DOSYALARI`); kullanıcı yalnızca KENDİ satırını yazar.
 
+### Arayüz ve Veri Düzeltmeleri (Faz 13)
+
+- **Firma numarası oluşturmada verilir ve DEĞİŞMEZ** (`A0001`–`Z9999`,
+  kiracı başına 259.974 kapasite). Sıra `FirmaNoSayac` satırından
+  `UPDATE … RETURNING` ile **atomik** alınır — "en büyüğü bul + 1" yarış
+  koşuludur. Numara veren dört yol (form, aday dönüşümü, içe aktarım, fırsat
+  formu) aynı `siradakiFirmaNo` kapısından geçer. `updateFirma` şeması
+  `firmaNo`yu hiç tanımaz, yani formdan gelse bile yok sayılır.
+- **Numara dışa aktarılır, içe aktarılamaz** (`saltDisa` sütun bayrağı).
+  Geri yüklemede numara korunur; başka kuruluşa yüklenen dosyada çakışan
+  numara boşaltılır, kayıt yine eklenir ve sıradaki numarayı alır.
+- **Arama Türkçe duyarsızdır** (`src/lib/arama.ts`). `mode: "insensitive"`
+  tek başına yetmez: PostgreSQL'in ASCII eşlemesinde `upper('ı') = 'ı'`,
+  yani "ısparta" yazan "ISPARTA"yı bulamaz. Çözüm sütunu değil TERİMİ
+  çoğaltmaktır — metin Türkçe büyük ve küçük hâlleriyle birlikte aranır.
+- **Adaylar satış hattının sekmesidir**, ayrı menü öğesi değil; `/adaylar`
+  rotası korunur (kayıtlı görünüm ve bildirim bağlantıları oraya bakar).
+  Aynı gerekçeyle "Kontaklar" etiketi `/kisiler` rotasını değiştirmez.
+- **Fırsat formundan firma açmak kısa yol değil, aynı kapıdır:** izin, paket
+  limiti, firma numarası ve denetim kaydı normal akıştaki gibi uygulanır.
+- **Takvim kategori süzgeci sorguyu da kısar** — seçilmeyen kategori hiç
+  sorgulanmaz; süzgeç `.ics` çıktısına da yansır.
+- **Ters tarih aralığı raporu boşaltmaz.** Başlangıç > bitiş yazıldığında
+  süzgeç uygulanmaz: boş rapor kullanıcıya "veri yok" der, oysa sorun
+  yazım hatasıdır.
+
 ### Kiracıya Özel Alanlar (Faz 11)
 
 - **Değer her zaman String saklanır** (`OzelAlanDeger.deger`); tip (metin/
@@ -355,7 +384,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**373 kontrol**.
+**400 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -363,10 +392,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (219 test, ~7 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (238 test, ~8 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 133)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 141)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -448,7 +477,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 10 | Özelleştirilebilir dashboard, kayıtlı görünüm, yedekleme (E3, E4, E7) | `v1.10.0` | ✅ tamamlandı |
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | ✅ tamamlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | ✅ tamamlandı |
-| 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | planlandı |
+| 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | ✅ tamamlandı |
 | 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | planlandı |
 | 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | planlandı |
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | planlandı |
@@ -535,6 +564,14 @@ etkiliyor.
   doğrulama) başlamadan önce rızanın toplanmış olması için ÖNDEN yapıldı;
   metnin verdiği sözler o fazın uygulamasını bağlar. Ayrıca yol haritası:
   saha geri bildirimlerinden Faz 13-20, AI en sona (Faz 21).
+- **v1.13.0** — **Faz 13:** Arayüz ve veri düzeltmeleri (ortağın 9 bulgusu).
+  Firmalara değiştirilemez firma numarası (`A0001`–`Z9999`, kiracı başına
+  atomik sayaç); bütün liste aramalarında Türkçe büyük/küçük harf
+  duyarsızlığı; "Kişiler" → **Kontaklar** ve menüde Raporlar'ın altına;
+  Adaylar satış hattının üçüncü sekmesi; fırsat formundan yerinde firma
+  açma; fırsattan tek tıkla teklif hazırlama ve fırsata bağlı teklif sayısı;
+  takvimde tıklanabilir kategori süzgeci (`.ics`'e de yansır); raporlarda
+  tarih aralığı ve hazır dönemler (bu ay / geçen ay / bu çeyrek / bu yıl).
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

@@ -7,7 +7,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { durumBadge } from "@/lib/constants";
 import { DURUM_RENK } from "@/lib/chart-theme";
-import { tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
+import { tarihAraligi, araliktanEtiket, hazirAraliklar } from "@/lib/tarih-araligi";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +153,24 @@ export default async function RaporlarPage(props: {
           />
         </div>
         <button type="submit" className="btn-primary">Uygula</button>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {hazirAraliklar().map((h) => {
+            const secili = searchParams.bas === h.bas && searchParams.bit === h.bit;
+            return (
+              <Link
+                key={h.anahtar}
+                href={`/raporlar?bas=${h.bas}&bit=${h.bit}`}
+                className={`rounded-lg border px-2 py-1 transition-colors ${
+                  secili
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border/70 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {h.etiket}
+              </Link>
+            );
+          })}
+        </div>
         {(searchParams.bas || searchParams.bit) && (
           <Link href="/raporlar" className="btn-secondary">Temizle</Link>
         )}

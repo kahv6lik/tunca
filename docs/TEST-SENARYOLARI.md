@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.13.0** | **Faz 13** — Firma numarası (`A0001`), Türkçe duyarsız arama, Kontaklar adı + menü düzeni, Adaylar fırsatlar sekmesi, fırsattan firma/teklif, takvim kategori süzgeci, raporlarda tarih aralığı | Firmalar listesinde bir numarayı arama kutusuna yaz; `/firsatlar`da **+ Yeni firma ekle** ile fırsat aç | Numara tam eşleşmeyle o firmayı getirir; fırsat ve firma tek işlemde açılır, firma sıradaki numarayı ve denetim kaydını alır | 400 |
 | **v1.12.1** | Kişi kaydına departman alanı: 40 seçenekli sabit listeden aramalı seçim; kişiler listesinde ve firma detayında sütun | Firma detayı → **Kişi Ekle** → Departman kutusuna bas, "insan" yaz | Küçük arama penceresi süzer ("İnsan Kaynakları"); elle metin yazılamaz; seçim listede ve dışa aktarımda görünür | 373 |
 | **v1.12.0** | **Faz 12** — Hesap güvenliği ve KVKK: şifre politikası, şifremi unuttum, 2FA (TOTP + yedek kodlar), oturum yönetimi, hız sınırlama, KVKK aydınlatma/rıza/veri kopyası | Girişte **Şifremi unuttum**; profil menüsünden **Hesap Güvenliği** → 2FA kur; 5 kez yanlış şifre dene | Sıfırlama yanıtı hesap olsa da olmasa da aynı; 2FA açılınca girişte kod istenir; 5. denemeden sonra hesap 15 dk kilitlenir | 369 |
 | **v1.11.2** | Arayüz: sıkı ve kaydırılabilir sol menü; kanban dar sütunlarla tam genişliğe yayılır | Menüde en alttaki "Yedekler"i gör; `/firsatlar`da 5 sütunun tamamına bak | Menünün tamamı görünür (taşarsa içinde kaydırılır); kanban sağdan kesilmez | 328 |
@@ -230,6 +231,30 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.13.0 — Arayüz ve veri düzeltmeleri (Faz 13)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/firmalar` listesini aç | Solda **No** sütunu; numaralar `A0001`'den artıyor |
+| 2 | Bir numarayı (ör. `A0007`) arama kutusuna yaz | Yalnızca o firma listelenir (tam eşleşme) |
+| 3 | Bir firmanın adını TAMAMEN BÜYÜK harfle ara ("ISPARTA", "TEKSTİL") | Kayıt bulunur — Türkçe İ/ı farkı aramayı bozmaz |
+| 4 | Firma detayını aç → **Düzenle** | Detayda "Firma No" var; düzenleme formunda YOK (değiştirilemez) |
+| 5 | **Yeni Firma** ile firma aç | Sıradaki numarayı alır; `/denetim` kaydında numara görünür |
+| 6 | Firmaları **Dışa Aktar** → `/ice-aktar`da firma dosyası yükle | Dosyada "Firma No" sütunu var; içe aktarım eşleştirme ekranında o sütun YOK |
+| 7 | Sol menüye bak | "Kişiler" yerine **Kontaklar**, Raporlar'ın altında; ayrı "Adaylar" başlığı yok |
+| 8 | `/firsatlar` → üstteki sekmeler | Kanban · Liste · **Adaylar**; Adaylar'a geçince menüde Fırsatlar işaretli kalır |
+| 9 | `/firsatlar` → **Yeni Fırsat** → Firma kutusunda **+ Yeni firma ekle** | Ad alanı açılır; kaydedince firma + fırsat birlikte oluşur |
+| 10 | Aynı formu paket firma limiti dolu bir kiracıda dene | Limit hatası döner — kısa yol limitin arka kapısı değildir |
+| 11 | Fırsat listesinde **Teklif hazırla** bağlantısı | Teklif formu firma, fırsat ve başlıkla dolu gelir |
+| 12 | Teklifi kaydet → fırsat listesine dön | Satırda "1 teklif" yazar |
+| 13 | `/takvim` → renk rozetlerinden **Görev**'e bas | Yalnızca görevler kalır; adres çubuğunda `tur=gorev` |
+| 14 | Aynı süzgeçle **.ics indir** | Dosyada yalnızca görevler var |
+| 15 | Ay değiştir | Süzgeç korunur |
+| 16 | `/raporlar` → **Bu ay** / **Geçen ay** | Kartlar ve grafikler o döneme daralır; başlıkta aralık yazar |
+| 17 | Başlangıcı bitişten SONRAYA ayarla | Rapor boşalmaz — süzgeç uygulanmaz (yazım hatası veriyi gizlemez) |
+
+---
+
 ## Çapraz Kiracı Kontrolü (her sürümde tekrarlanır)
 
 Bu, ürünün **en kritik sözüdür** ve her sürüm sonrası yeniden bakılmalıdır.
@@ -237,7 +262,7 @@ Bu, ürünün **en kritik sözüdür** ve her sürüm sonrası yeniden bakılmal
 | # | Adım | Beklenen |
 |---|---|---|
 | 1 | `admin@anadolu.com` ile gir | Yalnızca Anadolu verisi |
-| 2 | Sırayla aç: Firmalar, Kişiler, Fırsatlar, Adaylar, Teklifler, Aktiviteler, Takvim, Raporlar | Hiçbirinde "Gezegen Danışmanlık" geçmiyor |
+| 2 | Sırayla aç: Firmalar, Kontaklar, Fırsatlar, Adaylar, Teklifler, Aktiviteler, Takvim, Raporlar | Hiçbirinde "Gezegen Danışmanlık" geçmiyor |
 | 3 | Her listede **Dışa Aktar** | İnen dosyalarda da yalnızca kendi verisi |
 | 4 | Gezegen'e ait herhangi bir kayıt ID'sini URL'ye yaz | 404 |
 

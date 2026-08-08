@@ -839,10 +839,10 @@ async function main() {
   // 17 — Faz 13: arayüz ve veri düzeltmeleri (H1-H5)
   console.log("\n17. Faz 13 — firma numarası, arama, menü düzeni");
 
-  const firmaListe = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
+  const faz13FirmaListe = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
   kontrol(
     "Firma listesinde numara sütunu var (H1)",
-    /\b[A-Z]\d{4}\b/.test(firmaListe.govde)
+    /\b[A-Z]\d{4}\b/.test(faz13FirmaListe.govde)
   );
 
   // Numarayla arama TAM eşleşmedir: yazılan numara tek firmayı getirmeli.

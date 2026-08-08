@@ -55,6 +55,47 @@ export function tarihAraligi(
   };
 }
 
+/** `Date` → "2026-08-01" (yerel saat; `toISOString` UTC'ye kaydırırdı). */
+function gunMetni(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+export type HazirAralik = { anahtar: string; etiket: string; bas: string; bit: string };
+
+/**
+ * Hazır aralıklar — "bu ay / geçen ay / bu çeyrek / bu yıl".
+ *
+ * Rapora bakan kişinin dörtte üçü bu dört aralıktan birini istiyor; her
+ * seferinde iki tarih seçtirmek gereksiz sürtünme. Özel aralık yine
+ * kullanılabilir.
+ */
+export function hazirAraliklar(bugun = new Date()): HazirAralik[] {
+  const y = bugun.getFullYear();
+  const a = bugun.getMonth();
+  const ceyrekBasi = Math.floor(a / 3) * 3;
+
+  const aralik = (bas: Date, bit: Date, anahtar: string, etiket: string) => ({
+    anahtar,
+    etiket,
+    bas: gunMetni(bas),
+    bit: gunMetni(bit),
+  });
+
+  return [
+    aralik(new Date(y, a, 1), new Date(y, a + 1, 0), "bu-ay", "Bu ay"),
+    aralik(new Date(y, a - 1, 1), new Date(y, a, 0), "gecen-ay", "Geçen ay"),
+    aralik(
+      new Date(y, ceyrekBasi, 1),
+      new Date(y, ceyrekBasi + 3, 0),
+      "bu-ceyrek",
+      "Bu çeyrek"
+    ),
+    aralik(new Date(y, 0, 1), new Date(y, 12, 0), "bu-yil", "Bu yıl"),
+  ];
+}
+
 /** Süzgecin ekranda gösterilecek özeti ("1 Ağu 2026 – 31 Ağu 2026"). */
 export function araliktanEtiket(aralik?: TarihAraligi): string | null {
   if (!aralik) return null;
