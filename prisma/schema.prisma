@@ -85,6 +85,15 @@ model Tenant {
   Oturum           Oturum[]
   SifreSifirlama   SifreSifirlama[]
   FirmaNoSayac     FirmaNoSayac?
+  Urun             Urun[]
+  Paket            Paket[]
+  PaketKalemi      PaketKalemi[]
+  Kampanya         Kampanya[]
+  KampanyaUrun     KampanyaUrun[]
+  KampanyaPaket    KampanyaPaket[]
+  KampanyaFirma    KampanyaFirma[]
+  KampanyaKullanim KampanyaKullanim[]
+  StokHareketi     StokHareketi[]
 
   @@index([durum])
 }
@@ -150,15 +159,18 @@ model Firma {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  yatirimlar   YatirimDestegi[]
-  egitimler    Egitim[]
-  hizmetler    Hizmet[]
-  kisiler      Kisi[]
-  firsatlar    Firsat[]
-  aktiviteler  Aktivite[]
-  leadler      Lead[]
-  teklifler    Teklif[]
-  ozelDegerler OzelAlanDeger[]
+  yatirimlar       YatirimDestegi[]
+  egitimler        Egitim[]
+  hizmetler        Hizmet[]
+  kisiler          Kisi[]
+  firsatlar        Firsat[]
+  aktiviteler      Aktivite[]
+  leadler          Lead[]
+  teklifler        Teklif[]
+  ozelDegerler     OzelAlanDeger[]
+  Paket            Paket[]
+  KampanyaFirma    KampanyaFirma[]
+  KampanyaKullanim KampanyaKullanim[]
 
   @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
@@ -929,7 +941,6 @@ model GirisDenemesi {
   @@index([createdAt])
 }
 
-
 // ── Firma numarası sayacı (Faz 13 / H1) ─────────────────────────────────────
 //
 // Kiracı başına TEK satır. Sıradaki numara buradan ATOMİK olarak alınır:
@@ -945,4 +956,232 @@ model FirmaNoSayac {
   sonSira Int @default(0) // 0 = henüz numara verilmedi
 
   updatedAt DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TİCARİ ÇEKİRDEK (Faz 14) — ürün, paket, kampanya, stok
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Ürün / hizmet kataloğu (T1).
+//
+// `stokTakibi` bilinçli bir bayraktır: danışmanlık gibi hizmet kalemlerinin
+// stoğu yoktur ve onlar için bakiye tutmak anlamsız uyarılar üretirdi.
+// Kapalıyken sipariş stok bakiyesine bakmaz.
+model Urun {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  kod        String // kiracı içinde tekil
+  ad         String
+  aciklama   String?
+  kategori   String?
+  birim      String  @default("adet")
+  listeFiyat Float   @default(0)
+  paraBirimi String  @default("TRY")
+  kdvOrani   Float   @default(20)
+  durum      String  @default("aktif") // "aktif" | "pasif"
+
+  // ── Stok (T7, T8) ────────────────────────────────────────────────────────
+  // `stokMiktar` hareketlerin ÖZETİDİR, gerçeğin kaynağı değil: doğruluk
+  // StokHareketi defterindedir. Özet burada tutulur çünkü her liste
+  // sorgusunda binlerce hareketi toplamak sürdürülebilir değildir.
+  // Güncellemesi atomiktir (`UPDATE ... SET stokMiktar = stokMiktar + n`).
+  stokTakibi Boolean @default(false)
+  stokMiktar Float   @default(0)
+  kritikStok Float   @default(0) // altına düşünce uyarı (0 = uyarma)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paketKalemleri  PaketKalemi[]
+  kampanyaKapsam  KampanyaUrun[]
+  stokHareketleri StokHareketi[]
+
+  @@unique([tenantId, kod])
+  @@index([tenantId, durum, ad])
+  @@index([tenantId, kategori])
+}
+
+// Müşteriye özel ürün paketi (T2).
+//
+// `firmaId` boşsa paket kiracı genelinde herkese açıktır; doluysa YALNIZCA o
+// firmaya sunulur. Ortağın bulgusu "müşteriye özel paket" olduğu için bağ
+// zorunlu değil, opsiyoneldir: aynı ekran iki ihtiyacı da karşılar.
+model Paket {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId  String?
+  firma    Firma?  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  kod          String
+  ad           String
+  aciklama     String?
+  paraBirimi   String  @default("TRY")
+  // Sabit paket fiyatı (0 ve `sabitFiyat=false` ise kalemlerin toplamı).
+  sabitFiyat   Boolean @default(false)
+  fiyat        Float   @default(0)
+  // Kalem toplamı üzerinden yüzde iskonto (sabitFiyat kapalıyken kullanılır).
+  iskontoOrani Float   @default(0)
+  durum        String  @default("aktif")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kalemler       PaketKalemi[]
+  kampanyaKapsam KampanyaPaket[]
+
+  @@unique([tenantId, kod])
+  @@index([tenantId, durum])
+  @@index([tenantId, firmaId])
+}
+
+model PaketKalemi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paketId  String
+  paket    Paket  @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  urunId   String
+  urun     Urun   @relation(fields: [urunId], references: [id], onDelete: Restrict)
+
+  miktar Float @default(1)
+  sira   Int   @default(0)
+
+  @@unique([paketId, urunId])
+  @@index([tenantId, paketId])
+}
+
+// Kampanya (T3, T4).
+//
+// KOTA: `kota = 0` sınırsız demektir. Kalan hak `kota - kullanilan` ile
+// hesaplanmaz — `kullanilan` sayacı veritabanında KOŞULLU ve ATOMİK
+// artırılır (`UPDATE ... WHERE kota = 0 OR kullanilan + n <= kota`), yani
+// aynı anda satış yapan iki temsilci son adedi birlikte satamaz.
+model Kampanya {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  kod      String
+  ad       String
+  aciklama String?
+  tip      String  @default("yuzde") // constants.ts → KAMPANYA_TIP
+  durum    String  @default("taslak") // taslak | aktif | duraklatildi | sonaerdi
+
+  baslangic DateTime
+  bitis     DateTime
+
+  // İndirim kuralı — tipe göre okunur.
+  deger Float @default(0) // yüzde ya da tutar
+  alN   Int   @default(0) // "X alana Y bedava" için
+  odeM  Int   @default(0)
+
+  kota       Int @default(0) // 0 = sınırsız
+  kullanilan Int @default(0)
+
+  // Firma kapsamı: liste BOŞSA kampanya tüm firmalara açıktır.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  urunler     KampanyaUrun[]
+  paketler    KampanyaPaket[]
+  firmalar    KampanyaFirma[]
+  kullanimlar KampanyaKullanim[]
+
+  @@unique([tenantId, kod])
+  @@index([tenantId, durum, baslangic])
+}
+
+model KampanyaUrun {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kampanyaId String
+  kampanya   Kampanya @relation(fields: [kampanyaId], references: [id], onDelete: Cascade)
+  urunId     String
+  urun       Urun     @relation(fields: [urunId], references: [id], onDelete: Cascade)
+
+  @@unique([kampanyaId, urunId])
+  @@index([tenantId, kampanyaId])
+}
+
+model KampanyaPaket {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kampanyaId String
+  kampanya   Kampanya @relation(fields: [kampanyaId], references: [id], onDelete: Cascade)
+  paketId    String
+  paket      Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+
+  @@unique([kampanyaId, paketId])
+  @@index([tenantId, kampanyaId])
+}
+
+model KampanyaFirma {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kampanyaId String
+  kampanya   Kampanya @relation(fields: [kampanyaId], references: [id], onDelete: Cascade)
+  firmaId    String
+  firma      Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@unique([kampanyaId, firmaId])
+  @@index([tenantId, kampanyaId])
+}
+
+// Kampanya kullanım defteri (T4, T5).
+//
+// "Bu firma bu kampanyadan kaç kez faydalandı" sorusunun kaynağıdır ve
+// kampanya raporunun tamamı buradan çıkar. Satır SİLİNMEZ; iptal edilen bir
+// kullanım `iptal = true` ile işaretlenir ve kota iadesi ayrı bir işlemdir.
+model KampanyaKullanim {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kampanyaId String
+  kampanya   Kampanya @relation(fields: [kampanyaId], references: [id], onDelete: Cascade)
+  firmaId    String
+  firma      Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  adet          Int     @default(1)
+  indirimTutari Float   @default(0)
+  paraBirimi    String  @default("TRY")
+  // Faz 15'te sipariş numarası buraya yazılır; şimdilik serbest referans.
+  referans      String?
+  iptal         Boolean @default(false)
+
+  kullananId String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, kampanyaId, createdAt])
+  @@index([tenantId, firmaId])
+}
+
+// Stok hareket defteri (T7).
+//
+// DEĞİŞTİRİLEMEZ: bakiye hareketlerin toplamıdır, elle yazılan bir sayı
+// değildir. Yanlış bir hareket silinmez, ters yönlü bir düzeltme hareketiyle
+// kapatılır — depo sayımıyla sistem arasındaki fark ancak böyle izlenebilir.
+model StokHareketi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  urunId   String
+  urun     Urun   @relation(fields: [urunId], references: [id], onDelete: Cascade)
+
+  tur           String // constants.ts → STOK_HAREKET_TUR
+  miktar        Float // İŞARETLİ: giriş +, çıkış −
+  sonrakiBakiye Float   @default(0) // hareketten sonraki bakiye (denetim izi)
+  aciklama      String?
+  referans      String? // sevkiyat/sipariş no (Faz 15)
+
+  kullaniciId String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, urunId, createdAt])
+  @@index([tenantId, createdAt])
 }

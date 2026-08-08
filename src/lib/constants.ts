@@ -146,7 +146,55 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   kabul: { label: "Kabul Edildi", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
   red: { label: "Reddedildi", className: "bg-rose-500/15 text-rose-400 ring-rose-500/25" },
   revizyon: { label: "Revize Edildi", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  // kampanya (Faz 14)
+  duraklatildi: { label: "Duraklatıldı", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  sonaerdi: { label: "Sona Erdi", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
 };
+
+// ── Ticari çekirdek (Faz 14) ───────────────────────────────────────────────
+
+export const URUN_DURUM = ["aktif", "pasif"] as const;
+
+export const URUN_BIRIMLERI = [
+  "adet", "kg", "litre", "metre", "m²", "m³", "paket", "kutu", "koli",
+  "saat", "gün", "ay", "yıl", "hizmet",
+] as const;
+
+/**
+ * Kampanya tipleri.
+ *
+ * Liste SABİTTİR: her tip fiyat motorunda ayrı bir hesap dalıdır
+ * (`fiyat-saf.ts`), yani kullanıcının serbestçe tip eklemesi hesaplanamayan
+ * bir kampanya üretirdi.
+ */
+export const KAMPANYA_TIP = [
+  { deger: "yuzde", etiket: "Yüzde İndirim", aciklama: "Tutarın %X'i düşülür" },
+  { deger: "tutar", etiket: "Tutar İndirimi", aciklama: "Sabit tutar düşülür" },
+  { deger: "alnodem", etiket: "X Alana Y Bedava", aciklama: "N alana M ödeme" },
+  { deger: "paketfiyat", etiket: "Paket Fiyatı", aciklama: "Sabit kampanya fiyatı" },
+] as const;
+
+export type KampanyaTipi = (typeof KAMPANYA_TIP)[number]["deger"];
+
+export const KAMPANYA_DURUM = ["taslak", "aktif", "duraklatildi", "sonaerdi"] as const;
+
+/**
+ * Stok hareket türleri ve YÖNLERİ.
+ *
+ * Yön burada tanımlıdır çünkü işaretin kararı tek bir yerde olmalıdır:
+ * "çıkış" bir yerde +, başka yerde − yazılırsa bakiye sessizce bozulur.
+ * `sayim` ve `duzeltme` iki yönlü olabilir (fark kadar yazılır).
+ */
+export const STOK_HAREKET_TUR = [
+  { deger: "giris", etiket: "Giriş (mal kabul)", yon: 1 },
+  { deger: "cikis", etiket: "Çıkış (sevkiyat)", yon: -1 },
+  { deger: "iade", etiket: "İade (girişe)", yon: 1 },
+  { deger: "fire", etiket: "Fire / zayi", yon: -1 },
+  { deger: "sayim", etiket: "Sayım düzeltmesi", yon: 0 },
+  { deger: "duzeltme", etiket: "Elle düzeltme", yon: 0 },
+] as const;
+
+export type StokHareketTuru = (typeof STOK_HAREKET_TUR)[number]["deger"];
 
 // Kiracı (kuruluş) durumları — admin panelde kullanılır
 export const KIRACI_DURUM = ["aktif", "askida", "pasif"] as const;
@@ -172,6 +220,11 @@ export const PAKET_MODULLERI = [
   { deger: "otomasyon", etiket: "İş Akışı Otomasyonu", izin: "otomasyon.goruntule" },
   { deger: "rapor", etiket: "Raporlar", izin: "rapor.goruntule" },
   { deger: "ozelalan", etiket: "Özel Alanlar", izin: "ozelalan.yonet" },
+  // Faz 14 — ticari çekirdek. "stok" ayrı bir modüldür: hizmet satan bir
+  // kuruluş katalogu kullanır ama stok tutmaz.
+  { deger: "urun", etiket: "Ürünler ve Paketler", izin: "urun.goruntule" },
+  { deger: "kampanya", etiket: "Kampanyalar", izin: "kampanya.goruntule" },
+  { deger: "stok", etiket: "Stok Takibi", izin: "stok.goruntule" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

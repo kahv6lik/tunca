@@ -1,0 +1,312 @@
+/**
+ * Fiyat motoru — Faz 14 / T6.
+ *
+ * Bir satırın fiyatı TEK bir saf fonksiyondan geçer. Neden bu kadar katı:
+ * fiyat hesabı üç ayrı yerde (teklif, sipariş, rapor) tekrarlanırsa er ya da
+ * geç üçü farklı rakam üretir ve müşteriye hangi rakamın söylendiği
+ * bilinemez hâle gelir. Burası tek doğru kaynaktır.
+ *
+ * `server-only` DEĞİLDİR: veritabanı bilmez, yalnızca sayı alır ve sayı
+ * döndürür. Testler onu doğrudan sınar; form önizlemesi de aynı fonksiyonu
+ * kullanabilir.
+ *
+ * ═══ SIRA (değiştirilmesi kırıcı bir karardır) ═══
+ *
+ *   1. LİSTE FİYATI       — ürünün kataloğdaki fiyatı
+ *   2. FİRMAYA ÖZEL PAKET — varsa liste fiyatının YERİNE geçer
+ *   3. KAMPANYA           — 2'nin sonucunun ÜZERİNE uygulanır
+ *   4. KDV                — en sonda, indirimli tutar üzerinden
+ *
+ * Paket kampanyadan ÖNCE gelir çünkü paket "bu müşterinin fiyatı budur"
+ * anlaşmasıdır; kampanya ise o fiyatın üzerine yapılan geçici bir jesttir.
+ * Ters sırada, sözleşmeli müşteri kampanyadan hiç yararlanamazdı.
+ *
+ * ═══ TEK KAMPANYA ═══
+ *
+ * Aday kampanyalardan yalnızca BİRİ uygulanır: müşteriye en avantajlı olan
+ * (`enIyiKampanya`). Üst üste binen indirimler hem hesabı hem de müşteriye
+ * yapılan savunmayı imkânsızlaştırır ("%20 + %15 neden %35 değil?").
+ * Kullanıcı isterse seçimi elle değiştirir; motor yalnızca öneriyi üretir.
+ */
+
+import { type KampanyaTipi } from "./constants";
+
+export type FiyatUrunu = {
+  urunId: string;
+  listeFiyat: number;
+  kdvOrani: number;
+};
+
+/** Firmaya sunulan paket — kalem başına birim fiyat üretir. */
+export type FiyatPaketi = {
+  paketId: string;
+  /** Sabit paket fiyatı verilmişse kalem birim fiyatı buradan türetilir. */
+  sabitFiyat: boolean;
+  fiyat: number;
+  iskontoOrani: number;
+  /** Paketteki kalemler — sabit fiyatı kalemlere dağıtmak için gerekir. */
+  kalemler: { urunId: string; miktar: number; listeFiyat: number }[];
+};
+
+export type FiyatKampanyasi = {
+  kampanyaId: string;
+  kod: string;
+  ad: string;
+  tip: KampanyaTipi;
+  deger: number;
+  alN: number;
+  odeM: number;
+  /** 0 = sınırsız. Kalan hak, kotanın kullanılan kısmı düşülmüş hâlidir. */
+  kalanKota: number;
+};
+
+export type FiyatSonucu = {
+  /** Katalogdaki ham fiyat × miktar */
+  listeTutar: number;
+  /** Paket uygulandıktan sonraki birim fiyat */
+  birimFiyat: number;
+  /** Paket + kampanya sonrası, KDV hariç tutar */
+  netTutar: number;
+  indirimTutari: number;
+  kdvTutari: number;
+  toplam: number;
+  /** Uygulanan kampanya (yoksa null) */
+  kampanya: FiyatKampanyasi | null;
+  /** Hesabın hangi adımlardan geçtiği — arayüzde "neden bu fiyat?" için */
+  adimlar: string[];
+};
+
+const YUVARLA = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Paketten kalem birim fiyatı çıkarır.
+ *
+ * Sabit paket fiyatı, kalemlerin LİSTE DEĞERİNE ORANTILI dağıtılır. Eşit
+ * bölmek yanlış olurdu: 100 TL'lik ürünle 10.000 TL'lik ürün aynı payı
+ * almamalı — iade ve kısmi sevkiyatta rakam saçmalardı.
+ */
+export function paketBirimFiyati(
+  paket: FiyatPaketi,
+  urunId: string,
+  listeFiyat: number
+): number | null {
+  const kalem = paket.kalemler.find((k) => k.urunId === urunId);
+  if (!kalem) return null;
+
+  if (!paket.sabitFiyat) {
+    return YUVARLA(listeFiyat * (1 - paket.iskontoOrani / 100));
+  }
+
+  const listeToplam = paket.kalemler.reduce(
+    (s, k) => s + k.listeFiyat * k.miktar,
+    0
+  );
+  // Paketteki her kalem bedelsizse (liste toplamı 0) orantı kurulamaz;
+  // sabit fiyat kalem sayısına eşit bölünür.
+  if (listeToplam <= 0) {
+    const adet = paket.kalemler.reduce((s, k) => s + k.miktar, 0);
+    return adet > 0 ? YUVARLA(paket.fiyat / adet) : 0;
+  }
+
+  const pay = (kalem.listeFiyat * kalem.miktar) / listeToplam;
+  return YUVARLA((paket.fiyat * pay) / kalem.miktar);
+}
+
+/**
+ * Bir kampanyanın SATIR üzerindeki indirimini hesaplar (KDV hariç).
+ *
+ * Kalan kota, indirimi SINIRLAR: 5 adetlik hakkı kalan bir kampanyadan 8
+ * adet satılırsa indirim yalnızca 5 adede uygulanır. Sessizce 8 adede
+ * uygulamak kotayı anlamsız kılardı; satışı reddetmek de gereksiz sert olur.
+ */
+export function kampanyaIndirimi(
+  kampanya: FiyatKampanyasi,
+  birimFiyat: number,
+  miktar: number
+): { indirim: number; kullanilanAdet: number } {
+  const adet =
+    kampanya.kalanKota > 0 ? Math.min(miktar, kampanya.kalanKota) : miktar;
+
+  if (adet <= 0) return { indirim: 0, kullanilanAdet: 0 };
+
+  switch (kampanya.tip) {
+    case "yuzde": {
+      const oran = Math.min(Math.max(kampanya.deger, 0), 100);
+      return {
+        indirim: YUVARLA(birimFiyat * adet * (oran / 100)),
+        kullanilanAdet: adet,
+      };
+    }
+
+    case "tutar": {
+      // Sabit tutar ADET BAŞINA değil, satırın tamamına uygulanır; ama
+      // satırın kendisinden büyük olamaz (negatif fiyat üretmemeli).
+      const indirim = Math.min(Math.max(kampanya.deger, 0), birimFiyat * adet);
+      return { indirim: YUVARLA(indirim), kullanilanAdet: adet };
+    }
+
+    case "alnodem": {
+      // "3 al 2 öde": her N adette (N − M) adet bedava.
+      const n = Math.max(kampanya.alN, 0);
+      const m = Math.max(kampanya.odeM, 0);
+      if (n <= 0 || m <= 0 || m >= n) return { indirim: 0, kullanilanAdet: 0 };
+
+      const grup = Math.floor(adet / n);
+      const bedava = grup * (n - m);
+      return {
+        indirim: YUVARLA(birimFiyat * bedava),
+        kullanilanAdet: grup * n,
+      };
+    }
+
+    case "paketfiyat": {
+      // Kampanya, birim fiyatı doğrudan belirler.
+      const hedef = Math.max(kampanya.deger, 0);
+      const fark = (birimFiyat - hedef) * adet;
+      return {
+        indirim: fark > 0 ? YUVARLA(fark) : 0,
+        kullanilanAdet: fark > 0 ? adet : 0,
+      };
+    }
+
+    default:
+      // Tanınmayan tip indirim üretmez. Bilinmeyen bir kuralı "herhalde
+      // yüzdedir" diye yorumlamak yanlış fiyat üretmekten beterdir.
+      return { indirim: 0, kullanilanAdet: 0 };
+  }
+}
+
+/** Aday kampanyalardan müşteriye en avantajlı olanı seçer. */
+export function enIyiKampanya(
+  adaylar: FiyatKampanyasi[],
+  birimFiyat: number,
+  miktar: number
+): { kampanya: FiyatKampanyasi; indirim: number } | null {
+  let enIyi: { kampanya: FiyatKampanyasi; indirim: number } | null = null;
+
+  for (const k of adaylar) {
+    const { indirim } = kampanyaIndirimi(k, birimFiyat, miktar);
+    if (indirim <= 0) continue;
+    // Eşitlikte İLK kampanya kazanır: sıralama çağıranın elindedir ve
+    // rastgele değişen bir seçim raporları açıklanamaz kılardı.
+    if (!enIyi || indirim > enIyi.indirim) enIyi = { kampanya: k, indirim };
+  }
+
+  return enIyi;
+}
+
+/**
+ * Satır fiyatını uçtan uca hesaplar.
+ *
+ * `secilenKampanyaId` verilirse motorun önerisi yerine O kampanya uygulanır
+ * (kullanıcı bilinçli olarak başka bir kampanyayı seçebilir); verilen
+ * kampanya adaylar arasında yoksa hiç kampanya uygulanmaz — istemciden gelen
+ * bir id'ye güvenip indirim vermek, indirim yetkisini herkese açardı.
+ */
+export function satirFiyatiHesapla(
+  urun: FiyatUrunu,
+  miktar: number,
+  secenekler: {
+    paket?: FiyatPaketi | null;
+    kampanyalar?: FiyatKampanyasi[];
+    secilenKampanyaId?: string | null;
+    /** Kullanıcının elle girdiği ek iskonto (%) — kampanyadan SONRA. */
+    elIskontoOrani?: number;
+  } = {}
+): FiyatSonucu {
+  const adet = Math.max(miktar, 0);
+  const adimlar: string[] = [];
+
+  const listeTutar = YUVARLA(urun.listeFiyat * adet);
+  adimlar.push(`Liste fiyatı: ${urun.listeFiyat} × ${adet}`);
+
+  // 1) Paket
+  let birimFiyat = urun.listeFiyat;
+  if (secenekler.paket) {
+    const paketli = paketBirimFiyati(secenekler.paket, urun.urunId, urun.listeFiyat);
+    if (paketli !== null) {
+      birimFiyat = paketli;
+      adimlar.push(`Paket fiyatı uygulandı: birim ${paketli}`);
+    }
+  }
+
+  // 2) Kampanya
+  const adaylar = secenekler.kampanyalar ?? [];
+  let secilen: { kampanya: FiyatKampanyasi; indirim: number } | null = null;
+
+  if (secenekler.secilenKampanyaId) {
+    const k = adaylar.find((x) => x.kampanyaId === secenekler.secilenKampanyaId);
+    if (k) {
+      const { indirim } = kampanyaIndirimi(k, birimFiyat, adet);
+      if (indirim > 0) secilen = { kampanya: k, indirim };
+    }
+  } else {
+    secilen = enIyiKampanya(adaylar, birimFiyat, adet);
+  }
+
+  let indirimTutari = secilen?.indirim ?? 0;
+  if (secilen) {
+    adimlar.push(`Kampanya "${secilen.kampanya.kod}": −${secilen.indirim}`);
+  }
+
+  // 3) Elle iskonto — kampanyadan sonra, kalan tutar üzerinden.
+  const araTutar = birimFiyat * adet - indirimTutari;
+  const elOran = Math.min(Math.max(secenekler.elIskontoOrani ?? 0, 0), 100);
+  if (elOran > 0) {
+    const elIndirim = YUVARLA(araTutar * (elOran / 100));
+    indirimTutari = YUVARLA(indirimTutari + elIndirim);
+    adimlar.push(`Elle iskonto %${elOran}: −${elIndirim}`);
+  }
+
+  const netTutar = Math.max(YUVARLA(birimFiyat * adet - indirimTutari), 0);
+  const kdvTutari = YUVARLA(netTutar * (urun.kdvOrani / 100));
+
+  return {
+    listeTutar,
+    birimFiyat: YUVARLA(birimFiyat),
+    netTutar,
+    indirimTutari: YUVARLA(indirimTutari),
+    kdvTutari,
+    toplam: YUVARLA(netTutar + kdvTutari),
+    kampanya: secilen?.kampanya ?? null,
+    adimlar,
+  };
+}
+
+/**
+ * Bir kampanyanın belirli bir anda ve firmada GEÇERLİ olup olmadığı.
+ *
+ * Durum, tarih ve kapsam birlikte bakılır. Kapsam listeleri BOŞSA "hepsi"
+ * demektir — kampanya tanımlarken her ürünü tek tek işaretlemek zorunda
+ * kalmak, en sık kullanılan hâli en zahmetli hâle getirirdi.
+ */
+export function kampanyaGecerliMi(
+  k: {
+    durum: string;
+    baslangic: Date;
+    bitis: Date;
+    kota: number;
+    kullanilan: number;
+    urunIdler: string[];
+    paketIdler: string[];
+    firmaIdler: string[];
+  },
+  baglam: { an: Date; firmaId?: string | null; urunId?: string | null }
+): boolean {
+  if (k.durum !== "aktif") return false;
+  if (baglam.an < k.baslangic || baglam.an > k.bitis) return false;
+  if (k.kota > 0 && k.kullanilan >= k.kota) return false;
+
+  if (k.firmaIdler.length > 0) {
+    if (!baglam.firmaId || !k.firmaIdler.includes(baglam.firmaId)) return false;
+  }
+
+  // Ürün kapsamı: ürün listesi doluysa ürün orada olmalı. Paket kapsamı
+  // burada değerlendirilmez — paket satırının ürünleri çağıran tarafından
+  // açılıp tek tek sorulur.
+  if (k.urunIdler.length > 0) {
+    if (!baglam.urunId || !k.urunIdler.includes(baglam.urunId)) return false;
+  }
+
+  return true;
+}

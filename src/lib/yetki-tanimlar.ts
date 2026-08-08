@@ -93,6 +93,19 @@ export const IZIN = {
   // tanımlanamaz VE formlarda görünmez (alanlariGetir boş döner).
   ozelAlanYonet: "ozelalan.yonet",
 
+  // ── Faz 14: ticari çekirdek ──────────────────────────────────────────────
+  // Katalog ve kampanya TANIMLAMAK fiyatı belirlemektir; her üye
+  // değiştirebilseydi satış rakamları kontrolsüz kalırdı. Bu yüzden
+  // görüntüleme herkese, yönetim kuruluş yöneticisine açıktır.
+  urunGoruntule: "urun.goruntule",
+  urunYonet: "urun.yonet",
+  kampanyaGoruntule: "kampanya.goruntule",
+  kampanyaYonet: "kampanya.yonet",
+  // Stok HAREKETİ girmek ayrı bir yetkidir: depo işi yapan kişi katalogu
+  // düzenleyemeyebilir, katalogu düzenleyen kişi sayım yapmayabilir.
+  stokGoruntule: "stok.goruntule",
+  stokHareket: "stok.hareket",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -152,6 +165,12 @@ export const IZIN_ETIKET: Record<string, string> = {
   "rapor.goruntule": "Raporları görüntüle",
   "yedek.yonet": "Yedekleri yönet",
   "ozelalan.yonet": "Özel alanları yönet",
+  "urun.goruntule": "Ürün ve paketleri görüntüle",
+  "urun.yonet": "Ürün ve paketleri yönet",
+  "kampanya.goruntule": "Kampanyaları görüntüle",
+  "kampanya.yonet": "Kampanyaları yönet",
+  "stok.goruntule": "Stok durumunu görüntüle",
+  "stok.hareket": "Stok hareketi gir",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -171,6 +190,9 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
   { ad: "Teklifler", izinler: [IZIN.teklifGoruntule, IZIN.teklifOlustur, IZIN.teklifDuzenle, IZIN.teklifSil] },
   { ad: "Takvim", izinler: [IZIN.takvimGoruntule] },
   { ad: "Otomasyon", izinler: [IZIN.otomasyonGoruntule, IZIN.otomasyonYonet, IZIN.epostaAyarYonet] },
+  { ad: "Ürünler ve Paketler", izinler: [IZIN.urunGoruntule, IZIN.urunYonet] },
+  { ad: "Kampanyalar", izinler: [IZIN.kampanyaGoruntule, IZIN.kampanyaYonet] },
+  { ad: "Stok", izinler: [IZIN.stokGoruntule, IZIN.stokHareket] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
@@ -204,6 +226,11 @@ const GORUNTULEME: Izin[] = [
   IZIN.teklifGoruntule,
   IZIN.takvimGoruntule,
   IZIN.raporGoruntule,
+  // Faz 14: katalog ve kampanya bilgisi satış yapan HERKESE gerekir —
+  // fiyat sormak için yöneticiye gitmek zorunda kalmamalı.
+  IZIN.urunGoruntule,
+  IZIN.kampanyaGoruntule,
+  IZIN.stokGoruntule,
 ];
 
 const IS_VERISI_TAM: Izin[] = [
@@ -217,6 +244,9 @@ const IS_VERISI_TAM: Izin[] = [
   IZIN.aktiviteOlustur, IZIN.aktiviteDuzenle, IZIN.aktiviteSil,
   IZIN.leadOlustur, IZIN.leadDuzenle, IZIN.leadSil, IZIN.leadDonustur,
   IZIN.teklifOlustur, IZIN.teklifDuzenle, IZIN.teklifSil,
+  // Stok hareketi günlük iştir (mal kabul, sevkiyat); üye de girebilir.
+  // Katalog ve kampanya YÖNETİMİ ise bilinçli olarak dışarıdadır.
+  IZIN.stokHareket,
 ];
 
 /**
@@ -247,6 +277,9 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.yedekYonet,
     // Alan tanımı da form biçimini kuruluş çapında değiştirir.
     IZIN.ozelAlanYonet,
+    // Faz 14: katalog, paket ve kampanya TANIMI fiyat politikasıdır.
+    IZIN.urunYonet,
+    IZIN.kampanyaYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

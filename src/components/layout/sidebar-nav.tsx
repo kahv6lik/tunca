@@ -21,6 +21,9 @@ import {
   BarChart3,
   Users,
   ScrollText,
+  Package,
+  Ticket,
+  Warehouse,
   FileLock2,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +62,18 @@ export const NAV: NavItem[] = [
   // Adaylar (/adaylar) menüde YOKTUR — satış hattının bir sekmesidir
   // (Faz 13 / H5). Rota duruyor; oraya "Fırsatlar" içinden geçilir.
   { href: "/teklifler", label: "Teklifler", icon: FileText, izin: "teklif.goruntule" },
+  // ── Ticari çekirdek (Faz 14) ──
+  // Paketler ürünlerin bir alt görünümüdür; menüyü şişirmemek için kendi
+  // başlığı yoktur, "Ürünler" ekranından açılır (esRotalar ile işaretli).
+  {
+    href: "/urunler",
+    label: "Ürünler",
+    icon: Package,
+    izin: "urun.goruntule",
+    esRotalar: ["/paketler"],
+  },
+  { href: "/kampanyalar", label: "Kampanyalar", icon: Ticket, izin: "kampanya.goruntule" },
+  { href: "/stok", label: "Stok", icon: Warehouse, izin: "stok.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },
