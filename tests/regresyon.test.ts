@@ -235,6 +235,45 @@ describe("Sayfalar ve action'lar kiracı katmanını çağırıyor", () => {
   });
 });
 
+describe("Paket modülleri seed ile tutarlı (Faz 14'te yaşandı)", () => {
+  it("her paket modülü, seed'deki TAM paketlerde yer alıyor", async () => {
+    /**
+     * NEDEN BU TEST VAR:
+     *
+     * Migration, MEVCUT paketlere yeni modülü ekler. Ama doğrulama (ve her
+     * temiz kurulum) sıfır veritabanıyla başlar: migration boş `Plan`
+     * tablosuna çalışır, sonra seed paketleri SIFIRDAN yaratır. Seed'in
+     * modül listesi eksik kalırsa modül kapalı sayılır ve yeni ekranlar
+     * `/yetkisiz`e düşer — kod doğruyken sekiz tarayıcı kontrolü birden
+     * kırmızıya döner (Faz 14'te tam olarak bu oldu).
+     *
+     * "Başlangıç" paketi bilinçli olarak DAR tutulur (paket kısıtının
+     * çalıştığı elle denenebilsin diye), bu yüzden kapsam dışıdır.
+     */
+    const { PAKET_MODULLERI } = await import("../src/lib/constants");
+    const seed = readFileSync("prisma/seed.ts", "utf8");
+
+    // Seed'deki geniş paketlerin modül listelerini çıkar.
+    const listeler = [...seed.matchAll(/moduller:\s*\[([^\]]+)\]/g)].map((m) =>
+      [...m[1].matchAll(/"([a-z]+)"/g)].map((x) => x[1])
+    );
+    const genisListeler = listeler.filter((l) => l.length > 8);
+    expect(genisListeler.length, "seed'de tam paket bulunamadı").toBeGreaterThanOrEqual(2);
+
+    const eksikler: string[] = [];
+    for (const modul of PAKET_MODULLERI.map((m) => m.deger)) {
+      for (const liste of genisListeler) {
+        if (!liste.includes(modul)) eksikler.push(modul);
+      }
+    }
+
+    expect(
+      [...new Set(eksikler)],
+      "Seed'deki tam paketlerde eksik modüller (prisma/seed.ts güncellenmeli)"
+    ).toEqual([]);
+  });
+});
+
 describe("Şema kuralları", () => {
   const sema = readFileSync("prisma/schema.prisma", "utf8");
 

@@ -563,6 +563,11 @@ async function paketleriKur() {
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
         "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor", "ozelalan",
+        // Faz 14 — ticari çekirdek. DİKKAT: yeni bir paket modülü eklendiğinde
+        // BURASI da güncellenmelidir. Migration mevcut paketlere modülü ekler
+        // ama seed paketleri SIFIRDAN yaratır; liste eksik kalırsa modül
+        // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
+        "urun", "kampanya", "stok",
       ],
     },
     {
@@ -573,6 +578,11 @@ async function paketleriKur() {
       moduller: [
         "firma", "yatirim", "egitim", "hizmet", "kisi", "firsat",
         "aktivite", "lead", "teklif", "takvim", "otomasyon", "rapor", "ozelalan",
+        // Faz 14 — ticari çekirdek. DİKKAT: yeni bir paket modülü eklendiğinde
+        // BURASI da güncellenmelidir. Migration mevcut paketlere modülü ekler
+        // ama seed paketleri SIFIRDAN yaratır; liste eksik kalırsa modül
+        // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
+        "urun", "kampanya", "stok",
       ],
     },
   ];

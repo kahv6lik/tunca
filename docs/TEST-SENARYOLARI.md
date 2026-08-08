@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.14.0** | **Faz 14** — Ürün kataloğu, müşteriye özel paketler, kampanya (kota + kullanım raporu), fiyat motoru, gerçek stok takibi | `/urunler`de ürün ekle → `/paketler`de iki ürünü paketle → `/kampanyalar`da kotalı kampanya aç → `/stok`ta giriş/çıkış gir | Paket önizlemesi müşteri avantajını gösterir; kampanya kotası her kullanımda düşer ve tükenince reddeder; stok çıkışı eldekinden fazlaysa hata verir ve hareket yazılmaz | 465 |
 | **v1.13.0** | **Faz 13** — Firma numarası (`A0001`), Türkçe duyarsız arama, Kontaklar adı + menü düzeni, Adaylar fırsatlar sekmesi, fırsattan firma/teklif, takvim kategori süzgeci, raporlarda tarih aralığı | Firmalar listesinde bir numarayı arama kutusuna yaz; `/firsatlar`da **+ Yeni firma ekle** ile fırsat aç | Numara tam eşleşmeyle o firmayı getirir; fırsat ve firma tek işlemde açılır, firma sıradaki numarayı ve denetim kaydını alır | 400 |
 | **v1.12.1** | Kişi kaydına departman alanı: 40 seçenekli sabit listeden aramalı seçim; kişiler listesinde ve firma detayında sütun | Firma detayı → **Kişi Ekle** → Departman kutusuna bas, "insan" yaz | Küçük arama penceresi süzer ("İnsan Kaynakları"); elle metin yazılamaz; seçim listede ve dışa aktarımda görünür | 373 |
 | **v1.12.0** | **Faz 12** — Hesap güvenliği ve KVKK: şifre politikası, şifremi unuttum, 2FA (TOTP + yedek kodlar), oturum yönetimi, hız sınırlama, KVKK aydınlatma/rıza/veri kopyası | Girişte **Şifremi unuttum**; profil menüsünden **Hesap Güvenliği** → 2FA kur; 5 kez yanlış şifre dene | Sıfırlama yanıtı hesap olsa da olmasa da aynı; 2FA açılınca girişte kod istenir; 5. denemeden sonra hesap 15 dk kilitlenir | 369 |
@@ -252,6 +253,33 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 15 | Ay değiştir | Süzgeç korunur |
 | 16 | `/raporlar` → **Bu ay** / **Geçen ay** | Kartlar ve grafikler o döneme daralır; başlıkta aralık yazar |
 | 17 | Başlangıcı bitişten SONRAYA ayarla | Rapor boşalmaz — süzgeç uygulanmaz (yazım hatası veriyi gizlemez) |
+
+---
+
+### v1.14.0 — Ticari çekirdek (Faz 14)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/urunler` aç | Seed'den gelen 8 kalem; liste fiyatı ve KDV dahil sütunları |
+| 2 | **Yeni Ürün** → aynı kodu ikinci kez ver | "Bu kod zaten kullanılıyor" |
+| 3 | Bir ürünü **pasif** yap | Listede pasif rozeti; katalogda kalır (silinmez) |
+| 4 | Pakette kullanılan bir ürünü sil | Engellenir; kaç pakette kullanıldığı söylenir |
+| 5 | `/paketler` → **Başlangıç Paketi** | Liste toplamı üstü çizili, paket fiyatı ve müşteri avantajı görünür |
+| 6 | Yeni paket kur, sabit fiyat gir | Önizleme, fiyatı kalemlere liste değerine orantılı dağıtır |
+| 7 | Pakete firma seç | Paket yalnızca o firmaya sunulur (filtreyle doğrula) |
+| 8 | `/kampanyalar` → **BAHAR20** | Kota çubuğu 12/50; kullanım, firma ve indirim özeti |
+| 9 | Kampanya detayına gir → **Kullanım Kaydet** (5 adet) | Kota 17/50 olur; defterde satır belirir |
+| 10 | Kalan kotadan fazlasını kaydetmeyi dene | "Kampanya kotası yetersiz: N adet kaldı" |
+| 11 | Bir kullanımı **İptal** et | Satır üstü çizilir, kota iade edilir |
+| 12 | Kullanılmış kampanyayı silmeyi dene | Engellenir; "Sona erdi" yapması önerilir |
+| 13 | `/stok` aç | Kritik stok bandında **El Terminali** (3 / 5) |
+| 14 | **Stok Hareketi** → Çıkış, eldekinden fazla | "Yetersiz stok: elde N var" — hareket yazılmaz |
+| 15 | Geçerli bir çıkış gir | Bakiye düşer; defterde miktar ve sonraki bakiye görünür |
+| 16 | **Sayım Gir** → sistemdekinden farklı bir sayı | Fark kadar "sayım" hareketi yazılır; açıklamada eski/yeni değer |
+| 17 | Sayımda mevcut bakiyeyi gir | "Fark yok" — hareket yazılmaz |
+| 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
+| 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
+| 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
 
 ---
 

@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.13.0` — Faz 13: arayüz ve veri düzeltmeleri |
-| **Sıradaki faz** | **Faz 14** — Ürün kataloğu, stok, paket, kampanya (`v1.14.0`) |
-| **Sonrası** | Faz 15–20: saha geri bildirimleri · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.14.0` — Faz 14: ürün, paket, kampanya, stok |
+| **Sıradaki faz** | **Faz 15** — Sipariş, yönetici onayı, depo/sevkiyat (`v1.15.0`) |
+| **Sonrası** | Faz 16–20: saha geri bildirimleri · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -148,7 +148,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 11 | E6 — Tenant'a özel alanlar | `v1.11.0` | ✅ tamamlandı | — |
 | 12 | F1–F4, F7 — Hesap güvenliği ve KVKK | `v1.12.0` | ✅ tamamlandı | — |
 | 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | ✅ tamamlandı | — |
-| 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | planlandı | |
+| 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | ✅ tamamlandı | — |
 | 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | planlandı | |
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | planlandı | |
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | planlandı | |
@@ -954,36 +954,36 @@ bu yüzden ilk sıradadır — hızlı kazanç.
 
 Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
-- [ ] **T1 — Ürün/hizmet kataloğu.** Kod, ad, birim, liste fiyatı, KDV oranı,
+- [x] **T1 — Ürün/hizmet kataloğu.** Kod, ad, birim, liste fiyatı, KDV oranı,
       para birimi, aktif/pasif. Kiracıya özeldir.
-- [ ] **T2 — Müşteriye özel paket tanımı.** Bir veya birden çok üründen
+- [x] **T2 — Müşteriye özel paket tanımı.** Bir veya birden çok üründen
       oluşan paket; firmaya özel fiyat/iskonto taşıyabilir.
-- [ ] **T3 — Kampanya tanımı.** Kod, ad, **tip**, **durum**, **başlangıç ve
+- [x] **T3 — Kampanya tanımı.** Kod, ad, **tip**, **durum**, **başlangıç ve
       bitiş tarihi**, kapsadığı ürün/paketler, indirim kuralı (yüzde ya da
       tutar), firma kapsamı (tüm firmalar / seçili firmalar).
       *Tip örnekleri:* yüzde indirim, tutar indirimi, X alana Y bedava,
       paket fiyatı. Tip listesi sabit tanımdır (`constants.ts`).
       *Durum:* taslak · aktif · duraklatıldı · sona erdi (bitiş tarihi
       geçince zamanlanmış iş kendiliğinden "sona erdi"ye çeker).
-- [ ] **T4 — Kampanya kotası ve kullanım sayacı.** Kampanyaya **adet**
+- [x] **T4 — Kampanya kotası ve kullanım sayacı.** Kampanyaya **adet**
       girilir; her satışta verilen adet otomatik düşer. Firma bazında
       "bu kampanyadan kaç kez faydalandı" ve "ne kadar hakkı kaldı" görünür.
       *Kritik:* kota düşümü sipariş onayıyla ATOMİK olmalı — iki satış
       temsilcisi aynı anda son adedi satamamalı (veritabanı düzeyinde koşullu
       güncelleme; sayaç uygulama katmanında hesaplanıp yazılmaz).
-- [ ] **T5 — Kampanya raporu.** Kampanya bazında: kullanım adedi, kalan kota,
+- [x] **T5 — Kampanya raporu.** Kampanya bazında: kullanım adedi, kalan kota,
       ciro etkisi, firma kırılımı, tarih aralığı süzgeci.
-- [ ] **T6 — Fiyat motoru.** Bir sipariş satırının fiyatı tek bir SAF
+- [x] **T6 — Fiyat motoru.** Bir sipariş satırının fiyatı tek bir SAF
       fonksiyondan geçer: liste fiyatı → firmaya özel paket → geçerli kampanya
       → son fiyat. Sıra ve öncelik yazılıdır; testler bu fonksiyonu
       veritabanı olmadan sınar (`fiyat-saf.ts`).
-- [ ] **T7 — Stok takibi.** Ürün bazında stok miktarı ve **stok hareketi**
+- [x] **T7 — Stok takibi.** Ürün bazında stok miktarı ve **stok hareketi**
       defteri: giriş (mal kabul), çıkış (sevkiyat), düzeltme, sayım. Her
       hareket kim/ne zaman/neden bilgisiyle kaydedilir ve SİLİNMEZ — stok
       bakiyesi hareketlerin toplamıdır, elle yazılan bir sayı değildir.
       *Kritik:* bakiye düşümü, kampanya kotasıyla aynı gerekçeyle atomik
       olmalıdır; iki temsilci son ürünü aynı anda satamamalı.
-- [ ] **T8 — Stok uyarıları ve raporu.** Kritik stok seviyesi tanımı, altına
+- [x] **T8 — Stok uyarıları ve raporu.** Kritik stok seviyesi tanımı, altına
       düşünce bildirim; stok durumu, hareket dökümü ve devir hızı raporu.
 
 ### Kararlar
@@ -994,6 +994,31 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
   AYRI iki sayaçtır: kota "bu kampanyadan kaç adet verilebilir", stok "elde
   kaç adet var". Bir sipariş ikisini birden düşürür.
 - Kota **adet** üzerinden tükenir (bulguda böyle yazıyor).
+
+### Uygulama notları (v1.14.0)
+
+- **Fiyat sırası tek yerde:** `fiyat-saf.ts` → liste → paket → kampanya →
+  KDV. Paket kampanyadan ÖNCE gelir: paket "bu müşterinin fiyatı budur"
+  anlaşması, kampanya onun üzerine yapılan geçici jesttir. Ters sırada
+  sözleşmeli müşteri kampanyadan hiç yararlanamazdı.
+- **KDV indirimli tutar üzerinden** hesaplanır; aksi halde müşteri almadığı
+  indirimin vergisini öderdi.
+- **Kota ve stok İKİ AYRI atomik sayaçtır.** İkisi de koşullu `UPDATE … WHERE`
+  ile düşer; "oku → kontrol et → yaz" yaklaşımı iki temsilcinin son adedi
+  aynı anda satmasına açık kapı bırakırdı. Testler 10 eşzamanlı istekle bunu
+  doğruluyor.
+- **Bakiye hareketlerin toplamıdır.** `Urun.stokMiktar` bir ÖZETTİR; ürün
+  formundan yazılamaz, yalnızca hareketle değişir. Sayım bakiyeyi ezmez,
+  FARK kadar hareket yazar — "sistemde 100, sayımda 97" bilgisi kaybolmaz.
+- **Defterler silinmez.** Kullanılmış kampanya silinemez (durumu "sona erdi"
+  yapılır); stok hareketi düzeltilmez, ters hareketle kapatılır; iptal edilen
+  kampanya kullanımı işaretlenir ve kotası iade edilir.
+- **Görüntüleme ile tanım ayrı izinlerdir.** Satış temsilcisi fiyatı ve
+  kampanyayı görür, kendine indirim tanımlayamaz. Stok hareketi ise günlük
+  iştir; üyede vardır.
+- **Faz 15 bağlantısı:** kampanya kullanımı ve stok çıkışı şimdilik elle
+  işleniyor. Sipariş onayı geldiğinde aynı `kampanyaKullan` /
+  `stokHareketiIsle` kapıları çağrılacak — arayüz değişecek, kural değil.
 
 ---
 

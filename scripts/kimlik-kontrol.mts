@@ -919,6 +919,67 @@ async function main() {
     raporHepsi.govde !== raporDar.govde && raporDar.govde.includes("1990")
   );
 
+  // 18 — Faz 14: ticari çekirdek (T1-T8)
+  console.log("\n18. Faz 14 — katalog, paket, kampanya, stok");
+
+  const katalog = await sayfaGetir("admin@gezegen.com", "admin123", "/urunler");
+  kontrol(
+    "Yönetici ürün kataloğunu açabiliyor",
+    !katalog.url.includes("/yetkisiz") && katalog.govde.includes("DAN-001")
+  );
+  kontrol(
+    "Katalogda liste fiyatı ve KDV dahil sütunu var",
+    katalog.govde.toLocaleLowerCase("tr").includes("kdv dahil")
+  );
+
+  const paketler = await sayfaGetir("admin@gezegen.com", "admin123", "/paketler");
+  kontrol(
+    "Paket ekranı paket fiyatını ve müşteri avantajını gösteriyor",
+    paketler.govde.includes("Başlangıç Paketi") &&
+      paketler.govde.toLocaleLowerCase("tr").includes("paket fiyatı")
+  );
+
+  const kampanyalar = await sayfaGetir("admin@gezegen.com", "admin123", "/kampanyalar");
+  kontrol(
+    "Kampanya listesi kota ve kullanım özetini gösteriyor",
+    kampanyalar.govde.includes("BAHAR20") && kampanyalar.govde.includes("Kota")
+  );
+
+  const stok = await sayfaGetir("admin@gezegen.com", "admin123", "/stok");
+  kontrol(
+    "Stok ekranı bakiyeleri listeliyor",
+    !stok.url.includes("/yetkisiz") && stok.govde.includes("DON-001")
+  );
+  kontrol(
+    "Kritik stok uyarısı görünüyor (El Terminali eşiğin altında)",
+    stok.govde.toLocaleLowerCase("tr").includes("kritik stok seviyesi")
+  );
+
+  // Yetki ayrımı: üye katalogu GÖRÜR ama yönetemez.
+  const uyeKatalog = await sayfaGetir("kullanici@gezegen.com", "user123", "/urunler");
+  kontrol(
+    "Üye katalogu görüntüleyebiliyor",
+    !uyeKatalog.url.includes("/yetkisiz") && uyeKatalog.govde.includes("DAN-001")
+  );
+  kontrol(
+    "Üye 'Yeni Ürün' düğmesini GÖRMÜYOR (tanım yöneticinin işi)",
+    !uyeKatalog.govde.includes("Yeni Ürün")
+  );
+
+  const uyeKampanya = await sayfaGetir("kullanici@gezegen.com", "user123", "/kampanyalar");
+  kontrol(
+    "Üye kampanyaları görüyor ama 'Yeni Kampanya' düğmesi yok",
+    !uyeKampanya.url.includes("/yetkisiz") && !uyeKampanya.govde.includes("Yeni Kampanya")
+  );
+
+  // Kiracı sınırı: Anadolu'nun katalogu boştur (ticari veri yalnızca Gezegen'de).
+  const anadoluKatalog = await sayfaGetir("admin@anadolu.com", "anadolu123", "/urunler");
+  kontrol(
+    "Komşu kiracı Gezegen'in ürünlerini GÖRMÜYOR",
+    !anadoluKatalog.govde.includes("DAN-001") &&
+      !anadoluKatalog.govde.includes("Barkod Okuyucu")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

@@ -43,6 +43,8 @@ prisma/
                        # IsAkisi, IsAkisiCalismasi,
                        # PanoTercihi, KayitliGorunum, Yedek,
                        # OzelAlan, OzelAlanDeger, FirmaNoSayac,
+                       # Urun, Paket, PaketKalemi, Kampanya(+Urun/Paket/Firma),
+                       # KampanyaKullanim, StokHareketi,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -72,6 +74,10 @@ src/
       teklifler/[id]/yazdir/  # PDF çıktı — tarayıcı yazdırma (Faz 9)
       yedekler/        # yedek al/indir/geri yükle — yedek.yonet (Faz 10)
       ozel-alanlar/    # özel alan tanımları — ozelalan.yonet (Faz 11)
+      urunler/         # ürün/hizmet kataloğu (Faz 14)
+      paketler/        # ürün paketleri, firmaya özel fiyat (Faz 14)
+      kampanyalar/     # kampanya tanımı, kota, kullanım raporu (Faz 14)
+      stok/            # stok durumu ve hareket defteri (Faz 14)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
       kvkk/            # aydınlatma metni + açık rıza kaydı (Faz 12)
@@ -104,6 +110,8 @@ src/
     otomasyon/         # KuralPanel, EpostaAyarFormu (Faz 8)
     yedekler/          # YedekPanel (Faz 10)
     ozel-alanlar/      # OzelAlanPanel (Faz 11)
+    urunler/           # UrunPanel, PaketPanel, KampanyaPanel, StokPanel,
+                       # KullanimPanel (Faz 14)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -140,6 +148,10 @@ src/
     firma-no-saf.ts       # firma numarası A0001–Z9999 + atomik sayaç (Faz 13)
     arama.ts              # Türkçe duyarsız liste araması — saf (Faz 13)
     tarih-araligi.ts      # rapor tarih aralığı + hazır aralıklar — saf (Faz 13)
+    fiyat-saf.ts          # fiyat motoru: liste→paket→kampanya→KDV (Faz 14)
+    kampanya.ts           # atomik kota sayacı + kullanım defteri (Faz 14)
+    stok.ts               # stok hareket defteri + atomik bakiye (Faz 14)
+    urun-tanimlar.ts      # kod normalize, stok durumu — saf (Faz 14)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -318,6 +330,35 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   zorunluluğunun belgeli istisnasıdır (`tests/regresyon.test.ts` içindeki
   `KISISEL_TERCIH_DOSYALARI`); kullanıcı yalnızca KENDİ satırını yazar.
 
+### Ticari Çekirdek (Faz 14)
+
+- **Fiyat TEK saf fonksiyondan geçer** (`fiyat-saf.ts`): liste fiyatı →
+  firmaya özel paket → kampanya → KDV. Sıra bilinçlidir; paket kampanyadan
+  ÖNCE gelir çünkü paket "bu müşterinin fiyatı budur" anlaşmasıdır, kampanya
+  onun üzerine yapılan geçici bir jesttir. **KDV indirimli tutar üzerinden**
+  hesaplanır.
+- **Tek kampanya uygulanır** — müşteriye en avantajlı olan otomatik seçilir,
+  kullanıcı isterse değiştirir. Üst üste binen indirimler hem hesabı hem de
+  müşteriye yapılan savunmayı imkânsızlaştırır. İstemciden gelen bir kampanya
+  id'si ADAYLAR arasında yoksa indirim uygulanmaz.
+- **Kota ve stok İKİ AYRI ATOMİK sayaçtır.** İkisi de koşullu `UPDATE … WHERE`
+  ile düşer (`kampanya.ts`, `stok.ts`); "oku → kontrol et → yaz" yaklaşımı iki
+  temsilcinin son adedi aynı anda satmasına izin verirdi. Kota "bu kampanyadan
+  kaç adet verilebilir", stok "elde kaç adet var" sorusunu yanıtlar; bir satış
+  ikisini birden düşürür.
+- **Bakiye hareketlerin toplamıdır.** `Urun.stokMiktar` bir ÖZETTİR (liste
+  sorgularında binlerce hareketi toplamamak için) ve ürün formundan yazılamaz.
+  Sayım bakiyeyi ezmez, **FARK kadar** hareket yazar.
+- **Defterler silinmez:** kullanılmış kampanya silinemez (durumu "sona erdi"
+  yapılır), stok hareketi düzeltilmez (ters hareketle kapatılır), iptal edilen
+  kullanım işaretlenir ve kotası iade edilir.
+- **Görüntüleme ile tanım ayrı izinlerdir** (`urun.goruntule`/`urun.yonet`,
+  `kampanya.goruntule`/`kampanya.yonet`): satış temsilcisi fiyatı görmeli ama
+  kendine indirim tanımlayamamalı. `stok.hareket` ayrıdır — depo işi yapan
+  kişi katalogu düzenlemeyebilir.
+- **`urun`, `kampanya`, `stok` birer paket modülüdür**; hizmet satan bir
+  kuruluş katalogu kullanır ama stok tutmaz.
+
 ### Arayüz ve Veri Düzeltmeleri (Faz 13)
 
 - **Firma numarası oluşturmada verilir ve DEĞİŞMEZ** (`A0001`–`Z9999`,
@@ -384,7 +425,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**400 kontrol**.
+**465 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -392,10 +433,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (238 test, ~8 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (293 test, ~10 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 141)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 151)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -478,7 +519,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 11 | Kiracıya özel alanlar (E6) | `v1.11.0` | ✅ tamamlandı |
 | 12 | Şifre politikası, 2FA, oturum yönetimi, rate limit, KVKK (F1-F4, F7) | `v1.12.0` | ✅ tamamlandı |
 | 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | ✅ tamamlandı |
-| 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | planlandı |
+| 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | ✅ tamamlandı |
 | 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | planlandı |
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | planlandı |
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | planlandı |
@@ -572,6 +613,12 @@ etkiliyor.
   açma; fırsattan tek tıkla teklif hazırlama ve fırsata bağlı teklif sayısı;
   takvimde tıklanabilir kategori süzgeci (`.ics`'e de yansır); raporlarda
   tarih aralığı ve hazır dönemler (bu ay / geçen ay / bu çeyrek / bu yıl).
+- **v1.14.0** — **Faz 14:** Ticari çekirdek. Ürün/hizmet kataloğu (kod, birim,
+  liste fiyatı, KDV, stok takibi bayrağı); müşteriye özel ürün paketleri
+  (sabit fiyat ya da iskonto, liste değerine orantılı dağıtım); kampanya
+  tanımı (dört tip, kapsam, durum akışı, **atomik kota**); kampanya kullanım
+  defteri ve raporu; tek saf fonksiyonlu fiyat motoru; hareket defterine
+  dayalı gerçek stok takibi, sayım farkı ve kritik seviye uyarısı.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"
