@@ -2,10 +2,11 @@ import "server-only";
 import { DEPARTMANLAR } from "./constants";
 import ExcelJS from "exceljs";
 import {
-  getTenantDb,
+  getTenantContext,
   tenantOlustur,
   type TenantClient,
 } from "./tenant-db";
+import { sayacIstemcisi, siradakiFirmaNo } from "./firma-no-saf";
 import { veriKumesiBul } from "./disa-aktar-tanimlar";
 import {
   AZAMI_SATIR,
@@ -122,7 +123,7 @@ export async function satirlariYaz(
     return { eklenen: 0, atlanan: satirlar.length, hatalar: [] };
   }
 
-  const db = await getTenantDb();
+  const { db, tenantId } = await getTenantContext();
   const gecerliler = satirlar.filter((s) => s.durum === "gecerli");
 
   const sonuc: YazmaSonucu = { eklenen: 0, atlanan: 0, hatalar: [] };
@@ -148,14 +149,18 @@ export async function satirlariYaz(
     const limit = await firmaLimitiAsildiMi();
     if (limit) return null;
 
-    const yeni = await tenantOlustur(db, "firma", { ad, durum: "aktif" });
+    const yeni = await tenantOlustur(db, "firma", {
+      ad,
+      durum: "aktif",
+      firmaNo: await siradakiFirmaNo(sayacIstemcisi(db), tenantId),
+    });
     firmaOnbellek.set(anahtar, yeni.id);
     return yeni.id;
   }
 
   for (const satir of gecerliler) {
     try {
-      await satirYaz(db, kume.deger, satir.veri, firmaBulYaOlustur);
+      await satirYaz(db, tenantId, kume.deger, satir.veri, firmaBulYaOlustur);
       sonuc.eklenen++;
     } catch (e) {
       sonuc.atlanan++;
@@ -172,6 +177,7 @@ export async function satirlariYaz(
 
 async function satirYaz(
   db: TenantClient,
+  tenantId: string,
   kume: string,
   v: Record<string, string>,
   firmaBulYaOlustur: (ad: string) => Promise<string | null>
@@ -190,6 +196,7 @@ async function satirYaz(
 
     await tenantOlustur(db, "firma", {
       ad: v.ad,
+      firmaNo: await siradakiFirmaNo(sayacIstemcisi(db), tenantId),
       vergiNo: v.vergiNo || null,
       sektor: v.sektor || null,
       il: v.il || null,

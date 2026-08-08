@@ -1,4 +1,5 @@
 import { gzipSync, gunzipSync } from "node:zlib";
+import { firmaNoSira, firmaNoUret } from "./firma-no-saf";
 
 /**
  * Bu dosya bilinçli olarak `server-only` DEĞİLDİR (yetki-tanimlar deseni):
@@ -25,6 +26,8 @@ export type YedekIstemcisi = Record<
     findFirst: (args?: unknown) => Promise<Record<string, unknown> | null>;
     create: (args: unknown) => Promise<{ id: string }>;
     createMany: (args: unknown) => Promise<{ count: number }>;
+    updateMany: (args: unknown) => Promise<{ count: number }>;
+    upsert: (args: unknown) => Promise<unknown>;
     deleteMany: (args: unknown) => Promise<{ count: number }>;
   }
 >;
@@ -203,6 +206,18 @@ export async function geriYukle(
 ): Promise<GeriYuklemeSonucu> {
   const sonuc: GeriYuklemeSonucu = { eklenen: {}, atlanan: {}, toplamEklenen: 0 };
 
+  // Faz 13 / H1 — firma numarası kiracı içinde TEKİLDİR. Kendi yedeğini geri
+  // yükleyen bir kuruluşta numaralar zaten boştadır (kayıt silinmişti) ve
+  // olduğu gibi korunur. Dosya BAŞKA bir kuruluşa yüklendiğindeyse numara
+  // çakışabilir; çakışan satırın numarası boşaltılır ve geri yükleme sonunda
+  // sıradaki numara verilir. Numarayı olduğu gibi bırakmak, `skipDuplicates`
+  // yüzünden firmanın SESSİZCE hiç eklenmemesine yol açardı.
+  const doluNumaralar = new Set(
+    (await db.firma.findMany({ where: { tenantId }, select: { firmaNo: true } }))
+      .map((f) => f.firmaNo)
+      .filter((n): n is string => typeof n === "string")
+  );
+
   for (const model of MODELLER) {
     const ham = icerik.veriler[model];
     if (!Array.isArray(ham) || ham.length === 0) continue;
@@ -216,6 +231,14 @@ export async function geriYukle(
       }
       return kopya;
     });
+
+    if (model === "firma") {
+      satirlar = satirlar.map((s) =>
+        typeof s.firmaNo === "string" && doluNumaralar.has(s.firmaNo)
+          ? { ...s, firmaNo: null }
+          : s
+      );
+    }
 
     // Teklif revizyon zinciri kendi tablosuna FK verir: üst teklif, revizyondan
     // ÖNCE eklenmelidir. revizyonNo'ya göre sıralamak bunu garanti eder.
@@ -232,7 +255,49 @@ export async function geriYukle(
     sonuc.toplamEklenen += yazim.count;
   }
 
+  await firmaNolariniTamamla(db, tenantId);
   return sonuc;
+}
+
+/**
+ * Numarasız kalan firmalara sıradaki numarayı verir ve sayacı gerçek duruma
+ * çeker (Faz 13 / H1).
+ *
+ * Geri yüklemeden sonra ÇAĞRILMASI ZORUNLUDUR: yedekten gelen numaralar
+ * sayacı ilerletmez, dolayısıyla resenkron edilmezse arayüzden açılan ilk
+ * firma zaten kullanılmış bir numarayı isterdi.
+ */
+async function firmaNolariniTamamla(
+  db: YedekIstemcisi,
+  tenantId: string
+): Promise<void> {
+  const firmalar = (await db.firma.findMany({
+    where: { tenantId },
+    select: { id: true, firmaNo: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  })) as { id: string; firmaNo: string | null }[];
+
+  const dolu = new Set(
+    firmalar.map((f) => f.firmaNo).filter((n): n is string => typeof n === "string")
+  );
+
+  // Kullanılmış en büyük sıradan devam edilir; aradaki boşluklar bilinçli
+  // olarak DOLDURULMAZ — silinen firmanın numarası başkasına verilemez.
+  let sira = 0;
+  for (const no of dolu) sira = Math.max(sira, firmaNoSira(no) ?? 0);
+
+  for (const f of firmalar) {
+    if (f.firmaNo) continue;
+    const no = firmaNoUret(++sira);
+    if (!no) break; // kapasite doldu — kalanlar numarasız kalır, veri kaybolmaz
+    await db.firma.updateMany({ where: { id: f.id, tenantId }, data: { firmaNo: no } });
+  }
+
+  await db.firmaNoSayac.upsert({
+    where: { tenantId },
+    create: { tenantId, sonSira: sira },
+    update: { sonSira: sira },
+  });
 }
 
 /** Saklanacak otomatik yedek sayısı — eskisi budanır. */

@@ -254,7 +254,10 @@ export default async function FirmaDetayPage(
 
       <PageHeader
         title={firma.ad}
-        subtitle={[firma.sektor, firma.il].filter(Boolean).join(" · ") || undefined}
+        subtitle={
+          [firma.firmaNo, firma.sektor, firma.il].filter(Boolean).join(" · ") ||
+          undefined
+        }
         action={
           <div className="flex items-center gap-2">
             <StatusBadge durum={firma.durum} />
@@ -277,6 +280,9 @@ export default async function FirmaDetayPage(
       {/* Firma bilgileri */}
       <div className="card mb-6 p-6">
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Firma No (Faz 13 / H1) — oluşturmada verilir, DEĞİŞTİRİLEMEZ;
+              bu yüzden düzenleme formunda karşılığı yoktur. */}
+          <Info label="Firma No" value={firma.firmaNo} />
           <Info label="Vergi No" value={firma.vergiNo} />
           <Info label="Sektör" value={firma.sektor} />
           <Info label="İl / İlçe" value={[firma.il, firma.ilce].filter(Boolean).join(" / ")} />

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
-import { veriKumesiBul } from "@/lib/disa-aktar-tanimlar";
+import { iceSutunlar, veriKumesiBul } from "@/lib/disa-aktar-tanimlar";
 import {
   dosyaOku,
   otomatikEslestir,
@@ -74,7 +74,7 @@ export async function dosyaAnalizEt(
 
     // Elle eşleştirme gönderildiyse onu kullan, yoksa otomatik öner.
     const elle: Record<string, string> = {};
-    for (const sutun of kume.sutunlar) {
+    for (const sutun of iceSutunlar(kume)) {
       const secim = formData.get(`eslesme-${sutun.anahtar}`);
       if (typeof secim === "string" && secim) elle[sutun.anahtar] = secim;
     }

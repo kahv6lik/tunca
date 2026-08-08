@@ -56,6 +56,12 @@ const KIRACI_MODELLERI = new Set([
   // Davet kiracıya bağlıdır ve RLS'te kiracı politikası vardır; kuruluş
   // yöneticisi kendi ekibini /kullanicilar üzerinden davet eder.
   "Davet",
+  // FirmaNoSayac BİLİNÇLİ olarak bu listede DEĞİLDİR (Faz 13 / H1):
+  // birincil anahtarı zaten `tenantId`'dir, yani "yanlış kiracının satırı"
+  // diye bir şey yoktur ve sayacın atomik artırılması `upsert` gerektirir —
+  // bu liste `upsert`'ü engeller. Kiracı sınırı burada RLS politikası
+  // (`firma_no_sayac_kiraci`) ile korunur; ayrıca `src/lib/firma-no.ts`
+  // sorgularında `tenantId` filtresini elle yazar.
 ]);
 
 // where filtresi eklenerek güvene alınabilen işlemler

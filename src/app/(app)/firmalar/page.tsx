@@ -11,6 +11,7 @@ import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 import { alanlariGetir, degerleEslesenKayitlar, ozelAlanGirdiAdi } from "@/lib/ozel-alan";
+import { firmaNoMu } from "@/lib/firma-no-saf";
 
 export const dynamic = "force-dynamic";
 
@@ -59,20 +60,30 @@ export default async function FirmalarPage(
     ozelKisitlar.push({ id: { in: idler } });
   }
 
+  /**
+   * Arama (Faz 13 / H1 + H2): `mode: "insensitive"` olmadan PostgreSQL
+   * `contains` büyük/küçük harfe duyarlıdır ve "ARÇELİK" yazan kullanıcı
+   * "Arçelik" kaydını bulamazdı. Firma numarası (A0001) yazıldığında TAM
+   * eşleşme aranır — "A0001" harf-rakam deseni başka bir alanda anlamlı
+   * bir parça değildir, kısmi eşleşme yalnızca gürültü üretirdi.
+   */
   const where: Prisma.FirmaWhereInput = {
     AND: [
       ara
         ? {
             OR: [
-              { ad: { contains: ara } },
-              { vergiNo: { contains: ara } },
-              { yetkiliAd: { contains: ara } },
-              { sektor: { contains: ara } },
+              ...(firmaNoMu(ara)
+                ? [{ firmaNo: ara.trim().toUpperCase() } as Prisma.FirmaWhereInput]
+                : []),
+              { ad: { contains: ara, mode: "insensitive" } },
+              { vergiNo: { contains: ara, mode: "insensitive" } },
+              { yetkiliAd: { contains: ara, mode: "insensitive" } },
+              { sektor: { contains: ara, mode: "insensitive" } },
             ],
           }
         : {},
       durum ? { durum } : {},
-      il ? { il: { contains: il } } : {},
+      il ? { il: { contains: il, mode: "insensitive" } } : {},
       ...ozelKisitlar,
     ],
   };
@@ -142,7 +153,7 @@ export default async function FirmalarPage(
             id="ara"
             name="ara"
             defaultValue={ara}
-            placeholder="Firma adı, vergi no, yetkili…"
+            placeholder="Firma no (A0001), ad, vergi no, yetkili…"
             className="input"
           />
         </div>
@@ -208,6 +219,7 @@ export default async function FirmalarPage(
           <table className="min-w-full divide-y divide-border/60">
             <thead className="bg-muted/30">
               <tr>
+                <th className="th">No</th>
                 <th className="th">Firma</th>
                 <th className="th">Sektör</th>
                 <th className="th">İl</th>
@@ -221,6 +233,9 @@ export default async function FirmalarPage(
             <tbody className="divide-y divide-border/50">
               {firmalar.map((f) => (
                 <tr key={f.id} className="hover:bg-muted/40">
+                  <td className="td font-mono text-xs text-muted-foreground">
+                    {f.firmaNo ?? "—"}
+                  </td>
                   <td className="td">
                     <Link
                       href={`/firmalar/${f.id}`}

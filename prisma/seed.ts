@@ -10,6 +10,7 @@ import { PrismaClient } from "@prisma/client";
 import { yonetimIstemcisi } from "../src/lib/rls";
 import bcrypt from "bcryptjs";
 import { DEPARTMANLAR } from "../src/lib/constants";
+import { firmaNoUret } from "../src/lib/firma-no-saf";
 
 // RLS yönetim bağlamı: kurulum betikleri kiracılar ötesi yazabilmelidir.
 const temelIstemci = new PrismaClient();
@@ -130,6 +131,8 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
     const il = rnd(ILLER);
     return {
       tenantId,
+      // Faz 13 / H1 — demo veri de gerçek numaralandırmayı taşır.
+      firmaNo: firmaNoUret(i + 1),
       ad: `${rnd(FIRMA_EKLERI)} ${sektor} ${rnd(["A.Ş.", "Ltd. Şti.", "San. Tic."])} ${i + 1}`,
       vergiNo: String(rndInt(1000000000, 9999999999)),
       sektor,
@@ -147,6 +150,14 @@ async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   for (let i = 0; i < firmaData.length; i += BATCH) {
     await prisma.firma.createMany({ data: firmaData.slice(i, i + BATCH) });
   }
+
+  // Sayaç, üretilen son numaranın üstünden devam etsin — aksi halde arayüzden
+  // açılan ilk firma A0001'i ikinci kez isterdi ve tekil kısıt hata verirdi.
+  await prisma.firmaNoSayac.upsert({
+    where: { tenantId },
+    create: { tenantId, sonSira: firmaData.length },
+    update: { sonSira: firmaData.length },
+  });
 
   const firmalar = await prisma.firma.findMany({
     where: { tenantId },

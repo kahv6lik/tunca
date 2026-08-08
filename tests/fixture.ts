@@ -47,6 +47,7 @@ async function kiraciKur(etiket: string): Promise<Kiraci> {
     data: {
       tenantId: tenant.id,
       ad: `Firma ${slug}`,
+      firmaNo: "A0001",
       vergiNo: `VN-${slug}`,
       sektor: "Tekstil",
       il: "Bursa",

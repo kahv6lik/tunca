@@ -16,6 +16,7 @@ import { denetimYaz } from "@/lib/denetim";
 import { LEAD_DURUM } from "@/lib/constants";
 import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
 import { bildirimGonder } from "@/lib/bildirim";
+import { sayacIstemcisi, siradakiFirmaNo } from "@/lib/firma-no-saf";
 
 /**
  * Aday (Lead) işlemleri — Faz 7 / C5.
@@ -174,7 +175,7 @@ export async function leadDonustur(
 ): Promise<FormState> {
   if (!(await yetkiVarMi(IZIN.leadDonustur))) return { error: YETKISIZ };
 
-  const { db } = await getTenantContext();
+  const { db, tenantId } = await getTenantContext();
   const lead = await kayitOku(db, "lead", id);
   if (!lead) notFound();
   if (lead.donusenFirmaId) {
@@ -198,9 +199,10 @@ export async function leadDonustur(
     if (!firsatBaslik) return { error: "Fırsat başlığı zorunludur." };
   }
 
-  // 1) Firma
+  // 1) Firma — dönüşen aday da sıradaki firma numarasını alır (Faz 13 / H1).
   const firma = await tenantOlustur(db, "firma", {
     ad: firmaAd,
+    firmaNo: await siradakiFirmaNo(sayacIstemcisi(db), tenantId),
     il: lead.il ?? null,
     sektor: lead.sektor ?? null,
     telefon: lead.telefon ?? null,

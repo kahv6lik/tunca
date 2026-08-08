@@ -84,6 +84,7 @@ model Tenant {
   OzelAlanDeger    OzelAlanDeger[]
   Oturum           Oturum[]
   SifreSifirlama   SifreSifirlama[]
+  FirmaNoSayac     FirmaNoSayac?
 
   @@index([durum])
 }
@@ -130,6 +131,11 @@ model Firma {
   id        String   @id @default(cuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Değiştirilemez firma numarası (Faz 13 / H1): "A0001" … "Z9999".
+  // Kiracı BAŞINA sayılır; üretimi FirmaNoSayac satırından atomik alınır.
+  // Faz 13 öncesi kayıtlar migration'da numaralandığı için opsiyoneldir;
+  // yeni kayıtlarda her zaman doludur.
+  firmaNo   String?
   ad        String // firma unvanı
   vergiNo   String? // vergi numarası
   sektor    String? // sektör
@@ -154,6 +160,7 @@ model Firma {
   teklifler    Teklif[]
   ozelDegerler OzelAlanDeger[]
 
+  @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
   @@index([tenantId, il])
   @@index([tenantId, sektor])
@@ -920,4 +927,22 @@ model GirisDenemesi {
   @@index([email, createdAt])
   @@index([ip, createdAt])
   @@index([createdAt])
+}
+
+
+// ── Firma numarası sayacı (Faz 13 / H1) ─────────────────────────────────────
+//
+// Kiracı başına TEK satır. Sıradaki numara buradan ATOMİK olarak alınır:
+//   UPDATE ... SET sonSira = sonSira + 1 RETURNING sonSira
+//
+// "En büyük numarayı bul, bir ekle" yaklaşımı yarış koşuludur — aynı anda
+// firma açan iki kullanıcı aynı numarayı okur. Sayaç, veritabanının satır
+// kilidi sayesinde bu sorunu baştan kapatır.
+model FirmaNoSayac {
+  tenantId String @id
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sonSira Int @default(0) // 0 = henüz numara verilmedi
+
+  updatedAt DateTime @updatedAt
 }

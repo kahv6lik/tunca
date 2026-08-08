@@ -7,7 +7,7 @@
  * doğrudan test edilebilmesini sağlar.
  */
 
-import type { VeriKumesi } from "./disa-aktar-tanimlar";
+import { iceSutunlar, type VeriKumesi } from "./disa-aktar-tanimlar";
 
 /** Bir seferde işlenebilecek en fazla satır. */
 export const AZAMI_SATIR = 5_000;
@@ -119,7 +119,7 @@ export function otomatikEslestir(
   const eslesme: Record<string, string> = {};
   const kullanilan = new Set<string>();
 
-  for (const sutun of kume.sutunlar) {
+  for (const sutun of iceSutunlar(kume)) {
     const hedefler = [sadelestir(sutun.etiket), sadelestir(sutun.anahtar)];
     const bulunan = basliklar.find(
       (b) => !kullanilan.has(b) && hedefler.includes(sadelestir(b))
@@ -143,13 +143,13 @@ export function onIzlemeUret(
 
   const satirlar: SatirSonucu[] = dosya.satirlar.map((ham, i) => {
     const veri: Record<string, string> = {};
-    for (const sutun of kume.sutunlar) {
+    for (const sutun of iceSutunlar(kume)) {
       const baslik = eslesme[sutun.anahtar];
       const idx = baslik ? indeksOf(baslik) : -1;
       veri[sutun.anahtar] = idx >= 0 ? (ham[idx] ?? "").trim() : "";
     }
 
-    const eksik = kume.sutunlar
+    const eksik = iceSutunlar(kume)
       .filter((s) => s.zorunlu && !veri[s.anahtar])
       .map((s) => s.etiket);
 
@@ -163,7 +163,7 @@ export function onIzlemeUret(
     }
 
     // Sayı alanları gerçekten sayı mı?
-    for (const s of kume.sutunlar) {
+    for (const s of iceSutunlar(kume)) {
       if (s.tur === "sayi" && veri[s.anahtar]) {
         const sayi = Number(veri[s.anahtar].replace(/\./g, "").replace(",", "."));
         if (Number.isNaN(sayi)) {

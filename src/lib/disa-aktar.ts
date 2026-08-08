@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import type { TenantClient } from "./tenant-db";
 import { veriKumesiBul, type Bicim, type VeriKumesi } from "./disa-aktar-tanimlar";
 import { degerBicimle, csvUret } from "./disa-aktar-saf";
+import { firmaNoMu } from "./firma-no-saf";
 import {
   alanlariGetir,
   topluDegerHaritasi,
@@ -65,7 +66,17 @@ async function satirlariOku(
         where: {
           AND: [
             ara
-              ? { OR: [metin("ad"), metin("vergiNo"), metin("il"), metin("sektor")] }
+              ? {
+                  // Liste ekranıyla aynı kural (Faz 13 / H1): numara yazıldıysa
+                  // tam eşleşme aranır, aksi halde metin alanlarında geçen.
+                  OR: [
+                    ...(firmaNoMu(ara) ? [{ firmaNo: ara.toUpperCase() }] : []),
+                    metin("ad"),
+                    metin("vergiNo"),
+                    metin("il"),
+                    metin("sektor"),
+                  ],
+                }
               : {},
             durum ? { durum } : {},
             filtre.il ? { il: filtre.il } : {},

@@ -25,8 +25,20 @@ export type Sutun = {
   etiket: string;
   /** İçe aktarımda zorunlu mu? */
   zorunlu?: boolean;
+  /**
+   * Yalnızca dışa aktarılır; içe aktarım ekranında hiç görünmez (Faz 13 / H1).
+   * Sistemin verdiği değerler içindir — firma numarası gibi. Dosyadan
+   * okunabilseydi kullanıcı iki firmaya aynı numarayı verebilir ve numaranın
+   * "tekil, değiştirilemez kimlik" sözü bozulurdu.
+   */
+  saltDisa?: boolean;
   tur?: "metin" | "sayi" | "tarih" | "durum";
 };
+
+/** İçe aktarımda kullanılabilecek sütunlar — `saltDisa` olanlar elenir. */
+export function iceSutunlar(kume: VeriKumesi): Sutun[] {
+  return kume.sutunlar.filter((s) => !s.saltDisa);
+}
 
 export const VERI_KUMELERI: VeriKumesi[] = [
   {
@@ -35,6 +47,7 @@ export const VERI_KUMELERI: VeriKumesi[] = [
     izin: "firma.goruntule",
     iceAktarilir: true,
     sutunlar: [
+      { anahtar: "firmaNo", etiket: "Firma No", saltDisa: true },
       { anahtar: "ad", etiket: "Firma Adı", zorunlu: true },
       { anahtar: "vergiNo", etiket: "Vergi No" },
       { anahtar: "sektor", etiket: "Sektör" },

@@ -9,7 +9,7 @@ import {
   type AnalizState,
   type AktarimState,
 } from "@/app/(app)/ice-aktar/actions";
-import { ICE_AKTARILABILIR, veriKumesiBul } from "@/lib/disa-aktar-tanimlar";
+import { ICE_AKTARILABILIR, iceSutunlar, veriKumesiBul } from "@/lib/disa-aktar-tanimlar";
 
 /**
  * İçe aktarım sihirbazı — Faz 9 / E2.
@@ -122,7 +122,7 @@ export default function IceAktarSihirbazi({ izinliKumeler }: { izinliKumeler: st
           <div className="mt-4 rounded-xl border border-border/60 p-4 text-sm">
             <p className="mb-1 font-medium text-foreground">Beklenen sütunlar</p>
             <p className="text-muted-foreground">
-              {secilenKume.sutunlar.map((s) => (
+              {iceSutunlar(secilenKume).map((s) => (
                 <span key={s.anahtar}>
                   {s.etiket}
                   {s.zorunlu && <span className="text-rose-400">*</span>}
@@ -160,7 +160,7 @@ export default function IceAktarSihirbazi({ izinliKumeler }: { izinliKumeler: st
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {secilenKume.sutunlar.map((s) => (
+              {iceSutunlar(secilenKume).map((s) => (
                 <div key={s.anahtar} className="flex items-center gap-2">
                   <label
                     className="w-40 shrink-0 text-sm text-foreground"
@@ -229,7 +229,7 @@ export default function IceAktarSihirbazi({ izinliKumeler }: { izinliKumeler: st
               <thead className="sticky top-0 bg-muted/60">
                 <tr>
                   <th className="th">Satır</th>
-                  {secilenKume?.sutunlar.map((s) => (
+                  {secilenKume && iceSutunlar(secilenKume).map((s) => (
                     <th key={s.anahtar} className="th whitespace-nowrap">
                       {s.etiket}
                     </th>
@@ -254,7 +254,7 @@ export default function IceAktarSihirbazi({ izinliKumeler }: { izinliKumeler: st
                         </span>
                       )}
                     </td>
-                    {secilenKume?.sutunlar.map((s) => (
+                    {secilenKume && iceSutunlar(secilenKume).map((s) => (
                       <td key={s.anahtar} className="td max-w-[220px] truncate">
                         {satir.veri[s.anahtar] || (
                           <span className="text-muted-foreground/40">—</span>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   getTenantDb,
+  getTenantContext,
   tenantOlustur,
   tenantGuncelle,
   tenantSil,
@@ -14,6 +15,7 @@ import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
 import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
+import { sayacIstemcisi, siradakiFirmaNo } from "@/lib/firma-no-saf";
 
 const firmaSchema = z.object({
   ad: z.string().trim().min(1, "Firma adı zorunludur."),
@@ -48,7 +50,7 @@ export async function createFirma(
   const limitHatasi = await firmaLimitiAsildiMi();
   if (limitHatasi) return { error: limitHatasi };
 
-  const db = await getTenantDb();
+  const { db, tenantId } = await getTenantContext();
   const parsed = parse(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri." };
@@ -59,16 +61,24 @@ export async function createFirma(
   const ozel = formdanDegerler(alanlar, formData);
   if (!ozel.ok) return { error: ozel.hata };
 
+  /**
+   * Firma numarası (Faz 13 / H1) — oluşturma anında verilir ve bir daha
+   * DEĞİŞMEZ: `updateFirma` şeması `firmaNo` alanını hiç tanımaz, yani
+   * formdan gelse bile yok sayılır. Numara kullanıcıya söz verilen sabit
+   * kimliktir; düzenlenebilir olsaydı iki firma aynı numarayı taşıyabilirdi.
+   */
+  const firmaNo = await siradakiFirmaNo(sayacIstemcisi(db), tenantId);
+
   // tenantId, kiracı katmanı tarafından otomatik eklenir.
-  const firma = await tenantOlustur(db, "firma", parsed.data);
+  const firma = await tenantOlustur(db, "firma", { ...parsed.data, firmaNo });
   await degerleriKaydet(db, "firma", firma.id, ozel.degerler);
 
   await denetimYaz({
     islem: "olustur",
     varlik: "Firma",
     varlikId: firma.id,
-    ozet: parsed.data.ad,
-    yeni: { ...parsed.data, ozelAlanlar: Object.fromEntries(ozel.degerler) },
+    ozet: `${firmaNo} — ${parsed.data.ad}`,
+    yeni: { ...parsed.data, firmaNo, ozelAlanlar: Object.fromEntries(ozel.degerler) },
   });
 
   revalidatePath("/firmalar");
