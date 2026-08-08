@@ -10,6 +10,7 @@ import { formatTarih } from "@/lib/format";
 import { LEAD_DURUM, durumBadge } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
+import HatSekmeleri from "@/components/firsatlar/HatSekmeleri";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 import { metinArama } from "@/lib/arama";
 
@@ -92,9 +93,11 @@ export default async function AdaylarPage(
     <div>
       <PageHeader
         title="Adaylar"
-        subtitle={`${toplam} aday · %${donusumOrani} dönüşüm`}
+        subtitle={`Satış hattının ilk adımı · ${toplam} aday · %${donusumOrani} dönüşüm`}
         action={
           <div className="flex flex-wrap items-center gap-2">
+            {/* Aday listesi satış hattının bir sekmesidir (Faz 13 / H5). */}
+            {firsatGorur && <HatSekmeleri aktif="adaylar" adayGorur />}
             <GorunumBar liste="adaylar" gorunumler={gorunumler} filtreler={{ ara, durum, kaynak }} />
             <DisaAktarDugmesi tur="adaylar" filtreler={{ ara, durum, kaynak }} />
             {ekleyebilir && <LeadPanel kullanicilar={kullanicilar} />}

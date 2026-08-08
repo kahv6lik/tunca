@@ -243,8 +243,9 @@ async function main() {
 
   const yoneticiKisiler = await sayfaGetir("admin@gezegen.com", "admin123", "/kisiler");
   kontrol(
-    "Yönetici kişi listesini açabiliyor",
-    !yoneticiKisiler.url.includes("/yetkisiz") && yoneticiKisiler.govde.includes("Kişiler")
+    "Yönetici kontak listesini açabiliyor",
+    // Başlık Faz 13 / H3 ile "Kontaklar" oldu; rota /kisiler olarak kaldı.
+    !yoneticiKisiler.url.includes("/yetkisiz") && yoneticiKisiler.govde.includes("Kontaklar")
   );
 
   const yoneticiFirsatlar = await sayfaGetir("admin@gezegen.com", "admin123", "/firsatlar");
@@ -833,6 +834,63 @@ async function main() {
   kontrol(
     "Departman sabit listeden seçilir (serbest metin şeması yok)",
     kisiSayisiOnce >= 0
+  );
+
+  // 17 — Faz 13: arayüz ve veri düzeltmeleri (H1-H5)
+  console.log("\n17. Faz 13 — firma numarası, arama, menü düzeni");
+
+  const firmaListe = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
+  kontrol(
+    "Firma listesinde numara sütunu var (H1)",
+    /\b[A-Z]\d{4}\b/.test(firmaListe.govde)
+  );
+
+  // Numarayla arama TAM eşleşmedir: yazılan numara tek firmayı getirmeli.
+  const numarali = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" }, firmaNo: { not: null } },
+    select: { id: true, ad: true, firmaNo: true },
+  });
+  if (numarali?.firmaNo) {
+    const aramaSonuc = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar?ara=${numarali.firmaNo}`
+    );
+    kontrol(
+      "Firma numarasıyla arama o firmayı buluyor (H1)",
+      aramaSonuc.govde.includes(numarali.ad)
+    );
+
+    // Türkçe büyük/küçük harf duyarsızlığı: adın tamamı büyük harfle aransa
+    // da kayıt bulunmalı (ILIKE tek başına İ/ı çiftini çözmez).
+    const buyuk = numarali.ad.toLocaleUpperCase("tr");
+    const duyarsiz = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar?ara=${encodeURIComponent(buyuk)}`
+    );
+    kontrol(
+      "Büyük harfle arama da aynı firmayı buluyor (H2)",
+      duyarsiz.govde.includes(numarali.ad)
+    );
+  }
+
+  // NOT: menü etiketleri CSS ile büyütülmüyor ama karşılaştırma yine de
+  // küçük harf üzerinden yapılır — tema değişikliklerine dayanıklı olsun.
+  const panoGovde = (await sayfaGetir("admin@gezegen.com", "admin123", "/")).govde
+    .toLocaleLowerCase("tr");
+  kontrol("Menüde \"Kontaklar\" var (H3)", panoGovde.includes("kontaklar"));
+  kontrol(
+    "Menüde ayrı \"Adaylar\" başlığı YOK (H5)",
+    !panoGovde.includes("adaylar")
+  );
+
+  const firsatGovde = (
+    await sayfaGetir("admin@gezegen.com", "admin123", "/firsatlar")
+  ).govde;
+  kontrol(
+    "Fırsatlar ekranında Adaylar sekmesi var (H5)",
+    firsatGovde.includes("Adaylar")
   );
 
   await browser.close();

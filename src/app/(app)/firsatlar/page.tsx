@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { Settings2, LayoutGrid, List } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import Kanban, { HatOzeti } from "@/components/firsatlar/Kanban";
 import FirsatPanel from "@/components/firsatlar/FirsatPanel";
+import HatSekmeleri from "@/components/firsatlar/HatSekmeleri";
 import { alanlariGetir } from "@/lib/ozel-alan";
 import { formatPara, formatTarih } from "@/lib/format";
 import { FIRSAT_DURUM } from "@/lib/constants";
@@ -37,10 +38,11 @@ export default async function FirsatlarPage(
   await varsayilanaYonlendir("firsatlar", searchParams);
   const gorunumler = await gorunumleriGetir("firsatlar");
 
-  const [ekleyebilir, duzenleyebilir, asamaYonetir] = await Promise.all([
+  const [ekleyebilir, duzenleyebilir, asamaYonetir, adayGorur] = await Promise.all([
     yetkiVarMi(IZIN.firsatOlustur),
     yetkiVarMi(IZIN.firsatDuzenle),
     yetkiVarMi(IZIN.asamaYonet),
+    yetkiVarMi(IZIN.leadGoruntule),
   ]);
 
   const db = await getTenantDb();
@@ -114,24 +116,12 @@ export default async function FirsatlarPage(
         subtitle={`${ozet.reduce((s, o) => s + o._count._all, 0)} fırsat · ${asamalar.length} aşama`}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex overflow-hidden rounded-xl border border-border/70">
-              <Link
-                href={gorunumQs("")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm ${
-                  liste ? "text-muted-foreground hover:text-foreground" : "bg-secondary/70 text-foreground"
-                }`}
-              >
-                <LayoutGrid className="h-4 w-4" /> Kanban
-              </Link>
-              <Link
-                href={gorunumQs("liste")}
-                className={`flex items-center gap-1.5 border-l border-border/70 px-3 py-2 text-sm ${
-                  liste ? "bg-secondary/70 text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <List className="h-4 w-4" /> Liste
-              </Link>
-            </div>
+            <HatSekmeleri
+              aktif={liste ? "liste" : "kanban"}
+              kanbanHref={gorunumQs("")}
+              listeHref={gorunumQs("liste")}
+              adayGorur={adayGorur}
+            />
 
             <GorunumBar
               liste="firsatlar"

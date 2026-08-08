@@ -11,7 +11,6 @@ import {
   Wrench,
   Contact,
   Target,
-  UserPlus,
   CheckSquare,
   FileText,
   CalendarDays,
@@ -27,13 +26,19 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type NavItem = {
+export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
   izin?: string;
   /** "yonetim" işaretli öğeler menüde "Yönetim" başlığı altında gruplanır. */
   bolum?: "yonetim";
+  /**
+   * Menüde kendi başlığı OLMAYAN ama bu öğeye ait rotalar (Faz 13 / H5).
+   * `/adaylar` fırsatların bir sekmesidir; oradayken menüde "Fırsatlar"
+   * işaretli kalmalı, yoksa kullanıcı menüden düşmüş gibi hisseder.
+   */
+  esRotalar?: string[];
 };
 
 /**
@@ -44,9 +49,15 @@ type NavItem = {
 export const NAV: NavItem[] = [
   { href: "/", label: "Genel Bakış", icon: LayoutDashboard },
   { href: "/firmalar", label: "Firmalar", icon: Building2, izin: "firma.goruntule" },
-  { href: "/kisiler", label: "Kişiler", icon: Contact, izin: "kisi.goruntule" },
-  { href: "/firsatlar", label: "Fırsatlar", icon: Target, izin: "firsat.goruntule" },
-  { href: "/adaylar", label: "Adaylar", icon: UserPlus, izin: "lead.goruntule" },
+  {
+    href: "/firsatlar",
+    label: "Fırsatlar",
+    icon: Target,
+    izin: "firsat.goruntule",
+    esRotalar: ["/adaylar"],
+  },
+  // Adaylar (/adaylar) menüde YOKTUR — satış hattının bir sekmesidir
+  // (Faz 13 / H5). Rota duruyor; oraya "Fırsatlar" içinden geçilir.
   { href: "/teklifler", label: "Teklifler", icon: FileText, izin: "teklif.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
@@ -54,6 +65,14 @@ export const NAV: NavItem[] = [
   { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },
   { href: "/takvim", label: "Takvim", icon: CalendarDays, izin: "takvim.goruntule" },
   { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
+  /**
+   * "Kontaklar" (Faz 13 / H3, H4): ortağın isteği üzerine hem ad değişti hem
+   * de raporların ALTINA alındı — günlük akışta firma/fırsat kadar sık
+   * açılmıyor. URL `/kisiler` olarak KALDI: kayıtlı görünümler, dışa aktarım
+   * ve bildirim bağlantıları o adrese işaret ediyor; değiştirmek eskiyi
+   * kırardı. Etiket ile rota bilinçli olarak ayrışıyor.
+   */
+  { href: "/kisiler", label: "Kontaklar", icon: Contact, izin: "kisi.goruntule" },
   // İçe aktarım firma OLUŞTURMA yetkisi olanlara görünür; sayfa da izinli
   // veri kümesi yoksa kendini açmaz.
   { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
@@ -70,6 +89,12 @@ export const NAV: NavItem[] = [
   { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet", bolum: "yonetim" },
 ];
 
+/** Bir menü öğesi bu yolda etkin mi? Masaüstü ve mobil menü aynı kuralı kullanır. */
+export function navAktifMi(item: NavItem, pathname: string) {
+  if (item.href === "/") return pathname === "/";
+  return [item.href, ...(item.esRotalar ?? [])].some((r) => pathname.startsWith(r));
+}
+
 export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   const pathname = usePathname();
   const izinKumesi = new Set(izinler);
@@ -77,13 +102,8 @@ export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   const ana = gorunenler.filter((i) => i.bolum !== "yonetim");
   const yonetim = gorunenler.filter((i) => i.bolum === "yonetim");
 
-  function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  }
-
   function oge(item: NavItem) {
-    const active = isActive(item.href);
+    const active = navAktifMi(item, pathname);
     const Icon = item.icon;
     return (
       <Link

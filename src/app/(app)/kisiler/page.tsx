@@ -69,7 +69,7 @@ export default async function KisilerPage(
   return (
     <div>
       <PageHeader
-        title="Kişiler"
+        title="Kontaklar"
         subtitle={`${toplam} kişi`}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -105,7 +105,7 @@ export default async function KisilerPage(
       {kisiler.length === 0 ? (
         <EmptyState
           title="Kişi bulunamadı"
-          description="Kişiler firma detay sayfasındaki Kişiler bölümünden eklenir."
+          description="Kontaklar firma detay sayfasındaki Kişiler bölümünden eklenir."
         />
       ) : (
         <div className="card overflow-x-auto">

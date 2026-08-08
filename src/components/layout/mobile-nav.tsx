@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV } from "./sidebar-nav";
+import { NAV, navAktifMi } from "./sidebar-nav";
 import { Brand } from "./brand";
 
 export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
@@ -17,11 +17,6 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
   const pathname = usePathname();
   const izinKumesi = new Set(izinler);
   const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
-
-  function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  }
 
   return (
     <>
@@ -65,7 +60,7 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                 {gorunenler
                   .filter((i) => i.bolum !== "yonetim")
                   .map((item) => {
-                    const active = isActive(item.href);
+                    const active = navAktifMi(item, pathname);
                     const Icon = item.icon;
                     return (
                       <Link
@@ -92,7 +87,7 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                 {gorunenler
                   .filter((i) => i.bolum === "yonetim")
                   .map((item) => {
-                    const active = isActive(item.href);
+                    const active = navAktifMi(item, pathname);
                     const Icon = item.icon;
                     return (
                       <Link
