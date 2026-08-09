@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import TeklifForm from "@/components/teklifler/TeklifForm";
 import TeklifIslemleri from "@/components/teklifler/TeklifIslemleri";
 import { formatPara, formatTarih, toDateInput } from "@/lib/format";
+import EkPaneli from "@/components/ekler/EkPaneli";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +23,18 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
   const params = await props.params;
   await yetkiGerektir(IZIN.teklifGoruntule);
 
-  const [duzenleyebilir, olusturabilir, silebilir, siparisAcabilir] =
-    await Promise.all([
-      yetkiVarMi(IZIN.teklifDuzenle),
-      yetkiVarMi(IZIN.teklifOlustur),
-      yetkiVarMi(IZIN.teklifSil),
-      yetkiVarMi(IZIN.siparisOlustur),
-    ]);
+  const [
+    duzenleyebilir, olusturabilir, silebilir, siparisAcabilir,
+    ekGorur, ekYukler, ekSiler,
+  ] = await Promise.all([
+    yetkiVarMi(IZIN.teklifDuzenle),
+    yetkiVarMi(IZIN.teklifOlustur),
+    yetkiVarMi(IZIN.teklifSil),
+    yetkiVarMi(IZIN.siparisOlustur),
+    yetkiVarMi(IZIN.dosyaGoruntule),
+    yetkiVarMi(IZIN.dosyaYukle),
+    yetkiVarMi(IZIN.dosyaSil),
+  ]);
 
   const db = await getTenantDb();
 
@@ -40,6 +46,8 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
       kalemler: { orderBy: { sira: "asc" } },
       ustTeklif: { select: { id: true, no: true, revizyonNo: true } },
       revizyonlar: { select: { id: true, no: true, revizyonNo: true, durum: true } },
+      // Müşterinin imzalayıp geri gönderdiği teklif belgesi (Faz 17 / A1).
+      ekler: ekGorur ? { orderBy: { createdAt: "desc" as const } } : (false as const),
     },
   });
 
@@ -222,6 +230,24 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {ekGorur && (
+        <div className="card mt-6 p-5">
+          <EkPaneli
+            bag={{ teklifId: teklif.id }}
+            ekler={(teklif.ekler ?? []).map((d) => ({
+              id: d.id,
+              ad: d.ad,
+              mimeTuru: d.mimeTuru,
+              boyut: d.boyut,
+              yukleyen: d.yukleyenEmail,
+              tarih: formatTarih(d.createdAt),
+            }))}
+            yukleyebilir={ekYukler}
+            silebilir={ekSiler}
+          />
         </div>
       )}
 

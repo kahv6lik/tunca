@@ -21,6 +21,8 @@ type FirmaValues = {
   adres?: string | null;
   durum?: string | null;
   notlar?: string | null;
+  enlem?: number | null;
+  boylam?: number | null;
 };
 
 function Submit({ label }: { label: string }) {
@@ -39,6 +41,7 @@ export default function FirmaForm({
   cancelHref = "/firmalar",
   ozelAlanlar = [],
   ozelDegerler = {},
+  geocodingAcik = false,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   initial?: FirmaValues;
@@ -46,6 +49,8 @@ export default function FirmaForm({
   cancelHref?: string;
   ozelAlanlar?: OzelAlanTanimi[];
   ozelDegerler?: Record<string, string>;
+  /** Harita anahtarı tanımlı mı? Arayüz kullanıcıya bunu açıkça söyler. */
+  geocodingAcik?: boolean;
 }) {
   const [state, formAction] = useFormState<FormState, FormData>(action, {});
   const v = initial ?? {};
@@ -175,6 +180,12 @@ export default function FirmaForm({
           <input id="adres" name="adres" className="input" defaultValue={v.adres ?? ""} />
         </div>
 
+        <KonumAlanlari
+          enlem={v.enlem ?? null}
+          boylam={v.boylam ?? null}
+          geocodingAcik={geocodingAcik}
+        />
+
         <div className="md:col-span-2">
           <label className="label" htmlFor="notlar">Notlar</label>
           <textarea id="notlar" name="notlar" rows={3} className="input" defaultValue={v.notlar ?? ""} />
@@ -204,5 +215,94 @@ export default function FirmaForm({
         </Link>
       </div>
     </form>
+  );
+}
+
+/**
+ * Konum alanları (Faz 17 / A3).
+ *
+ * Koordinat ELLE girilebilir; boş bırakılırsa ve harita anahtarı tanımlıysa
+ * sunucu adresten üretmeye çalışır. Anahtar yoksa arayüz bunu saklamaz —
+ * "neden koordinat gelmedi" sorusu kullanıcıyı meşgul etmemeli.
+ *
+ * "Bulunduğum konumu kullan" tarayıcının konum servisini kullanır: saha
+ * personeli firmanın önünde dururken tek dokunuşla koordinatı yazar. İzin
+ * reddedilirse alan boş kalır ve kayıt yine açılır.
+ */
+function KonumAlanlari({
+  enlem,
+  boylam,
+  geocodingAcik,
+}: {
+  enlem: number | null;
+  boylam: number | null;
+  geocodingAcik: boolean;
+}) {
+  const [deger, setDeger] = useState({
+    enlem: enlem === null ? "" : String(enlem),
+    boylam: boylam === null ? "" : String(boylam),
+  });
+  const [durum, setDurum] = useState<string | null>(null);
+
+  function konumumuAl() {
+    if (!navigator.geolocation) {
+      setDurum("Tarayıcı konum servisini desteklemiyor.");
+      return;
+    }
+    setDurum("Konum alınıyor…");
+    navigator.geolocation.getCurrentPosition(
+      (k) => {
+        setDeger({
+          enlem: k.coords.latitude.toFixed(6),
+          boylam: k.coords.longitude.toFixed(6),
+        });
+        setDurum(null);
+      },
+      () => setDurum("Konum alınamadı (izin verilmedi)."),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  return (
+    <div className="md:col-span-2 border-t border-border/60 pt-4">
+      <p className="mb-1 text-sm font-semibold text-foreground/90">Konum</p>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {geocodingAcik
+          ? "Boş bırakırsanız adresten otomatik bulunur. Elle girilen koordinat üstündür."
+          : "Harita anahtarı tanımlı olmadığı için koordinat elle girilir."}
+      </p>
+
+      <div className="grid gap-5 md:grid-cols-3">
+        <div>
+          <label className="label" htmlFor="enlem">Enlem</label>
+          <input
+            id="enlem"
+            name="enlem"
+            className="input"
+            placeholder="39.925533"
+            value={deger.enlem}
+            onChange={(e) => setDeger((d) => ({ ...d, enlem: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="boylam">Boylam</label>
+          <input
+            id="boylam"
+            name="boylam"
+            className="input"
+            placeholder="32.866287"
+            value={deger.boylam}
+            onChange={(e) => setDeger((d) => ({ ...d, boylam: e.target.value }))}
+          />
+        </div>
+        <div className="flex items-end">
+          <button type="button" onClick={konumumuAl} className="btn-secondary">
+            Bulunduğum konumu kullan
+          </button>
+        </div>
+      </div>
+
+      {durum && <p className="mt-2 text-xs text-muted-foreground">{durum}</p>}
+    </div>
   );
 }

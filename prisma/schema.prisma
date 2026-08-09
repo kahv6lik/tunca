@@ -51,6 +51,15 @@ model Tenant {
   // Oturum ömrü (gün) — kuruluş kendi politikasını belirler.
   oturumOmruGun    Int     @default(7)
 
+  // ── Saha çalışması ayarları (Faz 17) ──
+  // Ziyaretin "yerinde" sayılacağı yarıçap. Kuruluş ayarıdır: organize
+  // sanayi bölgesindeki geniş yerleşkeyle şehir içi dükkân aynı toleransı
+  // kaldırmaz (varsayılan öneri 300 m).
+  ziyaretYaricapM Int @default(300)
+  // Dosya eki kotası (MB). Kiracı BAŞINA sayılır; dolduğunda yeni yükleme
+  // reddedilir — disk sessizce tükenmemelidir.
+  dosyaKotaMb     Int @default(2048)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -101,6 +110,8 @@ model Tenant {
   Proje            Proje[]
   DestekKaydi      DestekKaydi[]
   Sss              Sss[]
+  Dosya            Dosya[]
+  Ziyaret          Ziyaret[]
 
   @@index([durum])
 }
@@ -144,27 +155,35 @@ model User {
 
 // Müşteriye bağlı firmalar
 model Firma {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   // Değiştirilemez firma numarası (Faz 13 / H1): "A0001" … "Z9999".
   // Kiracı BAŞINA sayılır; üretimi FirmaNoSayac satırından atomik alınır.
   // Faz 13 öncesi kayıtlar migration'da numaralandığı için opsiyoneldir;
   // yeni kayıtlarda her zaman doludur.
-  firmaNo   String?
-  ad        String // firma unvanı
-  vergiNo   String? // vergi numarası
-  sektor    String? // sektör
-  il        String? // il / şehir
-  ilce      String?
-  yetkiliAd String? // yetkili kişi
-  telefon   String?
-  email     String?
-  adres     String?
-  durum     String   @default("aktif") // "aktif" | "pasif"
-  notlar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  firmaNo     String?
+  ad          String // firma unvanı
+  vergiNo     String? // vergi numarası
+  sektor      String? // sektör
+  il          String? // il / şehir
+  ilce        String?
+  yetkiliAd   String? // yetkili kişi
+  telefon     String?
+  email       String?
+  adres       String?
+  // ── Konum (Faz 17 / A3) ──
+  // Koordinat BİR KEZ üretilip saklanır; her görüntülemede harita servisine
+  // gidilmez. `konumAdres`, koordinatın üretildiği andaki adrestir: adres
+  // değişmedikçe yeni bir geocoding isteği gönderilmez (maliyet koruması).
+  enlem       Float?
+  boylam      Float?
+  konumKaynak String? // "elle" | "geocode"
+  konumAdres  String?
+  durum       String   @default("aktif") // "aktif" | "pasif"
+  notlar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   yatirimlar       YatirimDestegi[]
   egitimler        Egitim[]
@@ -181,6 +200,8 @@ model Firma {
   Siparis          Siparis[]
   Proje            Proje[]
   DestekKaydi      DestekKaydi[]
+  Dosya            Dosya[]
+  Ziyaret          Ziyaret[]
 
   @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
@@ -477,6 +498,8 @@ model Aktivite {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  ekler Dosya[]
+
   @@index([tenantId, firmaId])
   @@index([tenantId, firsatId])
   @@index([tenantId, destekId])
@@ -571,6 +594,8 @@ model Teklif {
 
   kalemler TeklifKalemi[]
   Siparis  Siparis[]
+
+  ekler Dosya[]
 
   @@unique([tenantId, no])
   @@index([tenantId, firmaId])
@@ -1270,6 +1295,8 @@ model Siparis {
   kalemler    SiparisKalemi[]
   sevkiyatlar Sevkiyat[]
 
+  ekler Dosya[]
+
   @@unique([tenantId, no])
   @@index([tenantId, durum, createdAt])
   @@index([tenantId, firmaId])
@@ -1437,6 +1464,7 @@ model DestekKaydi {
   updatedAt DateTime @updatedAt
 
   islemler Aktivite[]
+  ekler    Dosya[]
 
   @@unique([tenantId, no])
   @@index([tenantId, durum, oncelik])
@@ -1468,4 +1496,90 @@ model Sss {
 
   @@index([tenantId, durum, sira])
   @@index([tenantId, kategori])
+}
+
+// Dosya eki (Faz 17 / A1).
+//
+// Bağlam GERÇEK FK'lerle kurulur (OzelAlanDeger'deki aynı takas): kayıt
+// silinince ekler cascade ile gider, yetim dosya satırı kalmaz. Karşılığında
+// yeni bir varlığa ek eklemek şemaya sütun eklemeyi gerektirir — bu, "hangi
+// kayıtlara ek eklenebiliyor" sorusunun tek yerden yanıtlanmasını sağlar.
+//
+// DOSYANIN KENDİSİ veritabanında DEĞİL diskte durur (`yol`); veritabanı
+// yalnızca üstveriyi taşır. Aksi halde her yedek yüzlerce megabaytlık
+// base64 taşır ve geri yükleme kullanılamaz hâle gelirdi.
+model Dosya {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Bağlam — TAM BİRİ dolu olmalıdır (uygulama katmanı doğrular).
+  firmaId    String?
+  firma      Firma?       @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  aktiviteId String?
+  aktivite   Aktivite?    @relation(fields: [aktiviteId], references: [id], onDelete: Cascade)
+  destekId   String?
+  destek     DestekKaydi? @relation(fields: [destekId], references: [id], onDelete: Cascade)
+  siparisId  String?
+  siparis    Siparis?     @relation(fields: [siparisId], references: [id], onDelete: Cascade)
+  teklifId   String?
+  teklif     Teklif?      @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+
+  ad       String // kullanıcının gördüğü özgün dosya adı
+  yol      String // diskteki göreli yol: <tenantId>/<yyyy-mm>/<id>.<uzanti>
+  mimeTuru String // sunucuda İÇERİĞE bakılarak belirlenir, uzantıya değil
+  boyut    Int // bayt
+
+  // Görsellerde küçültme sonrası ölçüler; belge eklerinde boştur.
+  genislik  Int?
+  yukseklik Int?
+
+  yukleyenId    String?
+  yukleyenEmail String? // kullanıcı silinse de kimin yüklediği kalsın
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, firmaId])
+  @@index([tenantId, aktiviteId])
+  @@index([tenantId, destekId])
+  @@index([tenantId, siparisId])
+  @@index([tenantId, teklifId])
+  @@index([tenantId, createdAt])
+}
+
+// Saha ziyareti (Faz 17 / A4, A5).
+//
+// Süre KULLANICIDAN İSTENMEZ: başlangıç ve bitiş damgalarından hesaplanır.
+// Konum yalnızca ziyaretin BAŞINDA ve SONUNDA alınır — sürekli takip yoktur;
+// bu, KVKK aydınlatma metninin (v1.12.2) verdiği sözdür ve burayı bağlar.
+model Ziyaret {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  firmaId String
+  firma   Firma  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  kullaniciId String
+  // Ziyaret bitince yazılan aktivite; zaman akışında görünmesini sağlar.
+  aktiviteId  String?
+
+  baslangic  DateTime  @default(now())
+  bitis      DateTime?
+  sureDakika Int?
+
+  // Ziyaretin AÇILDIĞI andaki konum ve firmaya uzaklığı.
+  enlem     Float?
+  boylam    Float?
+  mesafeM   Int?
+  // "dogrulandi" (yarıçap içinde) | "uzak" (dışında) | "alinamadi" (izin yok)
+  dogrulama String  @default("alinamadi")
+  yaricapM  Int // doğrulama anındaki kuruluş ayarı — sonradan değişse de karar sabit kalır
+  not       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, firmaId])
+  @@index([tenantId, kullaniciId, baslangic])
+  @@index([tenantId, dogrulama])
 }

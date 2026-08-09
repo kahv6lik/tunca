@@ -9,6 +9,7 @@ import { formatPara, formatTarih } from "@/lib/format";
 import OnayPanel from "@/components/siparisler/OnayPanel";
 import SevkiyatPanel from "@/components/siparisler/SevkiyatPanel";
 import { sevkiyatAcilabilirMi } from "@/lib/siparis";
+import EkPaneli from "@/components/ekler/EkPaneli";
 
 export const dynamic = "force-dynamic";
 
@@ -26,13 +27,18 @@ export default async function SiparisDetayPage(props: {
   const params = await props.params;
   await yetkiGerektir(IZIN.siparisGoruntule);
 
-  const [onaylayabilir, duzenleyebilir, sevkiyatYonetir, sevkiyatGorur] =
-    await Promise.all([
-      yetkiVarMi(IZIN.siparisOnayla),
-      yetkiVarMi(IZIN.siparisDuzenle),
-      yetkiVarMi(IZIN.sevkiyatYonet),
-      yetkiVarMi(IZIN.sevkiyatGoruntule),
-    ]);
+  const [
+    onaylayabilir, duzenleyebilir, sevkiyatYonetir, sevkiyatGorur,
+    ekGorur, ekYukler, ekSiler,
+  ] = await Promise.all([
+    yetkiVarMi(IZIN.siparisOnayla),
+    yetkiVarMi(IZIN.siparisDuzenle),
+    yetkiVarMi(IZIN.sevkiyatYonet),
+    yetkiVarMi(IZIN.sevkiyatGoruntule),
+    yetkiVarMi(IZIN.dosyaGoruntule),
+    yetkiVarMi(IZIN.dosyaYukle),
+    yetkiVarMi(IZIN.dosyaSil),
+  ]);
 
   const db = await getTenantDb();
 
@@ -50,6 +56,8 @@ export default async function SiparisDetayPage(props: {
         },
       },
       sevkiyatlar: { orderBy: { createdAt: "desc" } },
+      // İmzalı sipariş formu, irsaliye görüntüsü (Faz 17 / A1).
+      ekler: ekGorur ? { orderBy: { createdAt: "desc" as const } } : (false as const),
     },
   });
 
@@ -251,6 +259,24 @@ export default async function SiparisDetayPage(props: {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {ekGorur && (
+        <div className="card mt-6 p-5">
+          <EkPaneli
+            bag={{ siparisId: siparis.id }}
+            ekler={(siparis.ekler ?? []).map((d) => ({
+              id: d.id,
+              ad: d.ad,
+              mimeTuru: d.mimeTuru,
+              boyut: d.boyut,
+              yukleyen: d.yukleyenEmail,
+              tarih: formatTarih(d.createdAt),
+            }))}
+            yukleyebilir={ekYukler}
+            silebilir={ekSiler}
+          />
         </div>
       )}
     </div>

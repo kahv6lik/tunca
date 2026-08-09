@@ -16,6 +16,8 @@ import { denetimYaz } from "@/lib/denetim";
 import { firmaLimitiAsildiMi } from "@/lib/kiraci-ayar";
 import { alanlariGetir, formdanDegerler, degerleriKaydet } from "@/lib/ozel-alan";
 import { sayacIstemcisi, siradakiFirmaNo } from "@/lib/firma-no-saf";
+import { koordinatGecerliMi } from "@/lib/konum-saf";
+import { adresMetni, adrestenKoordinat, geocodingAcikMi, yenidenGerekliMi } from "@/lib/geocode";
 
 const firmaSchema = z.object({
   ad: z.string().trim().min(1, "Firma adı zorunludur."),
@@ -29,6 +31,10 @@ const firmaSchema = z.object({
   adres: z.string().trim().optional(),
   durum: z.enum(["aktif", "pasif"]).default("aktif"),
   notlar: z.string().trim().optional(),
+  // Konum (Faz 17 / A3) — elle girilebilir; boş bırakılırsa anahtar
+  // tanımlıysa adresten üretilir.
+  enlem: z.string().trim().optional(),
+  boylam: z.string().trim().optional(),
 });
 
 export type FormState = { error?: string; ok?: boolean };
@@ -38,6 +44,57 @@ const YETKISIZ = "Bu işlem için yetkiniz yok.";
 function parse(formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
   return firmaSchema.safeParse(raw);
+}
+
+type Konum = { enlem: number | null; boylam: number | null; konumKaynak: string | null; konumAdres: string | null };
+
+/**
+ * Formdan gelen koordinatı çözer; boşsa adresten üretmeyi dener.
+ *
+ * ELLE GİRİLEN KOORDİNAT ÜSTÜNDÜR: kullanıcı haritadan bakıp yazdıysa,
+ * servisin bulduğu yaklaşık nokta onun üstüne yazılmamalıdır. Geocoding
+ * yalnızca koordinat YOKKEN ve adres DEĞİŞTİĞİNDE çalışır (maliyet
+ * koruması); anahtar tanımsızsa hiç çalışmaz ve kayıt yine de açılır.
+ */
+async function konumCoz(
+  veri: { enlem?: string; boylam?: string; adres?: string; ilce?: string; il?: string },
+  oncesi: { enlem: number | null; boylam: number | null; konumAdres: string | null } | null
+): Promise<Konum> {
+  const elle = {
+    enlem: veri.enlem ? Number(String(veri.enlem).replace(",", ".")) : NaN,
+    boylam: veri.boylam ? Number(String(veri.boylam).replace(",", ".")) : NaN,
+  };
+  if (koordinatGecerliMi(elle.enlem, elle.boylam)) {
+    return {
+      enlem: elle.enlem,
+      boylam: elle.boylam,
+      konumKaynak: "elle",
+      konumAdres: adresMetni(veri),
+    };
+  }
+
+  const adres = adresMetni(veri);
+  const mevcut = oncesi ?? { enlem: null, boylam: null, konumAdres: null };
+
+  if (geocodingAcikMi() && yenidenGerekliMi(mevcut, adres)) {
+    const sonuc = await adrestenKoordinat(adres);
+    if (sonuc.ok) {
+      return {
+        enlem: sonuc.enlem,
+        boylam: sonuc.boylam,
+        konumKaynak: "geocode",
+        konumAdres: sonuc.adres,
+      };
+    }
+    // Bulunamadıysa kayıt DÜŞMEZ: konum ikincil bir alandır.
+  }
+
+  return {
+    enlem: mevcut.enlem,
+    boylam: mevcut.boylam,
+    konumKaynak: mevcut.enlem === null ? null : "geocode",
+    konumAdres: mevcut.konumAdres,
+  };
 }
 
 export async function createFirma(
@@ -68,9 +125,11 @@ export async function createFirma(
    * kimliktir; düzenlenebilir olsaydı iki firma aynı numarayı taşıyabilirdi.
    */
   const firmaNo = await siradakiFirmaNo(sayacIstemcisi(db), tenantId);
+  const konum = await konumCoz(parsed.data, null);
 
   // tenantId, kiracı katmanı tarafından otomatik eklenir.
-  const firma = await tenantOlustur(db, "firma", { ...parsed.data, firmaNo });
+  const { enlem: _e, boylam: _b, ...alanlarVerisi } = parsed.data;
+  const firma = await tenantOlustur(db, "firma", { ...alanlarVerisi, ...konum, firmaNo });
   await degerleriKaydet(db, "firma", firma.id, ozel.degerler);
 
   await denetimYaz({
@@ -102,9 +161,14 @@ export async function updateFirma(
   const ozel = formdanDegerler(alanlar, formData);
   if (!ozel.ok) return { error: ozel.hata };
 
-  const oncesi = await kayitOku(db, "firma", id);
+  const oncesi = (await kayitOku(db, "firma", id)) as
+    | { enlem: number | null; boylam: number | null; konumAdres: string | null }
+    | null;
+  const konum = await konumCoz(parsed.data, oncesi);
+  const { enlem: _e, boylam: _b, ...alanlarVerisi } = parsed.data;
+
   // Kayıt bu kiracıya ait değilse 404 üretir (A3).
-  await tenantGuncelle(db, "firma", id, parsed.data);
+  await tenantGuncelle(db, "firma", id, { ...alanlarVerisi, ...konum });
   await degerleriKaydet(db, "firma", id, ozel.degerler);
 
   await denetimYaz({

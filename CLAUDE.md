@@ -46,7 +46,7 @@ prisma/
                        # Urun, Paket, PaketKalemi, Kampanya(+Urun/Paket/Firma),
                        # KampanyaKullanim, StokHareketi,
                        # Siparis, SiparisKalemi, Sevkiyat, BelgeSayac,
-                       # Proje, DestekKaydi, Sss,
+                       # Proje, DestekKaydi, Sss, Dosya, Ziyaret,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -85,6 +85,8 @@ src/
       projeler/        # proje listesi ve detayı (Faz 16)
       destek/          # destek kaydı, işlem geçmişi, rapor/ (Faz 16)
       sss/             # SSS / bilgi bankası (Faz 16)
+      ziyaretler/      # saha ziyareti, süre, konum doğrulama (Faz 17)
+      dosya-actions.ts # dosya eki yükleme/silme — tek action (Faz 17)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
       kvkk/            # aydınlatma metni + açık rıza kaydı (Faz 12)
@@ -95,6 +97,7 @@ src/
       disa-aktar/      # Excel/CSV dışa aktarımı (izin + denetim) (Faz 9)
       yedek/           # yedek indirme — yedek.yonet + denetim (Faz 10)
       kvkk/verilerim/  # kişisel veri kopyası (KVKK m. 11) (Faz 12)
+      dosya/           # dosya eki indirme — izin + kiracı süzgeci (Faz 17)
       yatirim-destekleri/
       egitimler/
       hizmetler/
@@ -125,6 +128,8 @@ src/
     destek/            # DestekPanel, IslemFormu, OncelikRozet,
                        # DestekDurumDugmeleri (Faz 16)
     sss/               # SssPanel, SssKarti (Faz 16)
+    ekler/             # EkPaneli, EkAcilir (Faz 17)
+    ziyaretler/        # ZiyaretBaslat, ZiyaretBitir (Faz 17)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -168,6 +173,9 @@ src/
     siparis.ts            # onay akışı + sevkiyat kapısı + belge no (Faz 15)
     destek-tanimlar.ts    # durum damgaları + çözüm süresi + özet — saf (Faz 16)
     sss-tanimlar.ts       # etiket/kategori normalize — saf (Faz 16)
+    dosya.ts              # dosya deposu — TEK KAPI (+ -tanimlar: tür/kota saf)
+    konum-saf.ts          # mesafe, doğrulama, süre, adres — saf (Faz 17)
+    geocode.ts            # adresten koordinat — anahtar yoksa KAPALI (Faz 17)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -184,7 +192,7 @@ src/
 `EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
 `PanoTercihi`, `KayitliGorunum` ve `Yedek`, Faz 11 ile `OzelAlan` ve
 `OzelAlanDeger`, Faz 12 ile `Oturum`, `SifreSifirlama` ve `GirisDenemesi`, Faz 16 ile `Proje`,
-`DestekKaydi` ve `Sss` eklendi.
+`DestekKaydi` ve `Sss`, Faz 17 ile `Dosya` ve `Ziyaret` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -428,6 +436,47 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Yedek sırası FK'ye bağlıdır:** `proje` ve `destekKaydi`, `aktivite`den
   ÖNCE geri yüklenir; kural regresyon testiyle sabitlendi.
 
+### Saha Çalışması: Ekler ve Konum (Faz 17)
+
+- **Dosya türü UZANTIDAN DEĞİL İÇERİKTEN belirlenir** (`turTespit`): imza
+  eşleşmezse dosya reddedilir — `.jpg` adlı bir çalıştırılabilir dosya
+  sunucuya girip tarayıcıya görsel diye sunulamaz. İzinli türler BEYAZ
+  LİSTEDİR. Zip tabanlı Office belgeleri tek imzayı paylaştığı için içerik
+  "zip kapsayıcı" olarak doğrulanır, etiket uzantıdan seçilir; uzantı burada
+  güvenlik değil GÖSTERİM kararıdır.
+- **Dosyanın kendisi diskte durur** (`DOSYA_DIZIN`, üretimde `gezegen-dosya`
+  volume'ü); veritabanı yalnızca üstveriyi taşır. `Dosya` bu yüzden JSON
+  yedeğinin kapsamı DIŞINDADIR — base64 gömmek yedeği indirilemez hâle
+  getirirdi. Volume yedeği `docs/DEPLOY.md` içinde ayrı bir adımdır.
+- **Kota yüklemeden ÖNCE bakılır** (10 MB/dosya, 2 GB/kiracı): "yaz, sonra
+  kontrol et" eşzamanlı iki yüklemede kotanın aşılmasına izin verirdi.
+  Görseller sunucuda 1600 piksele küçültülür; küçültme başarısız olursa
+  özgün dosya saklanır.
+- **Ek TEK action'dan geçer** (`dosya-actions.ts`) çünkü kural her varlıkta
+  aynıdır: tür, boyut, kota, denetim. Her ekran kendi yüklemesini yazsaydı
+  bu dördünden biri er ya da geç unutulurdu. Bağlam GERÇEK FK'dir (firma,
+  aktivite, destek, sipariş, teklif) — kayıt silinince ekler cascade ile
+  gider.
+- **İndirme ucu kiracı katmanından geçer**, `nosniff` gönderir; görseller
+  `inline`, diğerleri `attachment` sunulur.
+- **Geocoding ANAHTAR TANIMSIZSA KAPALIDIR**; koordinat elle girilir ve
+  arayüz bunu açıkça söyler. Maliyet koruması iki katmanlı: koordinat kayıtta
+  saklanır, `konumAdres` sayesinde adres değişmedikçe yeni istek gitmez.
+  Harita GÖMÜLÜ değil BAĞLANTIDIR — gömülü harita her açılışta ücretli bir
+  istektir.
+- **Konum doğrulamasının ÜÇ sonucu vardır:** doğrulandı / uyuşmuyor /
+  doğrulanamadı. İzin reddi ya da koordinatsız firma "uzak" saymaz; teknik
+  aksaklık personeli suçlu duruma düşürmemelidir. Yöneticiye bildirim
+  YALNIZCA "uyuşmuyor" durumunda gider. Karar ziyaret satırına yazılır
+  (`yaricapM` dahil) — kuruluş ayarı sonradan değişse de geçmiş kararlar
+  sabit kalır.
+- **Ziyaret süresi kullanıcıdan istenmez**, damgalardan hesaplanır; ziyaret
+  bitince AKTİVİTE yazılır ve firma zaman akışında görünür. Aynı anda iki
+  açık ziyaret olamaz. Mesafe küresel (haversine) hesaplanır — düz hesap
+  39. enlemde doğu-batı sapmasını ~%30 fazla gösterirdi.
+- **Konum yalnızca ziyaretin başında alınır; sürekli takip YOKTUR.** Bu,
+  KVKK aydınlatma metninin (v1.12.2) verdiği sözdür ve uygulamayı bağlar.
+
 ### Arayüz ve Veri Düzeltmeleri (Faz 13)
 
 - **Firma numarası oluşturmada verilir ve DEĞİŞMEZ** (`A0001`–`Z9999`,
@@ -494,7 +543,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**539 kontrol**.
+**587 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -502,10 +551,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (341 test, ~12 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (377 test, ~12 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek, gerçek tarayıcı (sunucu çalışırken, 177)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha, gerçek tarayıcı (sunucu çalışırken, 189)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -591,7 +640,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | ✅ tamamlandı |
 | 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | ✅ tamamlandı |
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | ✅ tamamlandı |
-| 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | planlandı |
+| 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | ✅ tamamlandı |
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | planlandı |
 | 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | planlandı |
 | 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | planlandı |
@@ -704,6 +753,16 @@ etkiliyor.
   dağılımı, kişi yükü, ortalama çözüm süresi, en uzun bekleyenler, firma ve
   tarih süzgeci); kategori/etiketli, Türkçe duyarsız aramalı SSS bilgi
   bankası ve destek kaydından tek tıkla erişim.
+- **v1.17.0** — **Faz 17:** Saha çalışması. İçerik imzasından tür doğrulayan,
+  10 MB/dosya ve 2 GB/kiracı kotalı, görselleri sunucuda küçülten dosya eki
+  altyapısı (firma, aktivite, destek kaydı, sipariş ve teklif kayıtlarında);
+  mobil kameradan doğrudan fotoğraf çekme; firma koordinatı ve anahtar
+  tanımlıysa adresten koordinat üretimi (koordinat saklanır, adres
+  değişmedikçe yeni istek gitmez); başlat/bitir damgalarından süre hesaplayan
+  saha ziyareti, 300 m varsayılan yarıçapla üç sonuçlu konum doğrulaması
+  (doğrulandı / uyuşmuyor / doğrulanamadı) ve yalnızca uyuşmayan ziyaretlerde
+  yöneticiye bildirim. Ekler `gezegen-dosya` volume'ünde durur ve ayrı
+  yedeklenir.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

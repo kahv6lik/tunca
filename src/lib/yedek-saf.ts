@@ -61,6 +61,11 @@ const MODELLER = [
   "asama",
   "kisi",
   "firsat",
+  // Faz 17 — saha ziyareti. `Dosya` BİLİNÇLİ olarak kapsam DIŞINDADIR:
+  // dosyaların kendisi diskte (Docker volume) durur, JSON yedeğine yalnızca
+  // üstveriyi koymak, geri yüklendiğinde indirilemeyen ekler üretirdi.
+  // Volume yedeği `docs/DEPLOY.md` içinde ayrı bir adımdır.
+  "ziyaret",
   // Faz 16 — proje ve destek kaydı AKTİVİTEDEN ÖNCE gelir: `Aktivite.destekId`
   // destek kaydına, `DestekKaydi.projeId` de projeye bağlıdır. Sıra bozulursa
   // geri yükleme FK hatasıyla düşer.
@@ -107,6 +112,7 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   asama: ["createdAt", "updatedAt"],
   kisi: ["createdAt", "updatedAt"],
   firsat: ["kapanisTarihi", "createdAt", "updatedAt"],
+  ziyaret: ["baslangic", "bitis", "createdAt", "updatedAt"],
   proje: ["baslangic", "bitis", "createdAt", "updatedAt"],
   destekKaydi: ["cozumTarihi", "kapanisTarihi", "createdAt", "updatedAt"],
   sss: ["createdAt", "updatedAt"],

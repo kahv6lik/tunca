@@ -4,6 +4,7 @@ import { requireSession } from "./auth";
 import { kiraciIstemcisi } from "./rls";
 import { prisma } from "./db";
 import { PAKET_MODULLERI, modulKapaliMi } from "./constants";
+import { VARSAYILAN_KOTA_MB } from "./dosya-tanimlar";
 
 export { modulKapaliMi };
 
@@ -25,6 +26,9 @@ export type KiraciAyari = {
   firmaLimiti: number; // 0 = sınırsız
   /** null = paket yok, tüm modüller açık. */
   moduller: string[] | null;
+  // ── Saha çalışması ayarları (Faz 17) ──
+  ziyaretYaricapM: number;
+  dosyaKotaMb: number;
 };
 
 export const kiraciAyari = cache(async (): Promise<KiraciAyari> => {
@@ -44,6 +48,8 @@ export const kiraciAyari = cache(async (): Promise<KiraciAyari> => {
     kullaniciLimiti: kiraci?.plan?.kullaniciLimiti ?? 0,
     firmaLimiti: kiraci?.plan?.firmaLimiti ?? 0,
     moduller: kiraci?.plan ? kiraci.plan.moduller : null,
+    ziyaretYaricapM: kiraci?.ziyaretYaricapM ?? 300,
+    dosyaKotaMb: kiraci?.dosyaKotaMb ?? VARSAYILAN_KOTA_MB,
   };
 });
 

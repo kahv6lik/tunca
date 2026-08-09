@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTenantDb } from "@/lib/tenant-db";
+import { getTenantContext } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
@@ -21,6 +21,10 @@ import { Star, Plus } from "lucide-react";
 import { etkinIzinler } from "@/lib/yetki";
 import { firmaTimeline } from "@/lib/timeline";
 import { Timeline } from "@/components/firmalar/Timeline";
+import EkPaneli from "@/components/ekler/EkPaneli";
+import { haritaBaglantisi } from "@/lib/konum-saf";
+import ZiyaretBaslat from "@/components/ziyaretler/ZiyaretBaslat";
+import { MapPin } from "lucide-react";
 import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
 import {
   alanlariGetir,
@@ -64,7 +68,7 @@ export default async function FirmaDetayPage(
     yetkiVarMi(IZIN.teklifOlustur),
   ]);
 
-  const db = await getTenantDb();
+  const { db, session } = await getTenantContext();
 
   // findFirst kullanılır: kiracı katmanı where'e tenantId ekler, böylece
   // başka kiracının firma ID'si ile gelen istek kayıt bulamaz (A3).
@@ -99,7 +103,16 @@ export default async function FirmaDetayPage(
 
   // Zaman akışı (Faz 7 / C6) — izni olmayan modül hiç sorgulanmaz.
   const izinler = await etkinIzinler();
-  const [akis, teklifler] = await Promise.all([
+  const ekGorur = izinler.has(IZIN.dosyaGoruntule);
+  const ziyaretAcabilir = izinler.has(IZIN.ziyaretOlustur);
+  // Açık ziyaret varsa ikinci bir ziyaret açtırılmaz (kural action'da da var).
+  const acikZiyaret = ziyaretAcabilir
+    ? await db.ziyaret.findFirst({
+        where: { kullaniciId: session.userId, bitis: null },
+        select: { id: true },
+      })
+    : null;
+  const [akis, teklifler, ekler] = await Promise.all([
     firmaTimeline(db, firma.id, izinler),
     teklifGorur
       ? db.teklif.findMany({
@@ -109,6 +122,13 @@ export default async function FirmaDetayPage(
             id: true, no: true, baslik: true, durum: true, toplam: true,
             paraBirimi: true, revizyonNo: true, gecerlilikTarihi: true,
           },
+        })
+      : Promise.resolve([]),
+    // Firmaya ait belgeler (Faz 17 / A1) — izin yoksa sorgu hiç çalışmaz.
+    ekGorur
+      ? db.dosya.findMany({
+          where: { firmaId: firma.id },
+          orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
   ]);
@@ -293,6 +313,28 @@ export default async function FirmaDetayPage(
           <Info label="Telefon" value={firma.telefon} />
           <Info label="E-posta" value={firma.email} />
           <Info label="Adres" value={firma.adres} />
+          {/* Konum (Faz 17 / A3) — harita bağlantısı ANAHTAR GEREKTİRMEZ:
+              gömülü harita her açılışta ücretli bir istek olurdu. */}
+          <div>
+            <dt className="text-xs font-medium uppercase text-muted-foreground/70">
+              Konum
+            </dt>
+            <dd className="mt-0.5 text-sm text-foreground">
+              {firma.enlem !== null && firma.boylam !== null ? (
+                <a
+                  href={haritaBaglantisi(firma.enlem, firma.boylam)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 hover:text-primary"
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  {firma.enlem.toFixed(5)}, {firma.boylam.toFixed(5)}
+                </a>
+              ) : (
+                "—"
+              )}
+            </dd>
+          </div>
           <Info label="Onaylı Yatırım (TRY)" value={formatPara(toplamOnayliYatirim)} />
           {/* Kiracıya özel alanlar (Faz 11 / E6) */}
           {firmaAlanlari.map((a) => (
@@ -329,6 +371,39 @@ export default async function FirmaDetayPage(
         </div>
         <Timeline ogeler={akis} />
       </div>
+
+      {/* Saha ziyareti (Faz 17 / A4) — firmanın önündeyken tek dokunuş. */}
+      {ziyaretAcabilir && !acikZiyaret && (
+        <div className="card mt-6 p-5">
+          <p className="mb-3 text-sm font-semibold text-foreground">Saha Ziyareti</p>
+          <ZiyaretBaslat firmalar={[]} sabitFirmaId={firma.id} />
+        </div>
+      )}
+      {ziyaretAcabilir && acikZiyaret && (
+        <p className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+          Açık bir ziyaretiniz var. Yeni ziyaret açmadan önce{" "}
+          <Link href="/ziyaretler" className="underline">onu bitirin</Link>.
+        </p>
+      )}
+
+      {/* Belgeler (Faz 17 / A1) */}
+      {ekGorur && (
+        <div className="card mt-6 p-5">
+          <EkPaneli
+            bag={{ firmaId: firma.id }}
+            ekler={ekler.map((d) => ({
+              id: d.id,
+              ad: d.ad,
+              mimeTuru: d.mimeTuru,
+              boyut: d.boyut,
+              yukleyen: d.yukleyenEmail,
+              tarih: formatTarih(d.createdAt),
+            }))}
+            yukleyebilir={izinler.has(IZIN.dosyaYukle)}
+            silebilir={izinler.has(IZIN.dosyaSil)}
+          />
+        </div>
+      )}
 
       {/* Teklifler (Faz 7 / C7) */}
       {teklifGorur && (

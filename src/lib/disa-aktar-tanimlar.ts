@@ -358,6 +358,26 @@ export const VERI_KUMELERI: VeriKumesi[] = [
       { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
     ],
   },
+  // ── Saha ziyaretleri (Faz 17) ──
+  {
+    deger: "ziyaretler",
+    etiket: "Saha Ziyaretleri",
+    izin: "ziyaret.goruntule",
+    // Ziyaret bir OLAY kaydıdır: konum doğrulaması ve süre o an ölçülür,
+    // tablodan yeniden kurulamaz.
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "firmaAd", etiket: "Firma" },
+      { anahtar: "personel", etiket: "Personel" },
+      { anahtar: "baslangic", etiket: "Başlangıç", tur: "tarih" },
+      { anahtar: "bitis", etiket: "Bitiş", tur: "tarih" },
+      { anahtar: "sureDakika", etiket: "Süre (dk)", tur: "sayi" },
+      { anahtar: "dogrulama", etiket: "Konum Doğrulaması" },
+      { anahtar: "mesafeM", etiket: "Mesafe (m)", tur: "sayi" },
+      { anahtar: "yaricapM", etiket: "İzin Verilen Yarıçap (m)", tur: "sayi" },
+      { anahtar: "not", etiket: "Not" },
+    ],
+  },
 ];
 
 export function veriKumesiBul(deger: string): VeriKumesi | undefined {

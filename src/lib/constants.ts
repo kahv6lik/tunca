@@ -323,6 +323,10 @@ export const PAKET_MODULLERI = [
   { deger: "proje", etiket: "Projeler", izin: "proje.goruntule" },
   { deger: "destek", etiket: "Destek Kayıtları", izin: "destek.goruntule" },
   { deger: "sss", etiket: "SSS / Bilgi Bankası", izin: "sss.goruntule" },
+  // Faz 17 — saha çalışması. "ziyaret" ayrıdır: ofisten çalışan bir kuruluş
+  // dosya eki kullanır ama saha ziyareti kaydetmez.
+  { deger: "dosya", etiket: "Dosya Ekleri", izin: "dosya.goruntule" },
+  { deger: "ziyaret", etiket: "Saha Ziyaretleri", izin: "ziyaret.goruntule" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

@@ -12,6 +12,7 @@ import DestekPanel from "@/components/destek/DestekPanel";
 import DestekDurumDugmeleri from "@/components/destek/DestekDurumDugmeleri";
 import OncelikRozet from "@/components/destek/OncelikRozet";
 import IslemFormu from "@/components/destek/IslemFormu";
+import EkPaneli from "@/components/ekler/EkPaneli";
 import DeleteButton from "@/components/DeleteButton";
 import { destekSil } from "../actions";
 
@@ -32,12 +33,16 @@ export default async function DestekDetayPage(props: {
   const params = await props.params;
   await yetkiGerektir(IZIN.destekGoruntule);
 
-  const [duzenler, siler, projeGorur, sssGorur] = await Promise.all([
-    yetkiVarMi(IZIN.destekDuzenle),
-    yetkiVarMi(IZIN.destekSil),
-    yetkiVarMi(IZIN.projeGoruntule),
-    yetkiVarMi(IZIN.sssGoruntule),
-  ]);
+  const [duzenler, siler, projeGorur, sssGorur, ekGorur, ekYukler, ekSiler] =
+    await Promise.all([
+      yetkiVarMi(IZIN.destekDuzenle),
+      yetkiVarMi(IZIN.destekSil),
+      yetkiVarMi(IZIN.projeGoruntule),
+      yetkiVarMi(IZIN.sssGoruntule),
+      yetkiVarMi(IZIN.dosyaGoruntule),
+      yetkiVarMi(IZIN.dosyaYukle),
+      yetkiVarMi(IZIN.dosyaSil),
+    ]);
 
   const db = await getTenantDb();
 
@@ -48,6 +53,8 @@ export default async function DestekDetayPage(props: {
       kisi: { select: { id: true, ad: true } },
       proje: { select: { id: true, kod: true, ad: true } },
       islemler: { orderBy: { createdAt: "asc" } },
+      // Arıza fotoğrafı, ekran görüntüsü, müşteri belgesi (Faz 17 / A1).
+      ekler: ekGorur ? { orderBy: { createdAt: "desc" as const } } : (false as const),
     },
   });
 
@@ -219,6 +226,24 @@ export default async function DestekDetayPage(props: {
               <BookOpen className="h-3.5 w-3.5" /> SSS&apos;de ara
             </Link>
           )}
+        </div>
+      )}
+
+      {ekGorur && (
+        <div className="card mb-6 p-5">
+          <EkPaneli
+            bag={{ destekId: kayit.id }}
+            ekler={(kayit.ekler ?? []).map((d) => ({
+              id: d.id,
+              ad: d.ad,
+              mimeTuru: d.mimeTuru,
+              boyut: d.boyut,
+              yukleyen: d.yukleyenEmail,
+              tarih: formatTarih(d.createdAt),
+            }))}
+            yukleyebilir={ekYukler}
+            silebilir={ekSiler}
+          />
         </div>
       )}
 

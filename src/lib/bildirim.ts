@@ -31,6 +31,9 @@ export const BILDIRIM_TURLERI = [
   { deger: "siparis.sevkiyat", etiket: "Sevkiyat için onaylı sipariş hazır olduğunda" },
   // Faz 16 — destek kaydı
   { deger: "destek.atandi", etiket: "Bana bir destek kaydı atandığında" },
+  // Faz 17 — saha ziyareti. Yalnızca KONUM UYUŞMAYAN ziyaret bildirilir;
+  // her ziyaret için bildirim, yöneticinin zilini gürültüye boğardı.
+  { deger: "ziyaret.konum", etiket: "Bir ziyaretin konumu doğrulanamadığında" },
 ] as const;
 
 export type BildirimTuru = (typeof BILDIRIM_TURLERI)[number]["deger"];

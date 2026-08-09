@@ -30,6 +30,7 @@ import {
   FolderKanban,
   LifeBuoy,
   HelpCircle,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,8 @@ export const NAV: NavItem[] = [
   { href: "/projeler", label: "Projeler", icon: FolderKanban, izin: "proje.goruntule" },
   { href: "/destek", label: "Destek", icon: LifeBuoy, izin: "destek.goruntule" },
   { href: "/sss", label: "SSS", icon: HelpCircle, izin: "sss.goruntule" },
+  // Faz 17 — saha çalışması
+  { href: "/ziyaretler", label: "Ziyaretler", icon: MapPin, izin: "ziyaret.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },

@@ -578,6 +578,107 @@ async function projeDestekVerisi(tenantId: string) {
   console.log("✅ Proje/destek verisi: 2 proje, 5 destek kaydı, 4 SSS.");
 }
 
+/**
+ * Saha çalışması demo verisi (Faz 17).
+ *
+ * Üç ziyaret üretilir ve ÜÇÜ DE FARKLI doğrulama sonucundadır (doğrulandı /
+ * uzak / alınamadı): ziyaret listesi ve rozetleri demo veride de üç durumu
+ * birden göstermeli, yoksa "kırmızı nasıl görünüyor" sorusu sınanmamış kalır.
+ *
+ * Dosya EKİ üretilmez: ek içeriği diskte durur ve seed'in diske yazması,
+ * demo veriyi volume'e bağımlı hâle getirirdi.
+ */
+async function sahaVerisi(tenantId: string) {
+  const mevcut = await prisma.ziyaret.count({ where: { tenantId } });
+  if (mevcut > 0) {
+    console.log("ℹ️  Ziyaret verisi zaten var, üretim atlanıyor.");
+    return;
+  }
+
+  const firmalar = await prisma.firma.findMany({
+    where: { tenantId },
+    take: 3,
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (firmalar.length === 0) return;
+
+  // Ankara Kızılay çevresinde üç nokta; koordinatlar demo amaçlıdır.
+  const konumlar = [
+    { enlem: 39.920777, boylam: 32.854108 },
+    { enlem: 39.933365, boylam: 32.859742 },
+    { enlem: 39.891234, boylam: 32.812345 },
+  ];
+  for (const [i, f] of firmalar.entries()) {
+    await prisma.firma.update({
+      where: { id: f.id },
+      data: {
+        enlem: konumlar[i].enlem,
+        boylam: konumlar[i].boylam,
+        konumKaynak: "elle",
+      },
+    });
+  }
+
+  const uye = await prisma.user.findFirst({
+    where: { tenantId, role: "uye" },
+    select: { id: true },
+  });
+  const yonetici = await prisma.user.findFirst({
+    where: { tenantId, role: { in: ["tenant_admin", "admin"] } },
+    select: { id: true },
+  });
+
+  const gun = 86_400_000;
+  const ziyaretler = [
+    // Yerinde: firmanın 40 m yakınında.
+    { i: 0, kullanici: uye?.id, gecmis: 1, sure: 55, mesafeM: 40, dogrulama: "dogrulandi", not: "Yıllık sözleşme görüşüldü." },
+    // Uzak: 2,4 km — yöneticiye bildirim giden durum.
+    { i: 1, kullanici: uye?.id, gecmis: 3, sure: 35, mesafeM: 2400, dogrulama: "uzak", not: "Toplantı firma dışında yapıldı." },
+    // Konum alınamadı: izin reddi ya da kapalı GPS.
+    { i: 2, kullanici: yonetici?.id, gecmis: 6, sure: 80, mesafeM: null, dogrulama: "alinamadi", not: "Tesis gezisi." },
+  ];
+
+  for (const z of ziyaretler) {
+    if (!z.kullanici) continue;
+    const baslangic = new Date(Date.now() - z.gecmis * gun);
+    const bitis = new Date(baslangic.getTime() + z.sure * 60_000);
+    const firmaId = firmalar[z.i % firmalar.length].id;
+
+    const aktivite = await prisma.aktivite.create({
+      data: {
+        tenantId,
+        tur: "toplanti",
+        baslik: "Saha ziyareti",
+        aciklama: z.not,
+        firmaId,
+        olusturanId: z.kullanici,
+        createdAt: bitis,
+      },
+    });
+
+    await prisma.ziyaret.create({
+      data: {
+        tenantId,
+        firmaId,
+        kullaniciId: z.kullanici,
+        aktiviteId: aktivite.id,
+        baslangic,
+        bitis,
+        sureDakika: z.sure,
+        enlem: z.dogrulama === "alinamadi" ? null : konumlar[z.i % konumlar.length].enlem,
+        boylam: z.dogrulama === "alinamadi" ? null : konumlar[z.i % konumlar.length].boylam,
+        mesafeM: z.mesafeM,
+        dogrulama: z.dogrulama,
+        yaricapM: 300,
+        not: z.not,
+      },
+    });
+  }
+
+  console.log("✅ Saha verisi: 3 firmaya koordinat, 3 ziyaret (yerinde / uzak / doğrulanamadı).");
+}
+
 async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   const mevcut = await prisma.firma.count({ where: { tenantId } });
   if (mevcut > 0) {
@@ -913,6 +1014,7 @@ async function paketleriKur() {
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
+        "dosya", "ziyaret",
       ],
     },
     {
@@ -930,6 +1032,7 @@ async function paketleriKur() {
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
+        "dosya", "ziyaret",
       ],
     },
   ];
@@ -1045,6 +1148,7 @@ async function main() {
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
   if (ticariUrunler) await siparisVerisi(gezegen.id, ticariUrunler);
   await projeDestekVerisi(gezegen.id);
+  await sahaVerisi(gezegen.id);
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");

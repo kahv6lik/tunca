@@ -3,6 +3,7 @@ import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import FirmaForm from "@/components/FirmaForm";
+import { geocodingAcikMi } from "@/lib/geocode";
 import { updateFirma } from "../../actions";
 import { alanlariGetir, degerHaritasi } from "@/lib/ozel-alan";
 
@@ -34,6 +35,7 @@ export default async function FirmaDuzenlePage(
         cancelHref={`/firmalar/${firma.id}`}
         ozelAlanlar={ozelAlanlar}
         ozelDegerler={ozelDegerler}
+        geocodingAcik={geocodingAcikMi()}
       />
     </div>
   );

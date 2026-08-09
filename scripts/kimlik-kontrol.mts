@@ -1208,6 +1208,84 @@ async function main() {
     !anadoluDestek.govde.includes("DST-")
   );
 
+  // 21 — Faz 17: dosya eki ve saha ziyareti
+  console.log("\n21. Faz 17 — dosya eki ve saha ziyareti");
+
+  const ziyaretler = await sayfaGetir("admin@gezegen.com", "admin123", "/ziyaretler");
+  kontrol(
+    "Ziyaret ekranı açılıyor",
+    !ziyaretler.url.includes("/yetkisiz") &&
+      ziyaretler.govde.toLocaleLowerCase("tr").includes("saha ziyaretleri")
+  );
+  kontrol(
+    "Kuruluşun yarıçap ayarı ekranda yazılı",
+    ziyaretler.govde.includes("300 m")
+  );
+  // Demo veride üç doğrulama durumu da var; rozetler ayrı ayrı görünmeli.
+  kontrol("Doğrulanmış ziyaret rozeti var", ziyaretler.govde.includes("Konum doğrulandı"));
+  kontrol("Uyuşmayan konum rozeti var", ziyaretler.govde.includes("Konum uyuşmuyor"));
+  kontrol(
+    "Konumu alınamayan ziyaret 'uzak' DEĞİL, 'doğrulanamadı'",
+    ziyaretler.govde.includes("Konum doğrulanamadı")
+  );
+
+  const uzakSuzgec = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/ziyaretler?dogrulama=uzak"
+  );
+  kontrol(
+    "Konum süzgeci yalnızca uyuşmayanları getiriyor",
+    uzakSuzgec.govde.includes("Konum uyuşmuyor") &&
+      !uzakSuzgec.govde.includes("Konum doğrulandı")
+  );
+
+  // Firma detayında koordinat ve ek bölümü.
+  const koordinatliFirma = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" }, enlem: { not: null } },
+    select: { id: true },
+  });
+  if (koordinatliFirma) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${koordinatliFirma.id}`
+    );
+    kontrol("Firma detayında konum görünüyor", detay.govde.includes("Konum"));
+    kontrol("Firma detayında ek bölümü var", detay.govde.includes("Ekler"));
+    kontrol(
+      "Ek sınırı kullanıcıya yazılı (10 MB)",
+      detay.govde.includes("10 MB")
+    );
+  }
+
+  // Yetki ayrımı: üye ek YÜKLER ama SİLEMEZ.
+  const uyeZiyaret = await sayfaGetir("kullanici@gezegen.com", "user123", "/ziyaretler");
+  kontrol(
+    "Üye ziyaret ekranını açabiliyor (saha işi üyenindir)",
+    !uyeZiyaret.url.includes("/yetkisiz")
+  );
+
+  // Dosya indirme ucu OTURUM ve İZİN ister; kiracı sınırını da aşamaz.
+  const dosyaYanit = await fetch(`${BASE}/api/dosya?id=olmayan`, { redirect: "manual" });
+  kontrol(
+    "Dosya ucu oturumsuz erişime kapalı",
+    dosyaYanit.status === 307 || dosyaYanit.status === 302 || dosyaYanit.status === 401,
+    `HTTP ${dosyaYanit.status}`
+  );
+
+  // Kiracı sınırı.
+  const anadoluZiyaret = await sayfaGetir(
+    "admin@anadolu.com",
+    "anadolu123",
+    "/ziyaretler"
+  );
+  kontrol(
+    "Komşu kiracı Gezegen'in ziyaretlerini GÖRMÜYOR",
+    !anadoluZiyaret.govde.includes("Konum doğrulandı") &&
+      !anadoluZiyaret.govde.includes("Konum uyuşmuyor")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

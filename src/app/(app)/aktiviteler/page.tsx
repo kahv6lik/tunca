@@ -9,6 +9,7 @@ import AktivitePanel, { AktiviteIslemleri } from "@/components/aktiviteler/Aktiv
 import { formatTarih, toDateInput } from "@/lib/format";
 import { AKTIVITE_TUR } from "@/lib/constants";
 import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
+import EkAcilir from "@/components/ekler/EkAcilir";
 
 export const dynamic = "force-dynamic";
 
@@ -37,11 +38,16 @@ export default async function AktivitelerPage(
   const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.aktiviteGoruntule);
 
-  const [ekleyebilir, duzenleyebilir, silebilir] = await Promise.all([
-    yetkiVarMi(IZIN.aktiviteOlustur),
-    yetkiVarMi(IZIN.aktiviteDuzenle),
-    yetkiVarMi(IZIN.aktiviteSil),
-  ]);
+  const [ekleyebilir, duzenleyebilir, silebilir, ekGorur, ekYukler, ekSiler] =
+    await Promise.all([
+      yetkiVarMi(IZIN.aktiviteOlustur),
+      yetkiVarMi(IZIN.aktiviteDuzenle),
+      yetkiVarMi(IZIN.aktiviteSil),
+      // Ek izni YOKSA ekler hiç SORGULANMAZ (timeline'daki aynı kural).
+      yetkiVarMi(IZIN.dosyaGoruntule),
+      yetkiVarMi(IZIN.dosyaYukle),
+      yetkiVarMi(IZIN.dosyaSil),
+    ]);
 
   const { db, session } = await getTenantContext();
 
@@ -80,6 +86,9 @@ export default async function AktivitelerPage(
         firma: { select: { id: true, ad: true } },
         kisi: { select: { ad: true } },
         firsat: { select: { baslik: true } },
+        ekler: ekGorur
+          ? { orderBy: { createdAt: "asc" as const } }
+          : (false as const),
       },
     }),
     db.user.findMany({
@@ -287,6 +296,22 @@ export default async function AktivitelerPage(
                         atananId: a.atananId ?? "",
                         sonTarih: a.sonTarih ? toDateInput(a.sonTarih) : "",
                       }}
+                    />
+                  )}
+
+                  {ekGorur && (
+                    <EkAcilir
+                      bag={{ aktiviteId: a.id }}
+                      ekler={(a.ekler ?? []).map((d) => ({
+                        id: d.id,
+                        ad: d.ad,
+                        mimeTuru: d.mimeTuru,
+                        boyut: d.boyut,
+                        yukleyen: d.yukleyenEmail,
+                        tarih: formatTarih(d.createdAt),
+                      }))}
+                      yukleyebilir={ekYukler}
+                      silebilir={ekSiler}
                     />
                   )}
 

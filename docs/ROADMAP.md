@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.16.0` — Faz 16: proje, destek kaydı, SSS |
-| **Sıradaki faz** | **Faz 17** — Dosya eki, ziyaret ve konum doğrulama (`v1.17.0`) |
-| **Sonrası** | Faz 18–20: saha geri bildirimleri · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.17.0` — Faz 17: dosya eki, ziyaret ve konum doğrulama |
+| **Sıradaki faz** | **Faz 18** — Rapor merkezi, mali raporlar, firma dosyası PDF (`v1.18.0`) |
+| **Sonrası** | Faz 19–20: saha geri bildirimleri · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -151,7 +151,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | ✅ tamamlandı | — |
 | 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | ✅ tamamlandı | — |
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | ✅ tamamlandı | — |
-| 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | planlandı | |
+| 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | ✅ tamamlandı | — |
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | planlandı | |
 | 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | planlandı | |
 | 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | planlandı | |
@@ -1139,17 +1139,17 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ## Faz 17 — Saha Çalışması: Ek Dosyalar ve Konum Doğrulama → `v1.17.0`
 
-- [ ] **A1 — Dosya eki altyapısı.** Aktivite (ve sonraki fazda destek kaydı,
+- [x] **A1 — Dosya eki altyapısı.** Aktivite (ve sonraki fazda destek kaydı,
       sipariş) kaydına dosya eklenebilir. Boyut ve tür sınırı, kiracı bazlı
       kota, virüs riskine karşı sunucuda tür doğrulaması (uzantıya değil
       içeriğe bakılır).
-- [ ] **A2 — Fotoğraf çekme.** Mobil tarayıcıda kameradan doğrudan çekim
+- [x] **A2 — Fotoğraf çekme.** Mobil tarayıcıda kameradan doğrudan çekim
       (`capture` özniteliği); çekilen görsel sunucuda küçültülerek saklanır.
-- [ ] **A3 — Firma konumu.** Firma kaydına enlem/boylam. Adresten koordinat
+- [x] **A3 — Firma konumu.** Firma kaydına enlem/boylam. Adresten koordinat
       üretimi (geocoding) ve haritada işaretleme.
-- [ ] **A4 — Ziyaret kaydı ve saat.** Saha personeli ziyareti başlatır ve
+- [x] **A4 — Ziyaret kaydı ve saat.** Saha personeli ziyareti başlatır ve
       bitirir; **süre otomatik tutulur**, aktivite kaydına yazılır.
-- [ ] **A5 — Konum doğrulama.** Ziyaret anında tarayıcının konum servisinden
+- [x] **A5 — Konum doğrulama.** Ziyaret anında tarayıcının konum servisinden
       alınan koordinat, firmanın koordinatıyla karşılaştırılır.
       Yarıçap içindeyse kayıt **yeşil**; dışındaysa **kırmızı** işaretlenir,
       aktiviteye açıklayıcı not düşer ve **yöneticiye bildirim gider**.
@@ -1174,6 +1174,47 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 4. **Konum izni reddedilirse ziyaret yine açılır**, "konum doğrulanamadı"
    (sarı) olarak işaretlenir. Teknik bir aksaklık personeli işini yapamaz
    hâle getirmemeli. ✅
+
+### Uygulama notları (v1.17.0)
+
+1. **Dosya türü UZANTIDAN DEĞİL İÇERİKTEN belirlenir** (`turTespit`): imza
+   eşleşmezse dosya reddedilir. `.jpg` uzantılı bir çalıştırılabilir dosya,
+   uzantıya güvenen bir sistemde sunucuya girip tarayıcıya görsel diye
+   sunulurdu. İzinli türler BEYAZ LİSTEDİR; "şunlar yasak" yaklaşımı unutulan
+   her yeni türde açık kapı bırakırdı.
+2. **Zip tabanlı Office belgeleri tek imzayı paylaşır** (`PK\x03\x04`);
+   docx/xlsx/pptx ayrımı imzadan yapılamaz. İçerik "zip kapsayıcı" olarak
+   doğrulanır, etiket uzantıdan seçilir — uzantı burada güvenlik kararı
+   değil, gösterim kararıdır.
+3. **Dosyanın kendisi veritabanında DEĞİL diskte durur.** Yedeğe base64
+   koymak, yedek dosyasını indirilemez hâle getirirdi (E7'nin sözü). `Dosya`
+   bu yüzden JSON yedeği kapsamı DIŞINDADIR; volume yedeği `docs/DEPLOY.md`
+   içinde ayrı bir adımdır.
+4. **Kota yüklemeden ÖNCE bakılır** (10 MB/dosya, 2 GB/kiracı): diski
+   doldurup sonra silmek, eşzamanlı iki yüklemede kotanın aşılmasına izin
+   verirdi. Görseller sunucuda 1600 piksele küçültülür; küçültme başarısız
+   olursa özgün dosya saklanır — bozuk bir görsel yüklemeyi düşürmemeli.
+5. **İndirme ucu kiracı katmanından geçer** ve `nosniff` gönderir; görseller
+   `inline`, diğer türler `attachment` olarak sunulur. Tarayıcı içeriğe bakıp
+   kendi tür kararını verirse sunucudaki beyaz listenin anlamı kalmazdı.
+6. **Geocoding ANAHTAR TANIMSIZSA KAPALIDIR** ve koordinat elle girilir.
+   Maliyet koruması iki katmanlıdır: koordinat kayıtta saklanır, ayrıca
+   `konumAdres` alanı sayesinde adres değişmedikçe yeni istek gitmez.
+   Haritada gösterim GÖMÜLÜ harita değil dış BAĞLANTIDIR — gömülü harita her
+   açılışta ücretli bir istektir.
+7. **Konum doğrulamasının ÜÇ sonucu vardır**, iki değil: doğrulandı (yeşil),
+   uyuşmuyor (kırmızı), doğrulanamadı (sarı). İzin reddi ya da koordinatsız
+   firma "uzak" saymaz — teknik aksaklık personeli suçlu duruma
+   düşürmemelidir (karar 4). Yöneticiye bildirim YALNIZCA kırmızıda gider.
+8. **Doğrulama kararı ziyaret satırına yazılır** (`dogrulama`, `mesafeM`,
+   `yaricapM`): kuruluş yarıçapı sonradan değişse bile geçmiş ziyaretlerin
+   kararı sabit kalmalıdır.
+9. **Süre kullanıcıdan istenmez**, damgalardan hesaplanır; ziyaret bitince
+   AKTİVİTE yazılır ve firma zaman akışında görünür (destek işlemlerindeki
+   aynı karar). Aynı anda iki açık ziyaret olamaz.
+10. **Mesafe küresel (haversine) hesaplanır.** Düz Öklid hesabı 39. enlemde
+    doğu-batı sapmasını ~%30 fazla gösterir ve yerinde olan bir ziyareti
+    uzak sayardı.
 
 > **Faturalandırma notu (doğrulanmalı):** Google Maps Platform kullandıkça
 > öder; aylık sabit ücreti yoktur ve belirli bir kullanım eşiğine kadar

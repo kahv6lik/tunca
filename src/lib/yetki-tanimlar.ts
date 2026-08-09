@@ -130,6 +130,15 @@ export const IZIN = {
   sssGoruntule: "sss.goruntule",
   sssYonet: "sss.yonet",
 
+  // ── Faz 17: dosya eki ve saha ziyareti ──────────────────────────────────
+  // Eki GÖRMEK ile SİLMEK ayrıdır: ek bir kanıttır (ziyaret fotoğrafı, imzalı
+  // belge) ve silinmesi geri alınamaz.
+  dosyaGoruntule: "dosya.goruntule",
+  dosyaYukle: "dosya.yukle",
+  dosyaSil: "dosya.sil",
+  ziyaretGoruntule: "ziyaret.goruntule",
+  ziyaretOlustur: "ziyaret.olustur",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -212,6 +221,11 @@ export const IZIN_ETIKET: Record<string, string> = {
   "destek.sil": "Destek kaydı sil",
   "sss.goruntule": "SSS'yi görüntüle",
   "sss.yonet": "SSS içeriğini yönet",
+  "dosya.goruntule": "Dosya eklerini görüntüle ve indir",
+  "dosya.yukle": "Dosya eki yükle",
+  "dosya.sil": "Dosya eki sil",
+  "ziyaret.goruntule": "Saha ziyaretlerini görüntüle",
+  "ziyaret.olustur": "Saha ziyareti başlat ve bitir",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -253,6 +267,14 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
     ],
   },
   { ad: "SSS", izinler: [IZIN.sssGoruntule, IZIN.sssYonet] },
+  {
+    ad: "Dosya Ekleri",
+    izinler: [IZIN.dosyaGoruntule, IZIN.dosyaYukle, IZIN.dosyaSil],
+  },
+  {
+    ad: "Saha Ziyaretleri",
+    izinler: [IZIN.ziyaretGoruntule, IZIN.ziyaretOlustur],
+  },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
@@ -298,6 +320,9 @@ const GORUNTULEME: Izin[] = [
   IZIN.projeGoruntule,
   IZIN.destekGoruntule,
   IZIN.sssGoruntule,
+  // Faz 17: eki ve ziyaret geçmişini GÖRMEK okuma işidir.
+  IZIN.dosyaGoruntule,
+  IZIN.ziyaretGoruntule,
 ];
 
 const IS_VERISI_TAM: Izin[] = [
@@ -324,6 +349,11 @@ const IS_VERISI_TAM: Izin[] = [
   // değiştirmektir ve bilinçli olarak yöneticidedir.
   IZIN.projeOlustur, IZIN.projeDuzenle, IZIN.projeSil,
   IZIN.destekOlustur, IZIN.destekDuzenle, IZIN.destekSil,
+  // Faz 17: saha personeli ziyareti kendi açar ve fotoğrafı kendi yükler —
+  // aksi halde özellik sahada işe yaramaz. SİLME bilinçli olarak yoktur:
+  // ek bir kanıttır, yanlış yüklenen dosyayı yönetici kaldırır.
+  IZIN.dosyaYukle,
+  IZIN.ziyaretOlustur,
 ];
 
 /**
@@ -360,6 +390,8 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     // Faz 15: onay yetkisi yöneticidedir.
     IZIN.siparisOnayla,
     IZIN.sssYonet,
+    // Faz 17: eki silmek geri alınamaz; yöneticidedir.
+    IZIN.dosyaSil,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

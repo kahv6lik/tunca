@@ -379,6 +379,28 @@ async function satirlariOku(
       return kayitlar.map((s) => ({ ...s, etiketMetni: etiketMetni(s.etiketler) }));
     }
 
+    case "ziyaretler": {
+      const kayitlar = await db.ziyaret.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("firma.ad", "not") } : {},
+            durum ? { dogrulama: durum } : {},
+          ],
+        },
+        orderBy: { baslangic: "desc" },
+        take: AZAMI_SATIR,
+        include: { firma: { select: { ad: true } } },
+      });
+      const kullanicilar = await db.user.findMany({ select: { id: true, name: true } });
+      const adOf = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+      return kayitlar.map((z) => ({
+        ...z,
+        firmaAd: z.firma.ad,
+        personel: adOf.get(z.kullaniciId) ?? null,
+      }));
+    }
+
     case "hizmetler": {
       const kayitlar = await db.hizmet.findMany({
         where: {

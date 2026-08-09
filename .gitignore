@@ -41,3 +41,4 @@ next-env.d.ts
 
 # doğrulama betiğinin geçici veritabanı
 /prisma/dogrulama.db
+veri/

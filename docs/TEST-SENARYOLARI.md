@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.17.0** | **Faz 17** — Dosya/fotoğraf eki (içerik doğrulamalı, kotalı), firma konumu, saha ziyareti ve konum doğrulama | Firma detayında **Fotoğraf** ile bir görsel yükle → `/ziyaretler`de **Konumumu al** + **Ziyareti Başlat** → sonra **Ziyareti Bitir** | Ek listede önizlemeyle çıkar; uzantısı değiştirilmiş dosya reddedilir; ziyaret yeşil/kırmızı/sarı işaretlenir, süre kendiliğinden hesaplanır ve firma zaman akışına aktivite düşer | 587 |
 | **v1.16.0** | **Faz 16** — Proje, destek kaydı (kanal/öncelik/atama/işlem geçmişi), destek raporu, SSS bilgi bankası | `/destek` → yeni kayıt aç → işlem ekle → durumu **Çözüldü** yap → `/destek/rapor` | Kayıt `DST-YIL-0001` numarasını alır; işlem hem destek geçmişinde hem firma zaman akışında görünür; çözüm tarihi ELLE girilmeden damgalanır ve raporda ortalama çözüm süresine yansır | 539 |
 | **v1.15.0** | **Faz 15** — Sipariş, yönetici onay akışı, sevkiyat kuyruğu ve raporu | Üye ile sipariş gir → yönetici ile onayla → sevkiyat aç → durumu ilerlet | Sipariş onaya düşer; onayda stok ve kampanya kotası düşer; sevkiyat düğmesi ancak ONAYDAN SONRA çıkar; stok yetersizse onay verilmez ve hiçbir şey düşmez | 498 |
 | **v1.14.0** | **Faz 14** — Ürün kataloğu, müşteriye özel paketler, kampanya (kota + kullanım raporu), fiyat motoru, gerçek stok takibi | `/urunler`de ürün ekle → `/paketler`de iki ürünü paketle → `/kampanyalar`da kotalı kampanya aç → `/stok`ta giriş/çıkış gir | Paket önizlemesi müşteri avantajını gösterir; kampanya kotası her kullanımda düşer ve tükenince reddeder; stok çıkışı eldekinden fazlaysa hata verir ve hareket yazılmaz | 465 |
@@ -282,6 +283,33 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
 | 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
 | 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
+
+---
+
+### v1.17.0 — Dosya eki, ziyaret ve konum (Faz 17)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Firma detayı → **Ekler** bölümünde **Dosya** ile bir PDF yükle | Ek listeye düşer, boyutu ve yükleyeni yazar |
+| 2 | Bir `.exe` dosyasının adını `.jpg` yapıp yükle | Reddedilir: "Bu dosya türü kabul edilmiyor" (imza uyuşmuyor) |
+| 3 | 10 MB'tan büyük bir dosya seç | Sunucuya gitmeden uyarı çıkar |
+| 4 | Telefonla girip **Fotoğraf** düğmesine bas | Arka kamera açılır; çekilen görsel küçültülerek yüklenir |
+| 5 | Eke tıkla | Görsel tarayıcıda açılır, belge iner (`nosniff` ile) |
+| 6 | Üye hesabıyla aynı ekleri aç | Yükleyebilir ama **Sil** düğmesi YOK |
+| 7 | Yönetici ile bir eki sil | Onay sorar; silinince listeden ve diskten gider |
+| 8 | Aktivite listesinde ataç simgesine bas | Satır içinde ek bölümü açılır, sayı görünür |
+| 9 | Firma düzenle → **Bulunduğum konumu kullan** | Enlem/boylam alanları dolar; kaydedince detayda harita bağlantısı çıkar |
+| 10 | Anahtar tanımsızken koordinatı boş bırak | "Harita anahtarı tanımlı olmadığı için koordinat elle girilir" yazar; kayıt yine açılır |
+| 11 | `/ziyaretler` → **Konumumu al** → **Ziyareti Başlat** | Ziyaret açılır; firmaya yakınsanız yeşil "Konum doğrulandı" |
+| 12 | Konum iznini reddedip ziyaret başlat | Ziyaret YİNE açılır, sarı "Konum doğrulanamadı" olur |
+| 13 | Firmadan uzakta ziyaret başlat | Kırmızı "Konum uyuşmuyor" + yöneticinin zilinde bildirim |
+| 14 | Açıkken ikinci bir ziyaret açmayı dene | "Açık bir ziyaretiniz var; önce onu bitirin" |
+| 15 | **Ziyareti Bitir** (not yazarak) | Süre kendiliğinden hesaplanır; süre alanı istenmez |
+| 16 | Firma detayında zaman akışına bak | "Saha ziyareti" aktivitesi süre ve konum notuyla görünür |
+| 17 | `/ziyaretler`de konum süzgecini **Uyuşmuyor** yap | Yalnızca kırmızı ziyaretler listelenir |
+| 18 | Kuruluş yarıçapını değiştir, eski ziyaretlere bak | Geçmiş kararlar DEĞİŞMEZ (yarıçap kayıtta saklanır) |
+| 19 | `admin@anadolu.com` ile `/ziyaretler` | Gezegen'in hiçbir ziyareti görünmez |
+| 20 | Yedek al ve indir | Ziyaretler yedekte var; dosya ekleri YOK (volume ayrı yedeklenir — `docs/DEPLOY.md`) |
 
 ---
 

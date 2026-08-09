@@ -25,6 +25,37 @@ docker cp gezegen-crm-app:/app/data/prod.db /root/prod-yedek-$(date +%F-%H%M).db
 ls -lh /root/prod-yedek-*.db
 ```
 
+### Dosya ekleri de yedeklenir (v1.17.0'dan itibaren)
+
+Dosya ekleri (fotoğraf, PDF, belge) **veritabanında DEĞİL**, `gezegen-dosya`
+adlı Docker volume'ünde durur. Veritabanı yedeği bunları KAPSAMAZ — uygulama
+içindeki JSON yedeğine de bilinçli olarak konmadılar, çünkü yedek dosyası
+yüzlerce megabayt olur ve indirilemez hâle gelirdi.
+
+Volume yedeği ayrı bir adımdır:
+
+```bash
+# Ekleri tek bir arşive al
+docker run --rm \
+  -v gezegen-crm_gezegen-dosya:/veri:ro \
+  -v /root:/yedek \
+  alpine tar czf /yedek/gezegen-dosya-$(date +%F-%H%M).tar.gz -C /veri .
+
+ls -lh /root/gezegen-dosya-*.tar.gz
+```
+
+Geri yüklemek için (dizin BOŞ olmalı; mevcut dosyalar ezilir):
+
+```bash
+docker run --rm \
+  -v gezegen-crm_gezegen-dosya:/veri \
+  -v /root:/yedek \
+  alpine sh -c "rm -rf /veri/* && tar xzf /yedek/gezegen-dosya-<TARIH>.tar.gz -C /veri"
+```
+
+> Volume adı `docker volume ls` çıktısındakiyle aynı olmalıdır; Compose
+> proje adını ön ek olarak ekler (`gezegen-crm_gezegen-dosya`).
+
 ## 2. Sürümü getir ve geç
 
 ```bash
@@ -459,3 +490,39 @@ Giriş yaptıktan sonra üst çubuktaki **Platform** düğmesinden panele geçil
 Müşteri ekleme sırası: **Paketler** → **Yeni Kuruluş** → kuruluş detayında
 **Davet Et**. Davet bağlantısı bir kez gösterilir; e-posta ile otomatik
 gönderim Faz 8'de gelecek.
+
+
+### Saha çalışması (Faz 17) — v1.17.0
+
+**Dosya ekleri.** `docker-compose.yml` `gezegen-dosya` volume'ünü tanımlar ve
+uygulamaya `DOSYA_DIZIN=/veri/dosya` olarak bağlar. Yükseltmeden sonra
+`docker compose up -d` volume'ü kendiliğinden oluşturur; ek bir adım yoktur.
+**Volume bağlı değilse ekler konteynerle birlikte kaybolur** — yükseltme
+sonrası bir kez doğrulayın:
+
+```bash
+docker compose exec app sh -c 'touch /veri/dosya/.kontrol && ls -la /veri/dosya'
+docker volume ls | grep gezegen-dosya
+```
+
+Sınırlar: dosya başına **10 MB**, kiracı başına **2 GB** (kiracının
+`dosyaKotaMb` alanı). Görseller sunucuda 1600 piksel genişliğe küçültülür.
+
+**Harita anahtarı (isteğe bağlı).** `GOOGLE_MAPS_API_KEY` tanımlıysa firma
+adresinden koordinat üretilir. **Tanımsızsa özellik kapalıdır** ve koordinat
+elle girilir — uygulama çalışmaya devam eder. Anahtar tanımlayacaksanız:
+
+```bash
+echo 'GOOGLE_MAPS_API_KEY=AIza...' >> deploy.env
+docker compose up -d app
+```
+
+Google Cloud konsolunda **günlük istek sınırı (quota)** tanımlayın. Koordinat
+firma kaydında saklandığı ve adres değişmedikçe yeniden istenmediği için
+tipik kullanımda çağrı sayısı firma sayısı kadardır.
+
+**Ziyaret yarıçapı.** Varsayılan 300 m'dir (kiracının `ziyaretYaricapM`
+alanı). Konum doğrulaması tarayıcının konum servisini kullanır ve bu servis
+yalnızca **HTTPS** üzerinde çalışır — sunucu zaten Let's Encrypt ile
+sertifikalı olduğu için ek bir adım gerekmez, ama `http://` ile test
+ederseniz konum hep "doğrulanamadı" çıkar.

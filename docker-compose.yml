@@ -33,6 +33,15 @@ services:
       ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@gezegen.com}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
       ADMIN_NAME: "${ADMIN_NAME:-Sistem Yöneticisi}"
+      # Dosya ekleri (Faz 17 / A1) — konteyner içindeki depo dizini.
+      # Kalıcılığı aşağıdaki `gezegen-dosya` volume'ü sağlar; volume
+      # bağlanmazsa her sürümde ekler KAYBOLUR.
+      DOSYA_DIZIN: "/veri/dosya"
+      # Adresten koordinat üretimi (Faz 17 / A3). TANIMSIZSA özellik kapalıdır
+      # ve koordinat elle girilir — sessizce ücretli çağrı yapılmaz.
+      GOOGLE_MAPS_API_KEY: "${GOOGLE_MAPS_API_KEY:-}"
+    volumes:
+      - gezegen-dosya:/veri/dosya
     depends_on:
       db:
         condition: service_healthy
@@ -71,6 +80,9 @@ services:
 
 volumes:
   gezegen-pgdata:
+  # Dosya ekleri (Faz 17). Veritabanı yedeğinde DEĞİLDİR; ayrı yedeklenir —
+  # adımlar docs/DEPLOY.md içinde.
+  gezegen-dosya:
 
 networks:
   gezegen:
