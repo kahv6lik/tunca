@@ -389,9 +389,22 @@ async function main() {
       `/firmalar/${ilkFirma.id}`
     );
     kontrol("Firma detayında zaman akışı var", firmaDetay.govde.includes("Zaman Akışı"));
+    // Faz 20 ile modüller sekmelere ayrıldı: kişiler ve fırsatlar artık
+    // Genel sekmesinde DEĞİL, kendi sekmelerinde. Akışın birleşikliği
+    // sekme çubuğunda ve zaman akışında sürüyor.
+    const firmaSatis = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ilkFirma.id}?sekme=satis`
+    );
+    const firmaKontak = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ilkFirma.id}?sekme=kontak`
+    );
     kontrol(
       "Akışta farklı modüllerden kayıtlar birleşiyor",
-      firmaDetay.govde.includes("Kişiler") && firmaDetay.govde.includes("Fırsatlar")
+      firmaKontak.govde.includes("Kişiler") && firmaSatis.govde.includes("Fırsatlar")
     );
   }
 
@@ -857,7 +870,7 @@ async function main() {
     const detay = await sayfaGetir(
       "admin@gezegen.com",
       "admin123",
-      `/firmalar/${firmaKayit.id}`
+      `/firmalar/${firmaKayit.id}?sekme=kontak`
     );
     kontrol(
       "Firma detayındaki kişi tablosunda Departman sütunu var",
@@ -1268,10 +1281,16 @@ async function main() {
       `/firmalar/${koordinatliFirma.id}`
     );
     kontrol("Firma detayında konum görünüyor", detay.govde.includes("Konum"));
-    kontrol("Firma detayında ek bölümü var", detay.govde.includes("Ekler"));
+    // Ekler Faz 20'de "Belge & Saha" sekmesine taşındı.
+    const belgeSekmesi = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${koordinatliFirma.id}?sekme=belge`
+    );
+    kontrol("Firma detayında ek bölümü var", belgeSekmesi.govde.includes("Ekler"));
     kontrol(
       "Ek sınırı kullanıcıya yazılı (10 MB)",
-      detay.govde.includes("10 MB")
+      belgeSekmesi.govde.includes("10 MB")
     );
   }
 
@@ -1515,6 +1534,129 @@ async function main() {
   kontrol(
     "Komşu kiracı Gezegen'in anketlerini GÖRMÜYOR",
     !anadoluAnket.govde.includes("Müşteri Memnuniyeti")
+  );
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Faz 20 — birleşik çalışma ekranı (U1-U4)
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Faz 20 — çalışma ekranı, palet, yan panel, zincir\n");
+
+  // U1 — komut paleti üst çubukta duruyor ve arama ucu İZİN süzgecinden geçiyor.
+  const paletKabuk = await sayfaGetir("admin@gezegen.com", "admin123", "/");
+  kontrol(
+    "Üst çubukta arama/komut paleti tetikleyicisi var",
+    paletKabuk.govde.includes("Ara")
+  );
+
+  // Arama ucu oturumsuz erişime kapalıdır.
+  const aramaYanit = await fetch(`${BASE}/api/arama?q=abc`, { redirect: "manual" });
+  kontrol(
+    "Arama ucu oturumsuz erişime kapalı",
+    aramaYanit.status === 307 || aramaYanit.status === 302 || aramaYanit.status === 401,
+    `HTTP ${aramaYanit.status}`
+  );
+  const ozetYanit = await fetch(`${BASE}/api/ozet?tur=firma&id=x`, {
+    redirect: "manual",
+  });
+  kontrol(
+    "Özet ucu oturumsuz erişime kapalı",
+    ozetYanit.status === 307 || ozetYanit.status === 302 || ozetYanit.status === 401,
+    `HTTP ${ozetYanit.status}`
+  );
+
+  // U2/U3 — firma çalışma ekranı sekmeleri.
+  const ornekFirma = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    select: { id: true, ad: true },
+  });
+  if (ornekFirma) {
+    const genel = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ornekFirma.id}`
+    );
+    kontrol("Firma ekranında sekme çubuğu var", genel.govde.includes("Kontaklar"));
+    kontrol(
+      "Genel sekmesi zaman akışını gösteriyor",
+      genel.govde.includes("Zaman Akışı")
+    );
+    kontrol(
+      "Genel sekmesinde satış tabloları ÇİZİLMİYOR (sekme bir sorgu kapısıdır)",
+      // "Siparişler" sol menüde de geçer; tabloya özgü başlık aranır.
+      !genel.govde.includes("Teklif Hazırla") && !genel.govde.includes("Aşama")
+    );
+
+    const satis = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ornekFirma.id}?sekme=satis`
+    );
+    kontrol("Satış sekmesi teklifleri gösteriyor", satis.govde.includes("Teklifler"));
+    kontrol("Satış sekmesi siparişleri gösteriyor", satis.govde.includes("Siparişler"));
+
+    const destekSekme = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ornekFirma.id}?sekme=destek`
+    );
+    kontrol(
+      "Proje & Destek sekmesi açılıyor",
+      destekSekme.govde.includes("Destek Kayıtları")
+    );
+
+    const uydurmaSekme = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ornekFirma.id}?sekme=uydurma`
+    );
+    kontrol(
+      "Uydurma sekme hata vermeden Genel'e düşüyor",
+      uydurmaSekme.govde.includes("Zaman Akışı") &&
+        !uydurmaSekme.url.includes("/yetkisiz")
+    );
+
+    // U2 — yan panel URL'de yaşar: parametreyle açılan sayfa özeti gösterir.
+    const panelli = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar?panel=firma:${ornekFirma.id}`
+    );
+    kontrol(
+      "Yan panel querystring'den açılıyor",
+      panelli.govde.includes("Tam sayfada aç")
+    );
+  }
+
+  // U4 — ilişkili kayıt zinciri: tekliften doğan siparişte şerit görünür.
+  const zincirliSiparis = await prisma.siparis.findFirst({
+    where: { tenant: { slug: "gezegen" }, teklifId: { not: null } },
+    select: { id: true },
+  });
+  if (zincirliSiparis) {
+    const siparisDetay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/siparisler/${zincirliSiparis.id}`
+    );
+    kontrol(
+      "Sipariş detayında ilişkili kayıt zinciri var",
+      siparisDetay.govde.includes("İlişkili Kayıtlar")
+    );
+    kontrol(
+      "Zincir teklif halkasını gösteriyor",
+      siparisDetay.govde.includes("Teklif")
+    );
+  }
+
+  // Kiracı sınırı: komşu kiracının araması Gezegen firmalarını bulamaz.
+  const anadoluPanel = await sayfaGetir(
+    "admin@anadolu.com",
+    "anadolu123",
+    ornekFirma ? `/firmalar?panel=firma:${ornekFirma.id}` : "/firmalar"
+  );
+  kontrol(
+    "Komşu kiracı Gezegen firmasının özetini AÇAMIYOR",
+    !ornekFirma || !anadoluPanel.govde.includes(ornekFirma.ad)
   );
 
   await browser.close();

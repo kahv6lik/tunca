@@ -26,6 +26,9 @@ import { haritaBaglantisi } from "@/lib/konum-saf";
 import ZiyaretBaslat from "@/components/ziyaretler/ZiyaretBaslat";
 import { MapPin } from "lucide-react";
 import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
+import FirmaSekmeleri from "@/components/firmalar/FirmaSekmeleri";
+import OncelikRozet from "@/components/destek/OncelikRozet";
+import { sekmeSec } from "@/lib/firma-sekme-tanimlar";
 import {
   alanlariGetir,
   degerHaritasi,
@@ -37,13 +40,35 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Firma çalışma ekranı — Faz 20 / U3.
+ *
+ * Eskiden bu sayfa firmanın HER modülünü tek uzun kolonda alt alta
+ * çiziyordu; kullanıcı kontaklara bakmak için siparişlerin yanından
+ * geçiyordu ve sayfa, bakılmayan her modülü de sorguluyordu.
+ *
+ * Artık sekmelidir (`?sekme=`) ve SEKME BİR SORGU KAPISIDIR: seçilmeyen
+ * sekmenin sorgusu hiç çalışmaz. Hiçbir bölüm kaldırılmadı, yalnızca
+ * gruplandı; ayrıca firmanın Faz 15/16/17 modülleri (sipariş, proje,
+ * destek, ziyaret) ilk kez bu ekrana bağlandı.
+ */
 export default async function FirmaDetayPage(
   props: {
     params: Promise<{ id: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
   const params = await props.params;
+  const aramaParam = await props.searchParams;
   await yetkiGerektir(IZIN.firmaGoruntule);
+
+  // Sekme, sorguların hangisinin çalışacağını belirlediği için EN BAŞTA
+  // çözülür. Geçersiz/izinsiz değer sessizce "genel"e düşer.
+  const izinler = await etkinIzinler();
+  const sekme = sekmeSec(
+    typeof aramaParam.sekme === "string" ? aramaParam.sekme : undefined,
+    izinler
+  );
 
   // Yetkiler — arayüzde yalnızca yapılabilecek işlemler gösterilir.
   // (Asıl koruma action'ların içindedir; burası kolaylık.)
@@ -72,27 +97,102 @@ export default async function FirmaDetayPage(
 
   // findFirst kullanılır: kiracı katmanı where'e tenantId ekler, böylece
   // başka kiracının firma ID'si ile gelen istek kayıt bulamaz (A3).
+  // Kişiler her sekmede gerekir: künyedeki birincil kişi, aktivite/fırsat
+  // panellerinin muhatap listesi ve destek kaydı formu hepsi onu okur.
   const firma = await db.firma.findFirst({
     where: { id: params.id },
     include: {
-      yatirimlar: { orderBy: { tarih: "desc" } },
-      egitimler: { orderBy: { tarih: "desc" } },
-      hizmetler: { orderBy: { tarih: "desc" } },
-      // Faz 6 — kişiler ve fırsatlar
       kisiler: { orderBy: [{ birincil: "desc" }, { ad: "asc" }] },
-      firsatlar: {
-        orderBy: { createdAt: "desc" },
-        include: { asama: { select: { ad: true, renk: true } }, kisi: { select: { ad: true } } },
+      _count: {
+        select: {
+          yatirimlar: true,
+          egitimler: true,
+          hizmetler: true,
+          firsatlar: true,
+          teklifler: true,
+          kisiler: true,
+          Siparis: true,
+          Proje: true,
+          DestekKaydi: true,
+          Dosya: true,
+        },
       },
     },
   });
 
   if (!firma) notFound();
 
-  // Fırsat panelinin ihtiyaç duyduğu seçenekler (yalnızca fırsat modülü açıksa)
-  const [asamalar, kullanicilar] = firsatGorur
+  // ── Sekmeye bağlı sorgular ────────────────────────────────────────────
+  // Kural: seçilmeyen sekme HİÇ sorgulanmaz. İzin süzgeci de aynı yerde
+  // uygulanır — izni olmayan modül, sekmesi açık olsa bile sorgulanmaz.
+  const [yatirimlar, egitimler, hizmetler] =
+    sekme === "kayit"
+      ? await Promise.all([
+          db.yatirimDestegi.findMany({
+            where: { firmaId: firma.id },
+            orderBy: { tarih: "desc" },
+          }),
+          db.egitim.findMany({
+            where: { firmaId: firma.id },
+            orderBy: { tarih: "desc" },
+          }),
+          db.hizmet.findMany({
+            where: { firmaId: firma.id },
+            orderBy: { tarih: "desc" },
+          }),
+        ])
+      : [[], [], []];
+
+  const firsatlar =
+    sekme === "satis" && firsatGorur
+      ? await db.firsat.findMany({
+          where: { firmaId: firma.id },
+          orderBy: { createdAt: "desc" },
+          include: {
+            asama: { select: { ad: true, renk: true } },
+            kisi: { select: { ad: true } },
+          },
+        })
+      : [];
+
+  // Genel sekmesindeki aktivite panelinin fırsat seçicisi — ağır sorguya
+  // gerek yok, yalnızca ad/id.
+  const firsatSecenekleri =
+    sekme === "genel" && firsatGorur
+      ? await db.firsat.findMany({
+          where: { firmaId: firma.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, baslik: true },
+        })
+      : [];
+
+  // Onaylı yatırım toplamı künyede durur (Genel sekmesi) ve tek satırlık bir
+  // toplamadır; bütün yatırım kayıtlarını çekmek gerekmez.
+  const yatirimToplami =
+    sekme === "genel"
+      ? await db.yatirimDestegi.aggregate({
+          _sum: { tutar: true },
+          where: {
+            firmaId: firma.id,
+            durum: { in: ["onaylandi", "tamamlandi"] },
+            paraBirimi: "TRY",
+          },
+        })
+      : null;
+  const toplamOnayliYatirim = yatirimToplami?._sum.tutar ?? 0;
+
+  // Fırsat panelinin ihtiyaç duyduğu seçenekler — yalnızca panelin çizildiği
+  // sekmelerde. Aşama ve kullanıcı listesi Genel'de aktivite paneli, Satış'ta
+  // fırsat paneli için gerekir.
+  const panelSekmesi = sekme === "genel" || sekme === "satis";
+  const [asamalar, kullanicilar] = panelSekmesi
     ? await Promise.all([
-        db.asama.findMany({ orderBy: { sira: "asc" }, select: { id: true, ad: true, olasilik: true } }),
+        firsatGorur
+          ? db.asama.findMany({
+              orderBy: { sira: "asc" },
+              select: { id: true, ad: true, olasilik: true },
+            })
+          : Promise.resolve([]),
         db.user.findMany({
           where: { durum: "aktif" },
           orderBy: { name: "asc" },
@@ -101,37 +201,105 @@ export default async function FirmaDetayPage(
       ])
     : [[], []];
 
-  // Zaman akışı (Faz 7 / C6) — izni olmayan modül hiç sorgulanmaz.
-  const izinler = await etkinIzinler();
   const ekGorur = izinler.has(IZIN.dosyaGoruntule);
+  const ziyaretGorur = izinler.has(IZIN.ziyaretGoruntule);
   const ziyaretAcabilir = izinler.has(IZIN.ziyaretOlustur);
+  const siparisGorur = izinler.has(IZIN.siparisGoruntule);
+  const projeGorur = izinler.has(IZIN.projeGoruntule);
+  const destekGorur = izinler.has(IZIN.destekGoruntule);
+
   // Açık ziyaret varsa ikinci bir ziyaret açtırılmaz (kural action'da da var).
-  const acikZiyaret = ziyaretAcabilir
-    ? await db.ziyaret.findFirst({
-        where: { kullaniciId: session.userId, bitis: null },
-        select: { id: true },
-      })
-    : null;
-  const [akis, teklifler, ekler] = await Promise.all([
-    firmaTimeline(db, firma.id, izinler),
-    teklifGorur
-      ? db.teklif.findMany({
-          where: { firmaId: firma.id },
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true, no: true, baslik: true, durum: true, toplam: true,
-            paraBirimi: true, revizyonNo: true, gecerlilikTarihi: true,
-          },
+  const acikZiyaret =
+    ziyaretAcabilir && (sekme === "genel" || sekme === "belge")
+      ? await db.ziyaret.findFirst({
+          where: { kullaniciId: session.userId, bitis: null },
+          select: { id: true },
         })
-      : Promise.resolve([]),
-    // Firmaya ait belgeler (Faz 17 / A1) — izin yoksa sorgu hiç çalışmaz.
-    ekGorur
-      ? db.dosya.findMany({
-          where: { firmaId: firma.id },
-          orderBy: { createdAt: "desc" },
-        })
-      : Promise.resolve([]),
-  ]);
+      : null;
+
+  // Zaman akışı (Faz 7 / C6) — izni olmayan modül hiç sorgulanmaz.
+  const akis =
+    sekme === "genel" ? await firmaTimeline(db, firma.id, izinler) : [];
+
+  const [teklifler, siparisler] =
+    sekme === "satis"
+      ? await Promise.all([
+          teklifGorur
+            ? db.teklif.findMany({
+                where: { firmaId: firma.id },
+                orderBy: { createdAt: "desc" },
+                select: {
+                  id: true, no: true, baslik: true, durum: true, toplam: true,
+                  paraBirimi: true, revizyonNo: true, gecerlilikTarihi: true,
+                },
+              })
+            : Promise.resolve([]),
+          // Siparişler (Faz 15) ilk kez firma ekranına bağlandı: satışın
+          // teklifle bitmediği, siparişle sürdüğü yer burasıdır.
+          siparisGorur
+            ? db.siparis.findMany({
+                where: { firmaId: firma.id },
+                orderBy: { createdAt: "desc" },
+                select: {
+                  id: true, no: true, durum: true, toplam: true,
+                  paraBirimi: true, createdAt: true,
+                  _count: { select: { kalemler: true } },
+                },
+              })
+            : Promise.resolve([]),
+        ])
+      : [[], []];
+
+  const [projeler, destekKayitlari] =
+    sekme === "destek"
+      ? await Promise.all([
+          projeGorur
+            ? db.proje.findMany({
+                where: { firmaId: firma.id },
+                orderBy: { createdAt: "desc" },
+                select: {
+                  id: true, kod: true, ad: true, durum: true,
+                  baslangic: true, bitis: true, butce: true, paraBirimi: true,
+                },
+              })
+            : Promise.resolve([]),
+          destekGorur
+            ? db.destekKaydi.findMany({
+                where: { firmaId: firma.id },
+                orderBy: [{ durum: "asc" }, { createdAt: "desc" }],
+                select: {
+                  id: true, no: true, baslik: true, durum: true,
+                  oncelik: true, kanal: true, createdAt: true,
+                },
+              })
+            : Promise.resolve([]),
+        ])
+      : [[], []];
+
+  // Firmaya ait belgeler (Faz 17 / A1) ve ziyaret geçmişi — izin yoksa sorgu
+  // hiç çalışmaz.
+  const [ekler, ziyaretler] =
+    sekme === "belge"
+      ? await Promise.all([
+          ekGorur
+            ? db.dosya.findMany({
+                where: { firmaId: firma.id },
+                orderBy: { createdAt: "desc" },
+              })
+            : Promise.resolve([]),
+          ziyaretGorur
+            ? db.ziyaret.findMany({
+                where: { firmaId: firma.id },
+                orderBy: { baslangic: "desc" },
+                take: 20,
+                select: {
+                  id: true, baslangic: true, bitis: true, sureDakika: true,
+                  dogrulama: true, mesafeM: true, not: true,
+                },
+              })
+            : Promise.resolve([]),
+        ])
+      : [[], []];
 
   // Kiracıya özel alanlar (Faz 11 / E6): tanımlar + bu sayfadaki kayıtların
   // değerleri. Paket modülü kapalıysa alanlariGetir boş döner ve hiçbir ek
@@ -148,16 +316,12 @@ export default async function FirmaDetayPage(
     kisiAlanlari.length > 0
       ? topluDegerHaritasi(db, "kisi", firma.kisiler.map((k) => k.id))
       : Promise.resolve(new Map<string, Map<string, string>>()),
-    firsatAlanlari.length > 0
-      ? topluDegerHaritasi(db, "firsat", firma.firsatlar.map((f) => f.id))
+    firsatAlanlari.length > 0 && firsatlar.length > 0
+      ? topluDegerHaritasi(db, "firsat", firsatlar.map((f) => f.id))
       : Promise.resolve(new Map<string, Map<string, string>>()),
   ]);
 
   const bugun = toDateInput(new Date());
-
-  const toplamOnayliYatirim = firma.yatirimlar
-    .filter((y) => ["onaylandi", "tamamlandi"].includes(y.durum) && y.paraBirimi === "TRY")
-    .reduce((s, y) => s + y.tutar, 0);
 
   const yatirimFields: Field[] = [
     { name: "baslik", label: "Başlık", required: true, colSpan: 2 },
@@ -305,6 +469,24 @@ export default async function FirmaDetayPage(
         }
       />
 
+      {/* Sekmeler (Faz 20 / U3) — firma sabit, modüller değişir. */}
+      <FirmaSekmeleri
+        firmaId={firma.id}
+        aktif={sekme}
+        izinler={izinler}
+        sayilar={{
+          satis:
+            firma._count.firsatlar + firma._count.teklifler + firma._count.Siparis,
+          kontak: firma._count.kisiler,
+          destek: firma._count.Proje + firma._count.DestekKaydi,
+          kayit:
+            firma._count.yatirimlar + firma._count.egitimler + firma._count.hizmetler,
+          belge: firma._count.Dosya,
+        }}
+      />
+
+      {sekme === "genel" && (
+      <>
       {/* Firma bilgileri */}
       <div className="card mb-6 p-6">
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -372,7 +554,7 @@ export default async function FirmaDetayPage(
               kullanicilar={kullanicilar}
               sabitFirmaId={firma.id}
               kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
-              firsatlar={firma.firsatlar.map((f) => ({ id: f.id, ad: f.baslik }))}
+              firsatlar={firsatSecenekleri.map((f) => ({ id: f.id, ad: f.baslik }))}
               dugmeEtiketi="Aktivite Ekle"
             />
           )}
@@ -393,10 +575,15 @@ export default async function FirmaDetayPage(
           <Link href="/ziyaretler" className="underline">onu bitirin</Link>.
         </p>
       )}
+      </>
+      )}
 
+      {/* ── Belge & Saha sekmesi ─────────────────────────────────────────── */}
+      {sekme === "belge" && (
+      <>
       {/* Belgeler (Faz 17 / A1) */}
       {ekGorur && (
-        <div className="card mt-6 p-5">
+        <div className="card mb-6 p-5">
           <EkPaneli
             bag={{ firmaId: firma.id }}
             ekler={ekler.map((d) => ({
@@ -413,6 +600,44 @@ export default async function FirmaDetayPage(
         </div>
       )}
 
+      {/* Ziyaret geçmişi (Faz 17 / A4) — saha çalışmasının kaydı belgelerle
+          aynı sekmededir: ikisi de "orada ne oldu" sorusunu yanıtlar. */}
+      {ziyaretGorur && (
+        <Section title="Saha Ziyaretleri" count={ziyaretler.length} addPanel={null}>
+          {ziyaretler.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["Başlangıç", "Süre", "Konum", "Not"]}
+              rows={ziyaretler.map((z) => (
+                <tr key={z.id} className="hover:bg-muted/40">
+                  <td className="td">{formatTarih(z.baslangic)}</td>
+                  <td className="td">
+                    {z.bitis
+                      ? `${z.sureDakika ?? 0} dk`
+                      : "Devam ediyor"}
+                  </td>
+                  <td className="td">
+                    <StatusBadge durum={z.dogrulama} />
+                    {z.mesafeM !== null && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        {z.mesafeM} m
+                      </span>
+                    )}
+                  </td>
+                  <td className="td">{z.not ?? "—"}</td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
+      </>
+      )}
+
+      {/* ── Satış sekmesi ────────────────────────────────────────────────── */}
+      {sekme === "satis" && (
+      <>
       {/* Teklifler (Faz 7 / C7) */}
       {teklifGorur && (
         <Section
@@ -454,6 +679,127 @@ export default async function FirmaDetayPage(
         </Section>
       )}
 
+      {/* Fırsatlar (Faz 6 / C2) */}
+      {firsatGorur && (
+        <Section
+          title="Fırsatlar"
+          count={firsatlar.length}
+          addPanel={
+            firsatEkler && asamalar.length > 0 ? (
+              <FirsatPanel
+                asamalar={asamalar}
+                kullanicilar={kullanicilar}
+                kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
+                sabitFirmaId={firma.id}
+                ozelAlanlar={firsatAlanlari}
+              />
+            ) : null
+          }
+        >
+          {firsatlar.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["Fırsat", "Aşama", "Kişi", "Tutar", "Olasılık", "Kapanış", "Durum", "İşlem"]}
+              rows={firsatlar.map((f) => (
+                <tr key={f.id} className="hover:bg-muted/40">
+                  <td className="td font-medium">{f.baslik}</td>
+                  <td className="td">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: f.asama.renk ?? "#6366f1" }}
+                        aria-hidden
+                      />
+                      {f.asama.ad}
+                    </span>
+                  </td>
+                  <td className="td">{f.kisi?.ad ?? "—"}</td>
+                  <td className="td">{formatPara(f.tutar, f.paraBirimi)}</td>
+                  <td className="td">%{f.olasilik}</td>
+                  <td className="td">{f.kapanisTarihi ? formatTarih(f.kapanisTarihi) : "—"}</td>
+                  <td className="td"><StatusBadge durum={f.durum} /></td>
+                  <td className="td text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Fırsattan teklife geçiş (Faz 13 / H7): firma ve
+                          başlık teklif formuna hazır gelir. */}
+                      {teklifEkler && (
+                        <Link
+                          href={`/teklifler/yeni?firsat=${f.id}`}
+                          className="btn-secondary h-9 px-3 text-xs"
+                        >
+                          Teklif Hazırla
+                        </Link>
+                      )}
+                      {firsatDuzenler && (
+                        <FirsatPanel
+                          asamalar={asamalar}
+                          kullanicilar={kullanicilar}
+                          kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
+                          sabitFirmaId={firma.id}
+                          ozelAlanlar={firsatAlanlari}
+                          ozelDegerler={Object.fromEntries(firsatOzel.get(f.id) ?? new Map())}
+                          mevcut={{
+                            id: f.id,
+                            firmaId: firma.id,
+                            kisiId: f.kisiId ?? "",
+                            asamaId: f.asamaId,
+                            baslik: f.baslik,
+                            tutar: f.tutar,
+                            paraBirimi: f.paraBirimi,
+                            olasilik: f.olasilik,
+                            kapanisTarihi: f.kapanisTarihi ? toDateInput(f.kapanisTarihi) : "",
+                            sorumluId: f.sorumluId ?? "",
+                            durum: f.durum,
+                            kapanisSebebi: f.kapanisSebebi ?? "",
+                            aciklama: f.aciklama ?? "",
+                          }}
+                        />
+                      )}
+                      {firsatSiler && <DeleteButton action={deleteFirsat.bind(null, f.id, firma.id)} />}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
+
+      {/* Siparişler (Faz 15 / S1) — satış teklifte bitmez. */}
+      {siparisGorur && (
+        <Section title="Siparişler" count={siparisler.length} addPanel={null}>
+          {siparisler.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["No", "Tarih", "Kalem", "Toplam", "Durum"]}
+              rows={siparisler.map((s) => (
+                <tr key={s.id} className="hover:bg-muted/40">
+                  <td className="td">
+                    <Link
+                      href={`/siparisler/${s.id}`}
+                      className="font-mono text-sm font-medium hover:text-primary"
+                    >
+                      {s.no}
+                    </Link>
+                  </td>
+                  <td className="td">{formatTarih(s.createdAt)}</td>
+                  <td className="td">{s._count.kalemler}</td>
+                  <td className="td font-medium">{formatPara(s.toplam, s.paraBirimi)}</td>
+                  <td className="td"><StatusBadge durum={s.durum} /></td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
+      </>
+      )}
+
+      {/* ── Kontaklar sekmesi ────────────────────────────────────────────── */}
+      {sekme === "kontak" && (
+      <>
       {/* Kişiler (Faz 6 / C1) */}
       <Section
         title="Kişiler"
@@ -524,98 +870,16 @@ export default async function FirmaDetayPage(
           />
         )}
       </Section>
-
-      {/* Fırsatlar (Faz 6 / C2) */}
-      {firsatGorur && (
-        <Section
-          title="Fırsatlar"
-          count={firma.firsatlar.length}
-          addPanel={
-            firsatEkler && asamalar.length > 0 ? (
-              <FirsatPanel
-                asamalar={asamalar}
-                kullanicilar={kullanicilar}
-                kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
-                sabitFirmaId={firma.id}
-                ozelAlanlar={firsatAlanlari}
-              />
-            ) : null
-          }
-        >
-          {firma.firsatlar.length === 0 ? (
-            <Empty />
-          ) : (
-            <TableWrap
-              head={["Fırsat", "Aşama", "Kişi", "Tutar", "Olasılık", "Kapanış", "Durum", "İşlem"]}
-              rows={firma.firsatlar.map((f) => (
-                <tr key={f.id} className="hover:bg-muted/40">
-                  <td className="td font-medium">{f.baslik}</td>
-                  <td className="td">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ background: f.asama.renk ?? "#6366f1" }}
-                        aria-hidden
-                      />
-                      {f.asama.ad}
-                    </span>
-                  </td>
-                  <td className="td">{f.kisi?.ad ?? "—"}</td>
-                  <td className="td">{formatPara(f.tutar, f.paraBirimi)}</td>
-                  <td className="td">%{f.olasilik}</td>
-                  <td className="td">{f.kapanisTarihi ? formatTarih(f.kapanisTarihi) : "—"}</td>
-                  <td className="td"><StatusBadge durum={f.durum} /></td>
-                  <td className="td text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Fırsattan teklife geçiş (Faz 13 / H7): firma ve
-                          başlık teklif formuna hazır gelir. */}
-                      {teklifEkler && (
-                        <Link
-                          href={`/teklifler/yeni?firsat=${f.id}`}
-                          className="btn-secondary h-9 px-3 text-xs"
-                        >
-                          Teklif Hazırla
-                        </Link>
-                      )}
-                      {firsatDuzenler && (
-                        <FirsatPanel
-                          asamalar={asamalar}
-                          kullanicilar={kullanicilar}
-                          kisiler={firma.kisiler.map((k) => ({ id: k.id, ad: k.ad }))}
-                          sabitFirmaId={firma.id}
-                          ozelAlanlar={firsatAlanlari}
-                          ozelDegerler={Object.fromEntries(firsatOzel.get(f.id) ?? new Map())}
-                          mevcut={{
-                            id: f.id,
-                            firmaId: firma.id,
-                            kisiId: f.kisiId ?? "",
-                            asamaId: f.asamaId,
-                            baslik: f.baslik,
-                            tutar: f.tutar,
-                            paraBirimi: f.paraBirimi,
-                            olasilik: f.olasilik,
-                            kapanisTarihi: f.kapanisTarihi ? toDateInput(f.kapanisTarihi) : "",
-                            sorumluId: f.sorumluId ?? "",
-                            durum: f.durum,
-                            kapanisSebebi: f.kapanisSebebi ?? "",
-                            aciklama: f.aciklama ?? "",
-                          }}
-                        />
-                      )}
-                      {firsatSiler && <DeleteButton action={deleteFirsat.bind(null, f.id, firma.id)} />}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            />
-          )}
-        </Section>
+      </>
       )}
 
+      {/* ── Destek/Eğitim/Hizmet sekmesi ─────────────────────────────────── */}
+      {sekme === "kayit" && (
+      <>
       {/* Yatırım Destekleri */}
       <Section
         title="Yatırım Destekleri"
-        count={firma.yatirimlar.length}
+        count={yatirimlar.length}
         addPanel={
           yatirimEkler ? (
           <AddPanel
@@ -627,12 +891,12 @@ export default async function FirmaDetayPage(
           ) : null
         }
       >
-        {firma.yatirimlar.length === 0 ? (
+        {yatirimlar.length === 0 ? (
           <Empty />
         ) : (
           <TableWrap
             head={["Başlık", "Tür", "Tutar", "Tarih", "Durum", "İşlem"]}
-            rows={firma.yatirimlar.map((y) => (
+            rows={yatirimlar.map((y) => (
               <tr key={y.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{y.baslik}</td>
                 <td className="td">{y.tur ?? "—"}</td>
@@ -672,7 +936,7 @@ export default async function FirmaDetayPage(
       {/* Eğitimler */}
       <Section
         title="Eğitimler"
-        count={firma.egitimler.length}
+        count={egitimler.length}
         addPanel={
           egitimEkler ? (
           <AddPanel
@@ -684,12 +948,12 @@ export default async function FirmaDetayPage(
           ) : null
         }
       >
-        {firma.egitimler.length === 0 ? (
+        {egitimler.length === 0 ? (
           <Empty />
         ) : (
           <TableWrap
             head={["Başlık", "Konu", "Eğitmen", "Tarih", "Süre", "Katılımcı", "Durum", "İşlem"]}
-            rows={firma.egitimler.map((e) => (
+            rows={egitimler.map((e) => (
               <tr key={e.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{e.baslik}</td>
                 <td className="td">{e.konu ?? "—"}</td>
@@ -732,7 +996,7 @@ export default async function FirmaDetayPage(
       {/* Hizmetler */}
       <Section
         title="Hizmetler"
-        count={firma.hizmetler.length}
+        count={hizmetler.length}
         addPanel={
           hizmetEkler ? (
           <AddPanel
@@ -744,12 +1008,12 @@ export default async function FirmaDetayPage(
           ) : null
         }
       >
-        {firma.hizmetler.length === 0 ? (
+        {hizmetler.length === 0 ? (
           <Empty />
         ) : (
           <TableWrap
             head={["Başlık", "Tür", "Tarih", "Durum", "İşlem"]}
-            rows={firma.hizmetler.map((h) => (
+            rows={hizmetler.map((h) => (
               <tr key={h.id} className="hover:bg-muted/40">
                 <td className="td font-medium">{h.baslik}</td>
                 <td className="td">{h.tur ?? "—"}</td>
@@ -782,6 +1046,91 @@ export default async function FirmaDetayPage(
           />
         )}
       </Section>
+      </>
+      )}
+
+      {/* ── Proje & Destek sekmesi (Faz 16 / P1-P2) ──────────────────────── */}
+      {sekme === "destek" && (
+      <>
+      {projeGorur && (
+        <Section
+          title="Projeler"
+          count={projeler.length}
+          addPanel={
+            izinler.has(IZIN.projeOlustur) ? (
+              <Link href={`/projeler?firma=${firma.id}`} className="btn-secondary">
+                <Plus className="h-4 w-4" /> Proje Aç
+              </Link>
+            ) : null
+          }
+        >
+          {projeler.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["Kod", "Ad", "Başlangıç", "Bitiş", "Bütçe", "Durum"]}
+              rows={projeler.map((p) => (
+                <tr key={p.id} className="hover:bg-muted/40">
+                  <td className="td">
+                    <Link
+                      href={`/projeler/${p.id}`}
+                      className="font-mono text-sm font-medium hover:text-primary"
+                    >
+                      {p.kod}
+                    </Link>
+                  </td>
+                  <td className="td">{p.ad}</td>
+                  <td className="td">{p.baslangic ? formatTarih(p.baslangic) : "—"}</td>
+                  <td className="td">{p.bitis ? formatTarih(p.bitis) : "—"}</td>
+                  <td className="td">{formatPara(p.butce, p.paraBirimi)}</td>
+                  <td className="td"><StatusBadge durum={p.durum} /></td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
+
+      {destekGorur && (
+        <Section
+          title="Destek Kayıtları"
+          count={destekKayitlari.length}
+          addPanel={
+            izinler.has(IZIN.destekOlustur) ? (
+              <Link href={`/destek?firma=${firma.id}`} className="btn-secondary">
+                <Plus className="h-4 w-4" /> Destek Kaydı
+              </Link>
+            ) : null
+          }
+        >
+          {destekKayitlari.length === 0 ? (
+            <Empty />
+          ) : (
+            <TableWrap
+              head={["No", "Başlık", "Kanal", "Öncelik", "Açılış", "Durum"]}
+              rows={destekKayitlari.map((d) => (
+                <tr key={d.id} className="hover:bg-muted/40">
+                  <td className="td">
+                    <Link
+                      href={`/destek/${d.id}`}
+                      className="font-mono text-sm font-medium hover:text-primary"
+                    >
+                      {d.no}
+                    </Link>
+                  </td>
+                  <td className="td">{d.baslik}</td>
+                  <td className="td">{d.kanal}</td>
+                  <td className="td"><OncelikRozet oncelik={d.oncelik} /></td>
+                  <td className="td">{formatTarih(d.createdAt)}</td>
+                  <td className="td"><StatusBadge durum={d.durum} /></td>
+                </tr>
+              ))}
+            />
+          )}
+        </Section>
+      )}
+      </>
+      )}
     </div>
   );
 }

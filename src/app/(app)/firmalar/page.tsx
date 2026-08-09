@@ -13,6 +13,7 @@ import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 import { alanlariGetir, degerleEslesenKayitlar, ozelAlanGirdiAdi } from "@/lib/ozel-alan";
 import { firmaNoMu } from "@/lib/firma-no-saf";
 import { metinArama } from "@/lib/arama";
+import OzetDugmesi from "@/components/panel/OzetDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -246,6 +247,7 @@ export default async function FirmalarPage(
                     >
                       {f.ad}
                     </Link>
+                    <OzetDugmesi tur="firma" id={f.id} />
                     <p className="text-xs text-muted-foreground/70">
                       Eklendi: {formatTarih(f.createdAt)}
                     </p>

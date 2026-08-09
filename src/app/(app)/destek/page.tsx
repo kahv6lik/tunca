@@ -11,6 +11,7 @@ import { DESTEK_KANAL, DESTEK_ONCELIK, DESTEK_DURUM, durumBadge } from "@/lib/co
 import { oncelikSirasi } from "@/lib/destek-tanimlar";
 import DestekPanel from "@/components/destek/DestekPanel";
 import OncelikRozet from "@/components/destek/OncelikRozet";
+import OzetDugmesi from "@/components/panel/OzetDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -267,6 +268,7 @@ export default async function DestekPage(props: {
                     >
                       {d.baslik}
                     </Link>
+                    <OzetDugmesi tur="destek" id={d.id} />
                     {d.proje && (
                       <span className="ml-2 font-mono text-[11px] text-muted-foreground">
                         {d.proje.kod}

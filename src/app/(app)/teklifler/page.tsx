@@ -12,6 +12,7 @@ import DisaAktarDugmesi from "@/components/DisaAktarDugmesi";
 import GorunumBar from "@/components/GorunumBar";
 import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
 import { metinArama } from "@/lib/arama";
+import OzetDugmesi from "@/components/panel/OzetDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,7 @@ export default async function TekliflerPage(
                     >
                       {t.no}
                     </Link>
+                    <OzetDugmesi tur="teklif" id={t.id} />
                     {t.revizyonNo > 1 && (
                       <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-400">
                         R{t.revizyonNo}

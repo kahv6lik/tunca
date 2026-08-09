@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.19.0` — Faz 19: anket, oturumsuz yanıt toplama, NPS |
-| **Sıradaki faz** | **Faz 20** — Birleşik çalışma ekranı: komut paleti, yan panel (`v1.20.0`) |
-| **Sonrası** | Faz 21: AI (skorlama, özet, doğal dilde sorgu) |
+| **Son çıkan sürüm** | `v1.20.0` — Faz 20: komut paleti, yan panel, firma çalışma ekranı, kayıt zinciri |
+| **Sıradaki faz** | **Faz 21** — AI: skorlama, özet, doğal dilde sorgu (`v1.21.0`) ‹son faz› |
+| **Sonrası** | yok — yol haritasının sonu |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -154,7 +154,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | ✅ tamamlandı | — |
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | ✅ tamamlandı | — |
 | 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | ✅ tamamlandı | — |
-| 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | planlandı | |
+| 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | ✅ tamamlandı | |
 | 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | planlandı | |
 
 ## Yeni Katılan İçin Hızlı Başlangıç
@@ -1358,16 +1358,16 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 Bulgu: *"Modellerin içinden gezmemek için modeller kompleks yapıda çalışsın.
 Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek)."*
 
-- [ ] **U1 — Komut paleti (Ctrl/Cmd + K).** Her yerden firma, kontak, fırsat,
+- [x] **U1 — Komut paleti (Ctrl/Cmd + K).** Her yerden firma, kontak, fırsat,
       teklif, sipariş, proje, destek kaydı arama ve doğrudan açma; ayrıca
       "yeni fırsat", "yeni sipariş" gibi eylemler.
-- [ ] **U2 — Yan panel (drawer) ile yerinde detay.** Listeden bir kayda
+- [x] **U2 — Yan panel (drawer) ile yerinde detay.** Listeden bir kayda
       tıklayınca sayfa değiştirmeden yandan açılan panelde detay ve düzenleme;
       "aç" ile tam sayfaya geçilebilir.
-- [ ] **U3 — Firma çalışma ekranı.** Bir firmanın bütün modülleri (kontak,
+- [x] **U3 — Firma çalışma ekranı.** Bir firmanın bütün modülleri (kontak,
       fırsat, teklif, sipariş, proje, destek, aktivite, ek dosyalar) sekmeli
       tek ekranda; modüller arasında gezinmeden çalışılabilir.
-- [ ] **U4 — İlişkili kayıt zinciri.** Her kayıtta "bununla ilişkili" şeridi:
+- [x] **U4 — İlişkili kayıt zinciri.** Her kayıtta "bununla ilişkili" şeridi:
       fırsat → teklif → sipariş → sevkiyat zinciri tek bakışta izlenir.
 
 ### Kararlar
@@ -1376,6 +1376,43 @@ Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek).
   istenirse yeni madde olarak eklenir. ✅
 - Bu faz mevcut ekranların **ÜSTÜNE** gelir, onları değiştirmez — kullanıcı
   alışkanlıkları bozulmaz, eski yollar çalışmaya devam eder. ✅
+
+### Uygulama notları (v1.20.0)
+
+1. **ARAMA VE EYLEMLER TEK KAYIT DEFTERİNDEN** gelir
+   (`src/lib/arama-tanimlar.ts`): hangi modülün aranabildiği, hangi izne
+   bağlı olduğu ve sonucun nereye götürdüğü tek yerdedir. Yeni bir modülü
+   aranabilir yapmak = deftere satır eklemek (pano kartları ve rapor
+   merkezindeki aynı desen). Regresyon testi her satırın GERÇEK bir izin
+   anahtarına bağlı olduğunu denetler — uydurma bir izin, süzgeci sessizce
+   etkisiz bırakırdı.
+2. **İZNİ OLMAYAN MODÜL HİÇ SORGULANMAZ.** `/api/arama` yalnızca
+   kullanıcının görebildiği türleri sorgular; gizlenmiş bir menünün kaydı
+   arama sonucunda belirseydi menüyü gizlemenin anlamı kalmazdı. Aynı kural
+   `/api/ozet` ve zincir kurucusu için de geçerlidir.
+3. **YAN PANEL URL'DE YAŞAR** (`?panel=firma:<id>`). Bileşenden bileşene
+   "açık mı" durumu taşımak; sayfa yenilenince panelin kapanmasına,
+   bağlantının paylaşılamamasına ve geri tuşunun beklenmedik davranmasına
+   yol açardı. Panel ÖZET gösterir, tam detayın yerini almaz — her zaman
+   "Tam sayfada aç" bağlantısı taşır. **Satır içi düzenleme kapsam dışıdır**
+   (karar), panel bakmak içindir.
+4. **SEKME BİR SORGU KAPISIDIR.** Firma çalışma ekranında seçilmeyen
+   sekmenin sorgusu HİÇ çalışmaz; eski tek parça sayfa, kullanıcı yalnızca
+   kontaklara bakacakken bütün modülleri sorguluyordu. Künyedeki onaylı
+   yatırım toplamı artık `aggregate` ile tek satırda gelir.
+5. **Uydurma ya da izinsiz sekme sessizce "genel"e düşer.** Hata sayfası
+   göstermek, eski bir yer imini açan kullanıcıyı gereksiz yere korkuturdu.
+6. **Firmanın Faz 15/16/17 modülleri ilk kez firma ekranına bağlandı:**
+   sipariş (Satış sekmesi), proje ve destek kaydı (Proje & Destek), ziyaret
+   geçmişi (Belge & Saha). Hiçbir bölüm kaldırılmadı, yalnızca gruplandı.
+7. **ZİNCİRİN SIRASI İŞ AKIŞININ KENDİSİDİR:** fırsat → teklif → sipariş →
+   sevkiyat (Faz 6 → 7 → 15). Boş halka GİZLENMEZ, "—" olarak durur:
+   "bu teklif henüz siparişe dönmemiş" de bilgidir. Bakılan kayıttan başka
+   dolu halka yoksa şerit hiç çizilmez — tek kutu ekranda yer kaplar,
+   bilgi vermez.
+8. **Üst çubuktaki işlevsiz arama kutusu paletle değiştirildi.** Kullanıcıyı
+   hiçbir şey yapmayan bir kutuya yazdırmak, aramanın çalışmadığını en geç
+   öğreten yoldu.
 
 
 ---

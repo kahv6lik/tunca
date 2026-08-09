@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
+import { IZIN, yetkiGerektir, yetkiVarMi, etkinIzinler } from "@/lib/yetki";
+import { zinciriKur } from "@/lib/zincir";
 import { PageHeader } from "@/components/layout/page-header";
+import ZincirSeridi from "@/components/zincir/ZincirSeridi";
 import { StatusBadge } from "@/components/ui/badge";
 import TeklifForm from "@/components/teklifler/TeklifForm";
 import TeklifIslemleri from "@/components/teklifler/TeklifIslemleri";
@@ -53,6 +55,9 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
 
   if (!teklif) notFound();
 
+  // İlişkili kayıt zinciri (Faz 20 / U4) — izni olmayan halka sorgulanmaz.
+  const zincir = await zinciriKur(db, { tur: "teklif", id: teklif.id }, await etkinIzinler());
+
   const [firmalar, firsatlar, kisiler] = await Promise.all([
     db.firma.findMany({ orderBy: { ad: "asc" }, take: 500, select: { id: true, ad: true } }),
     db.firsat.findMany({
@@ -99,6 +104,9 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
           </div>
         }
       />
+
+      {/* İlişkili kayıt zinciri (Faz 20 / U4) */}
+      <ZincirSeridi halkalar={zincir} />
 
       {/* Revizyon zinciri */}
       {(teklif.ustTeklif || teklif.revizyonlar.length > 0) && (

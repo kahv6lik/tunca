@@ -90,6 +90,7 @@ src/
       ziyaretler/      # saha ziyareti, süre, konum doğrulama (Faz 17)
       anketler/        # anket tanımı, gönderim, sonuç raporu (Faz 19)
       raporlar/        # rapor MERKEZİ + genel/ mali/ satis/ urun/ aktivite/
+      firmalar/[id]/   # firma ÇALIŞMA EKRANI — sekmeli (?sekme=) (Faz 20)
       firmalar/[id]/dosya/  # firma dosyası — tek belge PDF (Faz 18)
       dosya-actions.ts # dosya eki yükleme/silme — tek action (Faz 17)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
@@ -106,6 +107,8 @@ src/
       yatirim-destekleri/
       egitimler/
       hizmetler/
+      arama/           # komut paleti araması — izin süzgeçli (Faz 20)
+      ozet/            # yan panel özeti — izin süzgeçli (Faz 20)
       raporlar/        # durum/tür/il/sektör dağılımları
       gruplar/         # kullanıcı grupları ve izinleri (Faz 4)
       denetim/         # denetim günlüğü — salt okunur (Faz 4)
@@ -137,6 +140,9 @@ src/
     ziyaretler/        # ZiyaretBaslat, ZiyaretBitir (Faz 17)
     raporlar/          # RaporSuzgeci — ortak süzgeç çubuğu (Faz 18)
     anketler/          # AnketPanel, SoruFormu, GonderimPanel, YanitFormu
+    palet/             # KomutPaleti — Ctrl/Cmd+K (Faz 20)
+    panel/             # YanPanel, PanelBaglantisi, OzetDugmesi (Faz 20)
+    zincir/            # ZincirSeridi — fırsat→teklif→sipariş→sevkiyat (Faz 20)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -183,6 +189,10 @@ src/
     dosya.ts              # dosya deposu — TEK KAPI (+ -tanimlar: tür/kota saf)
     anket-db.ts           # anket yanıtlama, oturumsuz — TEK KAPI (Faz 19)
     anket-tanimlar.ts     # soru tipleri, yanıt doğrulama, NPS — saf (Faz 19)
+    arama-tanimlar.ts     # arama/eylem kayıt defteri + panel adresi — saf (Faz 20)
+    firma-sekme-tanimlar.ts # firma çalışma ekranı sekmeleri — saf (Faz 20)
+    zincir-tanimlar.ts    # kayıt zinciri sırası — saf (Faz 20)
+    zincir.ts             # zinciri kurar — izin süzgeçli (Faz 20)
     rapor-tanimlar.ts     # rapor kayıt defteri — saf veri (Faz 18)
     rapor-saf.ts          # ciro, dönüşüm, dönem farkı, kırılım — saf (Faz 18)
     konum-saf.ts          # mesafe, doğrulama, süre, adres — saf (Faz 17)
@@ -485,6 +495,29 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **KVKK metnine "Anket yanıtları" bölümü eklendi** ve sürüm `2026-08-3`e
   çıkarıldı; anonimlik sözü aydınlatma metninde de verilir.
 
+### Birleşik Çalışma Ekranı (Faz 20)
+
+- **ARAMA VE EYLEMLER TEK KAYIT DEFTERİNDEN** gelir
+  (`arama-tanimlar.ts`): hangi modülün aranabildiği, hangi izne bağlı olduğu
+  ve sonucun nereye götürdüğü tek yerdedir (pano kartları ve rapor
+  merkezindeki desen). Yeni modülü aranabilir yapmak = deftere satır eklemek.
+  Regresyon testi her satırın GERÇEK bir izin anahtarına bağlı olduğunu
+  denetler — uydurma bir izin süzgeci sessizce etkisiz bırakırdı.
+- **İZNİ OLMAYAN MODÜL HİÇ SORGULANMAZ** (`/api/arama`, `/api/ozet`,
+  `zincir.ts`): gizlenmiş menünün kaydı arama sonucunda belirseydi menüyü
+  gizlemenin anlamı kalmazdı.
+- **YAN PANEL URL'DE YAŞAR** (`?panel=firma:<id>`): sayfa yenilenince panel
+  açık kalır, bağlantı paylaşılabilir, geri tuşu paneli kapatır. Panel
+  ÖZET'tir, tam detayın yerini almaz — her zaman "Tam sayfada aç" taşır.
+  **Satır içi düzenleme kapsam DIŞIDIR**; panel bakmak içindir.
+- **SEKME BİR SORGU KAPISIDIR:** firma çalışma ekranında seçilmeyen sekmenin
+  sorgusu hiç çalışmaz. Uydurma/izinsiz sekme sessizce "genel"e düşer —
+  hata sayfası, eski bir yer imini açan kullanıcıyı boşuna korkuturdu.
+- **ZİNCİRİN SIRASI İŞ AKIŞININ KENDİSİDİR:** fırsat → teklif → sipariş →
+  sevkiyat. Boş halka gizlenmez, "—" olarak durur ("bu teklif henüz siparişe
+  dönmemiş" de bilgidir); bakılan kayıttan başka dolu halka yoksa şerit hiç
+  çizilmez.
+
 ### Rapor Merkezi ve Firma Dosyası (Faz 18)
 
 - **Rapor merkezi KENDİ rakamını hesaplamaz.** `/raporlar` hiçbir sorgu
@@ -622,7 +655,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**662 kontrol**.
+**697 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -630,10 +663,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (426 test, ~13 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (449 test, ~13 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket, gerçek tarayıcı (sunucu çalışırken, 215)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı, gerçek tarayıcı (sunucu çalışırken, 227)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -722,7 +755,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | ✅ tamamlandı |
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | ✅ tamamlandı |
 | 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | ✅ tamamlandı |
-| 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | planlandı |
+| 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | ✅ tamamlandı |
 | 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | planlandı |
 
 Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
@@ -860,6 +893,13 @@ etkiliyor.
   seçilebilen ANONİMLİK — anonimde yanıt satırına kimlik bağı hiç yazılmaz;
   soru bazında dağılım, ortalama, NPS ve yanıtlama oranı raporu. KVKK metni
   `2026-08-3`e çıkarıldı.
+- **v1.20.0** — **Faz 20:** Birleşik çalışma ekranı. Ctrl/Cmd+K komut paleti
+  (yedi modülde Türkçe duyarsız arama + hızlı eylemler, izin süzgeçli);
+  querystring'de yaşayan yan panel ile listeden çıkmadan kayıt özeti
+  ("Tam sayfada aç" bir tık uzakta); firmanın bütün modüllerini sekmeli tek
+  ekranda toplayan çalışma ekranı (sipariş, proje, destek ve ziyaret ilk kez
+  firma ekranına bağlandı; seçilmeyen sekme HİÇ sorgulanmaz); teklif ve
+  sipariş detayında fırsat → teklif → sipariş → sevkiyat zincir şeridi.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

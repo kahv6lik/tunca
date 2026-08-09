@@ -288,6 +288,40 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.20.0 — Birleşik çalışma ekranı (Faz 20)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Herhangi bir ekranda **Ctrl/Cmd + K** | Komut paleti açılır, imleç arama kutusundadır |
+| 2 | Tek harf yaz | "Aramak için en az 2 harf yazın" |
+| 3 | Bir firma adının Türkçe küçük hâliyle ara ("ısparta") | Büyük harfli kayıt da bulunur (Türkçe duyarsız) |
+| 4 | Firma numarasını yaz (`A0001`) | Tam eşleşen firma listenin başında |
+| 5 | ↑ ↓ ile gez, ↵ ile aç | Seçili satır vurgulanır; ↵ kaydı açar |
+| 6 | Palette "sipariş" yaz | Arama sonuçlarının yanında **Yeni sipariş** eylemi çıkar |
+| 7 | Üye hesabıyla palette "yeni sipariş" ara | Yetkisi yoksa eylem GÖRÜNMEZ |
+| 8 | Salt okunur hesapla bir teklif ara | Teklif izni yoksa teklif sonucu hiç gelmez |
+| 9 | **Esc** | Palet kapanır, sayfa değişmez |
+| 10 | Firma listesinde satırdaki panel simgesine tıkla | Yandan özet paneli açılır; liste, süzgeç ve kaydırma yerinde kalır |
+| 11 | Panel açıkken sayfayı **yenile** | Panel açık gelir (adres `?panel=firma:...`) |
+| 12 | Tarayıcının **geri** tuşu | Panel kapanır, listeye dönülür |
+| 13 | Panelde **Tam sayfada aç** | Kaydın kendi sayfası açılır |
+| 14 | Adres çubuğuna `?panel=uydurma:1` yaz | Panel açılmaz; sayfa normal çalışır |
+| 15 | `admin@anadolu.com` ile Gezegen firmasının panel adresini aç | Panel "Kayıt bulunamadı" der; hiçbir bilgi sızmaz |
+| 16 | Firma detayını aç | Sekme çubuğu görünür; **Genel** sekmesi künye + zaman akışı gösterir |
+| 17 | **Satış** sekmesi | Teklifler, Fırsatlar ve **Siparişler** aynı ekranda |
+| 18 | **Proje & Destek** sekmesi | Firmanın projeleri ve destek kayıtları listelenir |
+| 19 | **Belge & Saha** sekmesi | Ekler ve ziyaret geçmişi (süre + konum kararı) |
+| 20 | Sekme bağlantısını kopyalayıp yeni sekmede aç | Aynı sekme açılır (adres `?sekme=satis`) |
+| 21 | `?sekme=uydurma` yaz | Sessizce **Genel** açılır, hata sayfası çıkmaz |
+| 22 | Sipariş izni olmayan hesapla firma ekranı | Satış sekmesinde Siparişler bölümü hiç çizilmez |
+| 23 | Tekliften açılmış bir siparişin detayını aç | Üstte **İlişkili Kayıtlar** şeridi: Fırsat → Teklif → Sipariş → Sevkiyat |
+| 24 | Şeritte **Teklif** halkasına tıkla | Teklifin sayfası açılır; orada zincir aynı görünür |
+| 25 | Sevkiyatı olmayan siparişte şeride bak | Sevkiyat halkası "—" olarak durur, gizlenmez |
+| 26 | Hiçbir ilişkisi olmayan bir teklifin detayı | Şerit HİÇ çizilmez (tek halka bilgi vermez) |
+| 27 | Sevkiyat izni olmayan hesapla aynı sipariş | Sevkiyat halkası boş gelir; "yetkiniz yok" yazmaz |
+
+---
+
 ### v1.19.0 — Anket ve oturumsuz yanıt toplama (Faz 19)
 
 | # | Adım | Beklenen |

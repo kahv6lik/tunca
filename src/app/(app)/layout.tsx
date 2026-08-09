@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
+import YanPanel from "@/components/panel/YanPanel";
 import { Topbar } from "@/components/layout/topbar";
 import { ImpersonationBandi } from "@/components/layout/impersonation-bandi";
 import { requireSession } from "@/lib/auth";
@@ -58,6 +60,15 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+
+      {/*
+        Yan panel (Faz 20 / U2) — kabuğa TEK yerde bağlanır. Hangi kaydın
+        açık olduğu querystring'de durduğu için listelerin hiçbiri panel
+        durumu taşımaz; yalnızca `PanelBaglantisi` kullanırlar.
+      */}
+      <Suspense fallback={null}>
+        <YanPanel />
+      </Suspense>
     </div>
   );
 }

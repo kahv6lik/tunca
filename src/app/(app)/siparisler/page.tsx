@@ -10,6 +10,7 @@ import { formatPara, formatTarih } from "@/lib/format";
 import { metinArama } from "@/lib/arama";
 import { SIPARIS_DURUM } from "@/lib/constants";
 import { tarihAraligi } from "@/lib/tarih-araligi";
+import OzetDugmesi from "@/components/panel/OzetDugmesi";
 
 export const dynamic = "force-dynamic";
 
@@ -197,6 +198,7 @@ export default async function SiparislerPage(props: {
                     >
                       {s.no}
                     </Link>
+                    <OzetDugmesi tur="siparis" id={s.id} />
                   </td>
                   <td className="td">
                     <Link

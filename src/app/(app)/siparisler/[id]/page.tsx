@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
+import { IZIN, yetkiGerektir, yetkiVarMi, etkinIzinler } from "@/lib/yetki";
+import { zinciriKur } from "@/lib/zincir";
 import { PageHeader } from "@/components/layout/page-header";
+import ZincirSeridi from "@/components/zincir/ZincirSeridi";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatPara, formatTarih } from "@/lib/format";
 import OnayPanel from "@/components/siparisler/OnayPanel";
@@ -62,6 +64,9 @@ export default async function SiparisDetayPage(props: {
   });
 
   if (!siparis) notFound();
+
+  // İlişkili kayıt zinciri (Faz 20 / U4) — izni olmayan halka sorgulanmaz.
+  const zincir = await zinciriKur(db, { tur: "siparis", id: siparis.id }, await etkinIzinler());
 
   const kullanicilar = await db.user.findMany({ select: { id: true, name: true } });
   const adOf = new Map(kullanicilar.map((u) => [u.id, u.name]));
@@ -166,6 +171,9 @@ export default async function SiparisDetayPage(props: {
           </dl>
         </div>
       </div>
+
+      {/* İlişkili kayıt zinciri (Faz 20 / U4) */}
+      <ZincirSeridi halkalar={zincir} />
 
       {/* Kalemler */}
       <div className="card mb-6 overflow-x-auto">
