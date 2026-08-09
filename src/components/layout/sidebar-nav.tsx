@@ -21,6 +21,7 @@ import {
   BarChart3,
   Users,
   ScrollText,
+  Sparkles,
   Package,
   Ticket,
   Warehouse,
@@ -121,6 +122,8 @@ export const NAV: NavItem[] = [
   { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet", bolum: "yonetim" },
   { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule", bolum: "yonetim" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule", bolum: "yonetim" },
+  // AI ayarı yönetim işidir: veriyi dışarı açma kararı ve kullanım defteri.
+  { href: "/ai", label: "AI Özellikleri", icon: Sparkles, izin: "ai.kullan", bolum: "yonetim" },
   // KVKK herkese açıktır: aydınlatma metni ve kendi rızası kişisel bir haktır.
   { href: "/kvkk", label: "KVKK", icon: FileLock2, bolum: "yonetim" },
   { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet", bolum: "yonetim" },

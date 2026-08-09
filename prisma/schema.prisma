@@ -60,6 +60,13 @@ model Tenant {
   // reddedilir — disk sessizce tükenmemelidir.
   dosyaKotaMb     Int @default(2048)
 
+  // ── AI ayarı (Faz 21) ──
+  // VARSAYILAN KAPALI. Kiracı verisinin bir dil modeline gönderilmesi
+  // sessizce açılabilecek bir şey değildir; kiracı yöneticisi bilerek açar.
+  // Paket modülü "ai" ayrıca platform tarafında da kapatabilir — iki kapı
+  // vardır ve ikisi de kapalıysa hiçbir çağrı yapılmaz.
+  aiAcik Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -115,6 +122,7 @@ model Tenant {
   Anket            Anket[]
   AnketSorusu      AnketSorusu[]
   AnketGonderim    AnketGonderim[]
+  AiKullanim       AiKullanim[]
   AnketYanit       AnketYanit[]
 
   @@index([durum])
@@ -1712,4 +1720,45 @@ model AnketYanit {
   @@index([tenantId, anketId])
   @@index([tenantId, soruId])
   @@index([tenantId, yanitGrubu])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Faz 21 — AI kullanım defteri
+// ─────────────────────────────────────────────────────────────────────────
+
+// Dil modeline yapılan HER çağrı buraya yazılır.
+//
+// Gerekçe yol haritasının verdiği sözdür: "hangi verinin modele gönderildiği
+// kiracı yöneticisine açıkça bildirilir". Söz bir ayar ekranındaki cümleyle
+// değil, GERİYE DÖNÜK OKUNABİLİR bir defterle tutulur — yönetici hangi
+// kullanıcının, ne zaman, hangi amaçla çağrı yaptığını görebilir.
+//
+// `ozet` alanı çağrının NE İÇİN yapıldığını anlatır (firma özeti, doğal dilde
+// sorgu); istemin kendisi ya da yanıtın metni SAKLANMAZ — defter bir denetim
+// kaydıdır, ikinci bir müşteri veri kopyası değildir.
+model AiKullanim {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  kullaniciId    String?
+  kullaniciEmail String?
+
+  // "ozet" | "sorgu"
+  tur   String
+  // Çağrının konusu: "Firma özeti · ACME A.Ş." gibi TEK SATIRLIK künye.
+  konu  String
+  model String
+
+  girisToken Int @default(0)
+  cikisToken Int @default(0)
+
+  basarili Boolean @default(true)
+  hata     String?
+  sureMs   Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, tur])
 }

@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.20.0` — Faz 20: komut paleti, yan panel, firma çalışma ekranı, kayıt zinciri |
-| **Sıradaki faz** | **Faz 21** — AI: skorlama, özet, doğal dilde sorgu (`v1.21.0`) ‹son faz› |
-| **Sonrası** | yok — yol haritasının sonu |
+| **Son çıkan sürüm** | `v1.21.0` — Faz 21: skorlama, firma özeti, doğal dilde sorgu |
+| **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
+| **Sonrası** | yeni istekler ROADMAP'e madde olarak eklenir, faz açılır |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -155,7 +155,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | ✅ tamamlandı | — |
 | 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | ✅ tamamlandı | — |
 | 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | ✅ tamamlandı | |
-| 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | planlandı | |
+| 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | ✅ tamamlandı | |
 
 ## Yeni Katılan İçin Hızlı Başlangıç
 
@@ -1419,13 +1419,67 @@ Tek ekrandan tüm modellere erişilebilsin ki user friendly olsun (Odoo örnek).
 
 ## Faz 21 — AI Özellikleri (G1–G3) → `v1.21.0`  ‹son faz›
 
-- [ ] **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
-- [ ] **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
-- [ ] **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
+- [x] **G1 — Lead/fırsat skorlama:** geçmiş kazanma verisinden skor; açıklanabilir gerekçe.
+- [x] **G2 — Otomatik özet:** firma geçmişinin doğal dilde özeti.
+- [x] **G3 — Doğal dilde sorgu:** "İzmir'deki onaylanmış hibeler" → filtrelenmiş liste.
 
 **Kural:** AI çağrıları kiracı verisini kiracı sınırının dışına taşımaz; hangi
 verinin modele gönderildiği kiracı yöneticisine açıkça bildirilir ve
 kapatılabilir olur.
+
+### Kararlar
+- **G1 dil modeli KULLANMAZ**, kiracının kendi geçmişinden istatistikle
+  hesaplanır. ✅
+- **Anahtar tanımsızsa AI KAPALIDIR**; kural tabanlı karşılıklar anahtarsız
+  çalışmaya devam eder. ✅
+- **G3'te modele yalnızca CÜMLE gider**, veri gitmez; model süzgeç önerir,
+  sorguyu her zaman uygulama çalıştırır. ✅
+- **`ai` paket modülüdür ve `Tenant.aiAcik` VARSAYILAN KAPALIDIR**; iki kapı
+  da açık olmadan hiçbir çağrı yapılmaz. ✅
+
+### Uygulama notları (v1.21.0)
+
+1. **G1 SKOR DİL MODELİNE SORULMAZ.** Skor bir temsilcinin gününü sıraya
+   dizer; "bu neden 72" sorusunun denetlenebilir bir yanıtı olmalıdır.
+   Kiracının kendi kapanmış işlerinden çıkan oranlar bu yanıtı kendiliğinden
+   verir, aynı veriye hep aynı sonucu üretir, hiçbir şeyi dışarı çıkarmaz ve
+   hiçbir şeye mal olmaz. Modele sorulan bir skor bu dördünü de kaybederdi.
+2. **SKOR SAKLANMAZ**, her görüntülemede yeniden hesaplanır: saklanan skor
+   veri değiştikçe bayatlar ve "bu rakam ne zamanki hâline ait" sorusunu
+   doğurur. Taban BİR KEZ kurulup bütün satırlarda kullanılır.
+3. **AZ ÖRNEKLE KESİNLİK İDDİA EDİLMEZ.** On kapanmış işin altında rozet
+   "henüz güvenilir değil" der; sessizce bir rakam basmak, olmayan bir
+   kesinlik iddiasıdır. Kırılım oranı da beş işin altında ÜRETİLMEZ.
+4. **ÜÇ KAPI VAR ve hiçbiri diğerinin yerine geçmez:** paket modülü
+   (platform), `Tenant.aiAcik` (kiracı, varsayılan KAPALI) ve sağlayıcı
+   anahtarı. Kapalıysa SEBEBİ söylenir — "AI kullanılamıyor" demek
+   kullanıcıyı yöneticiye, yöneticiyi bize sorduracak bir mesajdır.
+5. **ANAHTAR TANIMSIZSA KAPALIDIR** (Faz 8 `/api/gorevler` ve Faz 17
+   geocoding deseni). "Tanımsızsa serbest", ücretli bir servise sessizce
+   istek atmak demektir.
+6. **G2 ÖZET ÖNCE VERİDEN YAZILIR**, model yalnızca akıcılaştırır. Böylece
+   özellik anahtarsız da işe yarar VE modele gönderilen metin uygulamada
+   üretildiği için ne gönderildiği tam olarak bilinir; ayar ekranı bunu
+   adlarıyla listeler. Model bir ANLATICIDIR: istem, rakam eklemesini ve
+   yorum yapmasını açıkça yasaklar.
+7. **ÖZET SAYFA AÇILIŞINDA MODEL ÇAĞIRMAZ**, kullanıcı isterse çağırır —
+   aksi hâlde her firma görüntülemesi ücretli bir istek olurdu.
+8. **G3 MODELE VERİ GÖNDERMEZ.** Model yalnızca cümleyi ve alan sözlüğünü
+   görür; ürettiği şey bir SÜZGEÇTİR ve sorguyu her zaman uygulama
+   çalıştırır — kiracı katmanı, RLS ve izinler yerinde kalır.
+9. **BEYAZ LİSTE + İZİN KONTROLÜ**: modelden gelen süzgeç de kural
+   ayrıştırıcısından geleni de aynı `sorguDogrula`'dan geçer; tanımsız alan
+   sessizce atılır (Faz 11 `oa_*` deseni), izinsiz hedef reddedilir.
+10. **ANLAŞILMAYAN CÜMLE YANLIŞ LİSTEYE GÖTÜRMEZ.** Kullanıcıya "anlayamadım"
+    demek, ona yanlış bir listeyi doğru sandırmaktan iyidir.
+11. **KULLANIM DEFTERİ** (`AiKullanim`) sözü geriye dönük denetlenebilir
+    kılar; istemin ve yanıtın METNİ saklanmaz — defter bir denetim kaydıdır,
+    ikinci bir müşteri veri kopyası değildir.
+12. **AI eylemdir, okuma değil:** `ai.kullan` salt okunur rolde YOKTUR —
+    özet istemek dış servise istek gönderir ve ücret doğurur. Açma/kapama
+    (`ai.yonet`) yöneticidedir ve denetim günlüğüne düşer.
+13. **KVKK metnine "Yapay zekâ destekli özellikler" bölümü** eklendi ve sürüm
+    `2026-08-4`e çıkarıldı; aktarım bölümü de güncellendi.
 
 ---
 

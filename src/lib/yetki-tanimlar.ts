@@ -146,6 +146,13 @@ export const IZIN = {
   anketYonet: "anket.yonet",
   anketGonder: "anket.gonder",
 
+  // ── Faz 21: AI ──────────────────────────────────────────────────────────
+  // KULLANMAK ile AÇMAK ayrıdır: skoru görmek ve özet istemek günlük iştir,
+  // ama kiracı verisinin bir dil modeline gönderilmesine izin vermek bir
+  // KURULUŞ KARARIDIR ve yöneticiye aittir.
+  aiKullan: "ai.kullan",
+  aiYonet: "ai.yonet",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -236,6 +243,8 @@ export const IZIN_ETIKET: Record<string, string> = {
   "anket.goruntule": "Anketleri ve sonuçlarını görüntüle",
   "anket.yonet": "Anket tanımla ve düzenle",
   "anket.gonder": "Anketi müşteriye gönder",
+  "ai.kullan": "AI özelliklerini kullan (skor, özet, doğal dilde sorgu)",
+  "ai.yonet": "AI ayarlarını yönet ve kullanım defterini gör",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -290,6 +299,7 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
     izinler: [IZIN.anketGoruntule, IZIN.anketYonet, IZIN.anketGonder],
   },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
+  { ad: "AI", izinler: [IZIN.aiKullan, IZIN.aiYonet] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
 
@@ -370,6 +380,10 @@ const IS_VERISI_TAM: Izin[] = [
   // ek bir kanıttır, yanlış yüklenen dosyayı yönetici kaldırır.
   IZIN.dosyaYukle,
   IZIN.ziyaretOlustur,
+  // Faz 21: AI bir OKUMA yardımı değil bir EYLEMDİR — özet istemek dış
+  // servise istek gönderir ve ücret doğurur. Bu yüzden salt okunur rolde
+  // bilinçli olarak YOKTUR; iş verisini yazan roller kullanır.
+  IZIN.aiKullan,
   // Faz 19: anketi GÖNDERMEK saha/satış işidir; TANIMLAMAK kuruluşun
   // müşteriye sorduğu soruyu belirlemektir ve yöneticidedir.
   IZIN.anketGonder,
@@ -413,6 +427,8 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.dosyaSil,
     // Faz 19: anket sorusu kuruluşun müşteriye verdiği yüzdür.
     IZIN.anketYonet,
+    // Faz 21: veriyi dışarı açma kararı ve kullanım defteri yöneticidedir.
+    IZIN.aiYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

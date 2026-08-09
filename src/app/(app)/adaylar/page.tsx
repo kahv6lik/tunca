@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
+import { IZIN, yetkiGerektir, yetkiVarMi, etkinIzinler } from "@/lib/yetki";
+import { adaySkoru, adayTabaniGetir } from "@/lib/skor";
+import SkorRozet from "@/components/ai/SkorRozet";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -41,6 +43,7 @@ export default async function AdaylarPage(
       yetkiVarMi(IZIN.firsatGoruntule),
     ]);
 
+  const izinler = await etkinIzinler();
   const db = await getTenantDb();
 
   const ara = (searchParams.ara ?? "").trim();
@@ -84,6 +87,23 @@ export default async function AdaylarPage(
   ]);
 
   const kullaniciAdi = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+  /*
+    Aday skoru (Faz 21 / G1) — DIŞ ÇAĞRI YOK.
+
+    Taban adayın KENDİ geçmişinden kurulur (dönüşen/elenen adaylar); fırsat
+    tabanıyla karıştırılmaz çünkü soru farklıdır. Kapanmış adayın skoru
+    hesaplanmaz: sonucu zaten belli.
+  */
+  const skorGorur = izinler.has(IZIN.aiKullan);
+  const adayTabani = skorGorur ? await adayTabaniGetir(db) : null;
+  const skorlar = new Map(
+    adayTabani
+      ? leadler
+          .filter((l) => !["donusturuldu", "elendi"].includes(l.durum))
+          .map((l) => [l.id, adaySkoru(l, adayTabani)] as const)
+      : []
+  );
   const sayiOf = (d: string) => hunidekiler.find((h) => h.durum === d)?._count._all ?? 0;
   const toplam = hunidekiler.reduce((s, h) => s + h._count._all, 0);
   const donusen = sayiOf("donusturuldu");
@@ -186,6 +206,7 @@ export default async function AdaylarPage(
                 <th className="th">Firma</th>
                 <th className="th">İletişim</th>
                 <th className="th">Kaynak</th>
+                {skorGorur && <th className="th">Skor</th>}
                 <th className="th">Atanan</th>
                 <th className="th">Eklendi</th>
                 <th className="th">Durum</th>
@@ -217,6 +238,15 @@ export default async function AdaylarPage(
                     {!l.email && !l.telefon && "—"}
                   </td>
                   <td className="td">{l.kaynak ?? "—"}</td>
+                  {skorGorur && (
+                    <td className="td">
+                      {skorlar.has(l.id) ? (
+                        <SkorRozet skor={skorlar.get(l.id)!} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="td">{l.atananId ? kullaniciAdi.get(l.atananId) ?? "—" : "—"}</td>
                   <td className="td text-muted-foreground">{formatTarih(l.createdAt)}</td>
                   <td className="td">

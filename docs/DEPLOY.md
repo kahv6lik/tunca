@@ -521,6 +521,23 @@ Google Cloud konsolunda **günlük istek sınırı (quota)** tanımlayın. Koord
 firma kaydında saklandığı ve adres değişmedikçe yeniden istenmediği için
 tipik kullanımda çağrı sayısı firma sayısı kadardır.
 
+**AI anahtarı (isteğe bağlı, Faz 21).** `ANTHROPIC_API_KEY` tanımlıysa firma
+özetini paragraf hâline getirme ve model destekli doğal dilde sorgu
+çalışır. **Tanımsızsa AI kapalıdır** — skorlama ve kural tabanlı sorgu
+çalışmaya devam eder, uygulama düşmez.
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' >> deploy.env
+# İsteğe bağlı: varsayılan claude-sonnet-4-5
+echo 'AI_MODEL=claude-sonnet-4-5' >> deploy.env
+docker compose up -d app
+```
+
+Anahtarın tanımlı olması TEK BAŞINA yetmez: her kiracının kendi açma/kapama
+ayarı vardır ve **varsayılan kapalıdır** (`/ai` ekranı). Yapılan çağrılar
+aynı ekrandaki kullanım defterinden izlenir; masrafı sınırlamak için
+sağlayıcı konsolunda da bir harcama sınırı tanımlayın.
+
 **Ziyaret yarıçapı.** Varsayılan 300 m'dir (kiracının `ziyaretYaricapM`
 alanı). Konum doğrulaması tarayıcının konum servisini kullanır ve bu servis
 yalnızca **HTTPS** üzerinde çalışır — sunucu zaten Let's Encrypt ile

@@ -40,6 +40,9 @@ services:
       # Adresten koordinat üretimi (Faz 17 / A3). TANIMSIZSA özellik kapalıdır
       # ve koordinat elle girilir — sessizce ücretli çağrı yapılmaz.
       GOOGLE_MAPS_API_KEY: "${GOOGLE_MAPS_API_KEY:-}"
+      # Faz 21 — AI. Tanımsızsa AI özellikleri KAPALIDIR (uygulama çalışır).
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      AI_MODEL: "${AI_MODEL:-}"
     volumes:
       - gezegen-dosya:/veri/dosya
     depends_on:

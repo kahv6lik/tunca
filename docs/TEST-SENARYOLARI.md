@@ -288,6 +288,42 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.21.0 — AI özellikleri (Faz 21)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/ai` ekranını aç (yeni kiracı) | AI **kapalı**; düğme "Aç" yazar |
+| 2 | "Modele gönderilenler" listesine bak | Alanlar tek tek yazılı (belirsiz cümle yok) |
+| 3 | "Hiçbir zaman gönderilmeyenler" listesi | Kişi telefonu, dosyalar, konum, anket yanıtları sayılı |
+| 4 | Anahtar tanımlı değilken duruma bak | "sağlayıcı anahtarı tanımlı değil" |
+| 5 | Üye hesabıyla `/ai` | Ekran açılır, "yalnızca kuruluş yöneticisi" uyarısı; kullanım defteri YOK |
+| 6 | Salt okunur hesapla `/ai` | `/yetkisiz` — AI bir eylemdir, okuma değil |
+| 7 | Fırsat listesi (görünüm=liste) | **Skor** sütunu var; AI kapalı olsa da dolu |
+| 8 | Skor rozetine tıkla | Gerekçe listesi: aşama, sektör, temas… her biri açıklamalı |
+| 9 | Yeni kiracıda (az kapanmış iş) skora bak | "skor henüz güvenilir değil" uyarısı |
+| 10 | Aynı fırsatı iki kez aç | Skor **aynı** (denetlenebilirlik) |
+| 11 | Hiç aktivitesi olmayan fırsat | Skor düşük, gerekçede "hiç aktivite kaydı yok" |
+| 12 | Kanban kartlarına bak | Skor rozeti kartta da var |
+| 13 | Adaylar listesi | Skor sütunu var; dönüşmüş/elenmiş adaylarda "—" |
+| 14 | Firma ekranı → Genel sekmesi | **Özet** paneli maddelerle dolu (model çağrılmadan) |
+| 15 | Özette hiç fırsatı olmayan firma | "Teklifler"/"Siparişler" satırı hiç çıkmaz |
+| 16 | AI kapalıyken özet panelindeki düğme | Düğme yok; yerine kapalı olduğu yazıyor |
+| 17 | AI'ı aç, "Paragraf hâline getir" | Anahtar yoksa "anahtar tanımlı değil" hatası, panel düşmez |
+| 18 | Anahtar tanımlıyken aynı düğme | Paragraf gelir; "Maddelere dön" ile geri dönülür |
+| 19 | Yönetici → `/ai` kullanım defteri | Çağrı tarihi, kullanıcı, konu, token, sonuç görünür |
+| 20 | Defterde istem/yanıt metni ara | YOK — yalnızca künye tutulur |
+| 21 | Ctrl+K → "İzmir'deki onaylanmış hibeler" → doğal dil satırı | Yatırım destekleri, il=İzmir, durum=onaylandı |
+| 22 | Ctrl+K → "onay bekleyen siparişler" | `/siparisler?durum=onaybekliyor` |
+| 23 | Ctrl+K → "kaybedilen fırsatlar" | Liste görünümü açılır (kanban yalnızca açıkları gösterir) |
+| 24 | Ctrl+K → "bugün hava nasıl" | "Bu cümleyi anlayamadım" — yanlış listeye GÖTÜRMEZ |
+| 25 | AI kapalıyken 21-23'ü tekrarla | Kural tabanlı olanlar yine çalışır (anahtar gerekmez) |
+| 26 | Sipariş izni olmayan hesapla "onay bekleyen siparişler" | Sorgu o listeye götürmez |
+| 27 | `/kvkk` aydınlatma metni | "Yapay zekâ destekli özellikler" bölümü var; sürüm `2026-08-4` |
+| 28 | AI'ı kapat → `/denetim` | "AI özellikleri kapatıldı" kaydı düşmüş |
+| 29 | `admin@anadolu.com` ile `/ai` | Gezegen'in kullanım defteri görünmez |
+
+---
+
 ### v1.20.0 — Birleşik çalışma ekranı (Faz 20)
 
 | # | Adım | Beklenen |

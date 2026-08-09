@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { Settings2 } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
+import { IZIN, yetkiGerektir, yetkiVarMi, etkinIzinler } from "@/lib/yetki";
+import { firsatSkoru, tabanGetir } from "@/lib/skor";
+import SkorRozet from "@/components/ai/SkorRozet";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -54,6 +56,7 @@ export default async function FirsatlarPage(
     yetkiVarMi(IZIN.teklifOlustur),
   ]);
 
+  const izinler = await etkinIzinler();
   const db = await getTenantDb();
 
   const liste = searchParams.gorunum === "liste";
@@ -83,9 +86,14 @@ export default async function FirsatlarPage(
       orderBy: [{ kapanisTarihi: "asc" }, { createdAt: "desc" }],
       take: liste ? 200 : 500,
       include: {
-        firma: { select: { id: true, ad: true } },
+        // `sektor` skorlama için (Faz 21 / G1): sektör kırılımı kiracının
+        // kendi kazanma oranından çıkar.
+        firma: { select: { id: true, ad: true, sektor: true } },
         kisi: { select: { id: true, ad: true } },
-        asama: { select: { id: true, ad: true, renk: true } },
+        asama: { select: { id: true, ad: true, renk: true, olasilik: true } },
+        // Skorun temas etkeni: sayı ve son tarih. Tam aktivite gövdesi
+        // gerekmez, yalnızca zaman damgası.
+        aktiviteler: { select: { createdAt: true } },
         // Fırsata bağlı teklif sayısı (Faz 13 / H7): listede "teklif var mı?"
         // sorusu tek bakışta yanıtlansın.
         _count: { select: { teklifler: true } },
@@ -105,6 +113,24 @@ export default async function FirsatlarPage(
   ]);
 
   const sorumluAdi = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+  /*
+    Skorlama (Faz 21 / G1) — DIŞ ÇAĞRI YOK.
+
+    Taban BİR KEZ kurulur ve bütün satırlarda kullanılır; her kart için
+    geçmişi yeniden dolaşmak listeyi yavaşlatırdı. `ai.kullan` izni yoksa
+    hesap hiç yapılmaz — skor da bir bilgidir ve izin süzgecinden geçer.
+  */
+  const skorGorur = izinler.has(IZIN.aiKullan);
+  const taban = skorGorur ? await tabanGetir(db) : null;
+  const skorlar = new Map(
+    taban
+      ? firsatlar
+          // Kapanmış işin skoru anlamsızdır: sonuç zaten belli.
+          .filter((f) => f.durum === "acik")
+          .map((f) => [f.id, firsatSkoru(f, taban)] as const)
+      : []
+  );
 
   const acik = firsatlar.filter((f) => f.durum === "acik");
   const toplamOf = (d: string) => ozet.find((o) => o.durum === d)?._sum.tutar ?? 0;
@@ -257,6 +283,7 @@ export default async function FirsatlarPage(
                       <th className="th">Aşama</th>
                       <th className="th">Tutar</th>
                       <th className="th">Olasılık</th>
+                      {skorGorur && <th className="th">Skor</th>}
                       <th className="th">Kapanış</th>
                       <th className="th">Sorumlu</th>
                       <th className="th">Durum</th>
@@ -288,6 +315,15 @@ export default async function FirsatlarPage(
                         </td>
                         <td className="td">{formatPara(f.tutar, f.paraBirimi)}</td>
                         <td className="td">%{f.olasilik}</td>
+                        {skorGorur && (
+                          <td className="td">
+                            {skorlar.has(f.id) ? (
+                              <SkorRozet skor={skorlar.get(f.id)!} />
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
                         <td className="td">
                           {f.kapanisTarihi ? formatTarih(f.kapanisTarihi) : "—"}
                         </td>
@@ -346,6 +382,7 @@ export default async function FirsatlarPage(
                 firmaId: f.firma.id,
                 kisiAd: f.kisi?.ad ?? null,
                 sorumluAd: f.sorumluId ? sorumluAdi.get(f.sorumluId) ?? null : null,
+                skor: skorlar.get(f.id) ?? null,
               }))}
             />
             </div>

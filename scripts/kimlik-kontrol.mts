@@ -1659,6 +1659,90 @@ async function main() {
     !ornekFirma || !anadoluPanel.govde.includes(ornekFirma.ad)
   );
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Faz 21 — AI özellikleri (G1-G3)
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Faz 21 — skorlama, özet, doğal dilde sorgu\n");
+
+  // Ayar ekranı: söz yazılı mı, varsayılan kapalı mı.
+  const aiSayfa = await sayfaGetir("admin@gezegen.com", "admin123", "/ai");
+  kontrol("AI ayar ekranı açılıyor", !aiSayfa.url.includes("/yetkisiz"));
+  kontrol(
+    "Modele NE gönderildiği ekranda yazılı",
+    aiSayfa.govde.includes("gönderilenler")
+  );
+  kontrol(
+    "Modele NE GÖNDERİLMEDİĞİ de yazılı",
+    aiSayfa.govde.includes("Hiçbir zaman gönderilmeyenler")
+  );
+  kontrol(
+    "AI varsayılan KAPALI (kiracı bilerek açar)",
+    aiSayfa.govde.includes("Aç") && !aiSayfa.govde.includes("çalışıyor ·")
+  );
+  kontrol(
+    "Skorun dış çağrı yapmadığı kullanıcıya söyleniyor",
+    aiSayfa.govde.includes("hiçbir veri dışarı gönderilmez") ||
+      aiSayfa.govde.includes("dışarı gönderilmez")
+  );
+
+  // G1 — skor rozeti fırsat listesinde; AI KAPALIYKEN DE çalışır.
+  const firsatListe = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/firsatlar?gorunum=liste"
+  );
+  // NOT: tablo başlıkları CSS'te `uppercase`; Playwright innerText dönüşümü
+  // uygular, bu yüzden karşılaştırma Türkçe küçük harfle yapılır (aynı tuzak
+  // Faz 18'de "Künye" kontrolünde de yaşandı).
+  kontrol(
+    "Fırsat listesinde skor sütunu var (AI kapalıyken de)",
+    firsatListe.govde.toLocaleLowerCase("tr").includes("skor")
+  );
+
+  const adayListe = await sayfaGetir("admin@gezegen.com", "admin123", "/adaylar");
+  kontrol(
+    "Aday listesinde skor sütunu var",
+    adayListe.govde.toLocaleLowerCase("tr").includes("skor")
+  );
+
+  // G2 — özet paneli firma ekranında ve VERİDEN üretiliyor.
+  const ornekFirma2 = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    select: { id: true },
+  });
+  if (ornekFirma2) {
+    const firmaGenel = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${ornekFirma2.id}`
+    );
+    const genelKucuk = firmaGenel.govde.toLocaleLowerCase("tr");
+    kontrol("Firma ekranında özet paneli var", genelKucuk.includes("özet"));
+    kontrol(
+      "Özet AI kapalıyken de içerik gösteriyor",
+      genelKucuk.includes("son temas")
+    );
+  }
+
+  // Salt okunur kullanıcı AI EYLEMLERİNİ kullanamaz (ücret doğuran iştir).
+  const okuyucuAi = await sayfaGetir("okuyucu@gezegen.com", "okuyucu123", "/ai");
+  kontrol(
+    "Salt okunur kullanıcı AI ekranına giremiyor",
+    okuyucuAi.url.includes("/yetkisiz")
+  );
+
+  // Üye AI'ı kullanır ama AYARINI değiştiremez.
+  const uyeAi = await sayfaGetir("kullanici@gezegen.com", "user123", "/ai");
+  kontrol("Üye AI ekranını görüyor", !uyeAi.url.includes("/yetkisiz"));
+  kontrol(
+    "Üye AI ayarını DEĞİŞTİREMİYOR (kuruluş kararı)",
+    uyeAi.govde.includes("yalnızca kuruluş yöneticisi")
+  );
+  kontrol(
+    "Üye kullanım defterini GÖRMÜYOR",
+    !uyeAi.govde.includes("Kullanım defteri")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

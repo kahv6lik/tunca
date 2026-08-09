@@ -48,9 +48,12 @@ export type DenetimVarligi =
   | "Ziyaret"
   // Faz 19 — anket
   | "Anket"
-  | "AnketGonderim";
+  | "AnketGonderim"
+  // Faz 21 — AI ayarı (kiracının veriyi dışarı açma kararı)
+  | "AiAyar";
 
 export const VARLIK_ETIKET: Record<string, string> = {
+  AiAyar: "AI ayarı",
   Firma: "Firma",
   YatirimDestegi: "Yatırım Desteği",
   Egitim: "Eğitim",

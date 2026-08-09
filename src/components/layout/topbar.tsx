@@ -14,6 +14,7 @@ export function Topbar({
   rolEtiket,
   izinler,
   logout,
+  aiAcik = false,
   platformAdmin = false,
   okunmamisBildirim = 0,
 }: {
@@ -23,6 +24,8 @@ export function Topbar({
   rolEtiket: string;
   izinler: string[];
   logout: () => Promise<void>;
+  /** Faz 21 / G3 — palette doğal dilde sorgu satırı çıksın mı. */
+  aiAcik?: boolean;
   platformAdmin?: boolean;
   okunmamisBildirim?: number;
 }) {
@@ -35,7 +38,7 @@ export function Topbar({
         hiçbir şey yapmayan bir input duruyordu; kullanıcıyı boş bir kutuya
         yazdırmak, aramanın çalışmadığını en geç öğreten yoldu.
       */}
-      <KomutPaleti izinler={izinler} />
+      <KomutPaleti izinler={izinler} aiAcik={aiAcik} />
 
       <div className="ml-auto flex items-center gap-2.5">
         {/* Platform yöneticisi için admin paneline kısayol (Faz 5) */}

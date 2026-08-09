@@ -29,6 +29,10 @@ import AktivitePanel from "@/components/aktiviteler/AktivitePanel";
 import FirmaSekmeleri from "@/components/firmalar/FirmaSekmeleri";
 import OncelikRozet from "@/components/destek/OncelikRozet";
 import { sekmeSec } from "@/lib/firma-sekme-tanimlar";
+import FirmaOzetPaneli from "@/components/ai/FirmaOzetPaneli";
+import { firmaOzetSatirlari } from "@/lib/firma-ozet";
+import { aiDurumu } from "@/lib/ai";
+import { aiKapaliSebebi, aiKullanilabilir } from "@/lib/ai-tanimlar";
 import {
   alanlariGetir,
   degerHaritasi,
@@ -220,6 +224,19 @@ export default async function FirmaDetayPage(
   // Zaman akışı (Faz 7 / C6) — izni olmayan modül hiç sorgulanmaz.
   const akis =
     sekme === "genel" ? await firmaTimeline(db, firma.id, izinler) : [];
+
+  /*
+    Firma özeti (Faz 21 / G2).
+
+    Maddeler VERİDEN üretilir ve model olmadan da görünür; AI yalnızca
+    kullanıcı "paragraf hâline getir" derse çağrılır. İzin süzgeci
+    `firmaOzetSatirlari` içindedir — göremediği modül özete girmez.
+  */
+  const ozetGorur = sekme === "genel" && izinler.has(IZIN.aiKullan);
+  const ozetSatirlariListesi = ozetGorur
+    ? await firmaOzetSatirlari(db, firma, izinler)
+    : [];
+  const aiHali = ozetGorur ? await aiDurumu() : null;
 
   const [teklifler, siparisler] =
     sekme === "satis"
@@ -542,6 +559,16 @@ export default async function FirmaDetayPage(
           </div>
         )}
       </div>
+
+      {/* Özet (Faz 21 / G2) */}
+      {ozetGorur && (
+        <FirmaOzetPaneli
+          firmaId={firma.id}
+          satirlar={ozetSatirlariListesi}
+          aiAcik={aiHali ? aiKullanilabilir(aiHali) : false}
+          kapaliSebep={aiHali ? aiKapaliSebebi(aiHali) : null}
+        />
+      )}
 
       {/* Zaman akışı (Faz 7 / C6) */}
       <div className="card mb-6 p-5">

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Trophy, XCircle, GripVertical } from "lucide-react";
 import { firsatAsamaDegistir } from "@/app/(app)/firsatlar/actions";
 import { formatPara, formatTarih } from "@/lib/format";
+import SkorRozet from "@/components/ai/SkorRozet";
+import type { Skor } from "@/lib/skor-saf";
 import { cn } from "@/lib/utils";
 
 export type KanbanAsama = { id: string; ad: string; renk: string | null };
@@ -21,6 +23,8 @@ export type KanbanFirsat = {
   firmaId: string;
   kisiAd: string | null;
   sorumluAd: string | null;
+  /** Faz 21 / G1 — skor. AI izni yoksa ya da iş kapandıysa yoktur. */
+  skor?: Skor | null;
 };
 
 /**
@@ -159,11 +163,13 @@ export default function Kanban({
                     </div>
                   </div>
 
-                  <p className="mt-2 text-sm font-semibold text-foreground">
+                  <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {formatPara(f.tutar, f.paraBirimi)}
-                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                    <span className="text-xs font-normal text-muted-foreground">
                       %{f.olasilik}
                     </span>
+                    {/* Skor (Faz 21 / G1) — tıklanınca gerekçesini açar. */}
+                    {f.skor && <SkorRozet skor={f.skor} />}
                   </p>
 
                   {(f.kisiAd || f.sorumluAd || f.kapanisTarihi) && (

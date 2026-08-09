@@ -29,6 +29,8 @@ export type KiraciAyari = {
   // ── Saha çalışması ayarları (Faz 17) ──
   ziyaretYaricapM: number;
   dosyaKotaMb: number;
+  // ── AI ayarı (Faz 21) ── varsayılan KAPALI
+  aiAcik: boolean;
 };
 
 export const kiraciAyari = cache(async (): Promise<KiraciAyari> => {
@@ -50,6 +52,7 @@ export const kiraciAyari = cache(async (): Promise<KiraciAyari> => {
     moduller: kiraci?.plan ? kiraci.plan.moduller : null,
     ziyaretYaricapM: kiraci?.ziyaretYaricapM ?? 300,
     dosyaKotaMb: kiraci?.dosyaKotaMb ?? VARSAYILAN_KOTA_MB,
+    aiAcik: kiraci?.aiAcik ?? false,
   };
 });
 

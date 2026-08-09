@@ -331,6 +331,10 @@ export const PAKET_MODULLERI = [
   { deger: "ziyaret", etiket: "Saha Ziyaretleri", izin: "ziyaret.goruntule" },
   // Faz 19 — anket
   { deger: "anket", etiket: "Anketler", izin: "anket.goruntule" },
+  // Faz 21 — AI. Paket modülü platformun kapısıdır; kiracının kendi kapısı
+  // `Tenant.aiAcik`tır ve VARSAYILAN KAPALIDIR. İkisi de açık olmadan hiçbir
+  // AI çağrısı yapılmaz.
+  { deger: "ai", etiket: "AI Özellikleri", izin: "ai.kullan" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

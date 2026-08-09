@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ModalKatman from "@/components/ui/ModalKatman";
+import { dogalDildeSorgu } from "@/app/(app)/ai-actions";
 import {
   Building2,
   Contact,
@@ -12,6 +13,7 @@ import {
   FolderKanban,
   LifeBuoy,
   Search,
+  Wand2,
   CornerDownLeft,
   type LucideIcon,
 } from "lucide-react";
@@ -49,7 +51,14 @@ const IKONLAR: Record<string, LucideIcon> = {
   destek: LifeBuoy,
 };
 
-export default function KomutPaleti({ izinler }: { izinler: string[] }) {
+export default function KomutPaleti({
+  izinler,
+  aiAcik = false,
+}: {
+  izinler: string[];
+  /** Faz 21 / G3 — doğal dilde sorgu satırı yalnızca izin varsa gösterilir. */
+  aiAcik?: boolean;
+}) {
   const router = useRouter();
   const patika = usePathname();
   const parametreler = useSearchParams();
@@ -59,6 +68,8 @@ export default function KomutPaleti({ izinler }: { izinler: string[] }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [secili, setSecili] = useState(0);
   const girdi = useRef<HTMLInputElement>(null);
+  const [sorguBekliyor, setSorguBekliyor] = useState(false);
+  const [sorguHatasi, setSorguHatasi] = useState<string | null>(null);
 
   const izinKumesi = new Set(izinler);
   const eylemler = eylemleriSuz(
@@ -86,6 +97,7 @@ export default function KomutPaleti({ izinler }: { izinler: string[] }) {
       setTerim("");
       setSonuclar([]);
       setSecili(0);
+      setSorguHatasi(null);
     }
   }, [acik]);
 
@@ -181,6 +193,29 @@ export default function KomutPaleti({ izinler }: { izinler: string[] }) {
     [router]
   );
 
+  /**
+   * Doğal dilde sorgu (Faz 21 / G3).
+   *
+   * Palet zaten "ne yapmak istiyorum" kutusudur; cümleyi ayrı bir ekrana
+   * taşımak, kullanıcıyı önce doğru yeri bulmaya zorlardı — paletin var
+   * oluş sebebinin tersi.
+   */
+  function sorguCalistir() {
+    if (terim.trim().length < 3 || sorguBekliyor) return;
+    setSorguBekliyor(true);
+    setSorguHatasi(null);
+    (async () => {
+      const sonuc = await dogalDildeSorgu(terim);
+      setSorguBekliyor(false);
+      if (sonuc.ok && sonuc.adres) {
+        setAcik(false);
+        router.push(sonuc.adres);
+      } else {
+        setSorguHatasi(sonuc.hata ?? "Sorgu anlaşılamadı.");
+      }
+    })();
+  }
+
   function listeTusu(e: React.KeyboardEvent) {
     if (ogeler.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -268,6 +303,30 @@ export default function KomutPaleti({ izinler }: { izinler: string[] }) {
                 </ul>
               )}
             </div>
+
+            {/* Doğal dilde sorgu (Faz 21 / G3) */}
+            {aiAcik && terim.trim().length >= 3 && (
+              <div className="border-t border-border/60 px-2 py-2">
+                <button
+                  onClick={sorguCalistir}
+                  disabled={sorguBekliyor}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/40 disabled:opacity-50"
+                >
+                  <Wand2 className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                    {sorguBekliyor
+                      ? "Aranıyor…"
+                      : `"${terim}" olarak süz`}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground/70">
+                    doğal dil
+                  </span>
+                </button>
+                {sorguHatasi && (
+                  <p className="px-3 pt-1 text-xs text-rose-400">{sorguHatasi}</p>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-between border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
               <span>↑↓ gez · ↵ aç · Esc kapat</span>

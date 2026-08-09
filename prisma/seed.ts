@@ -1146,6 +1146,9 @@ async function paketleriKur() {
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
         "dosya", "ziyaret", "anket",
+        // Faz 21 — AI. Modül paketlerde AÇIKTIR ama `Tenant.aiAcik`
+        // varsayılan false olduğu için kiracıda kendiliğinden çalışmaz.
+        "ai",
       ],
     },
     {
@@ -1164,6 +1167,9 @@ async function paketleriKur() {
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
         "dosya", "ziyaret", "anket",
+        // Faz 21 — AI. Modül paketlerde AÇIKTIR ama `Tenant.aiAcik`
+        // varsayılan false olduğu için kiracıda kendiliğinden çalışmaz.
+        "ai",
       ],
     },
   ];

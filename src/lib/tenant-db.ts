@@ -79,6 +79,8 @@ const KIRACI_MODELLERI = new Set([
   "AnketSorusu",
   "AnketGonderim",
   "AnketYanit",
+  // Faz 21 — AI kullanım defteri
+  "AiKullanim",
   // Davet kiracıya bağlıdır ve RLS'te kiracı politikası vardır: kuruluş
   // yöneticisi kendi ekibini /kullanicilar üzerinden davet eder.
   "Davet",
@@ -239,7 +241,9 @@ export type KiraciModeli =
   | "anket"
   | "anketSorusu"
   | "anketGonderim"
-  | "anketYanit";
+  | "anketYanit"
+  // Faz 21 — AI kullanım defteri
+  | "aiKullanim";
 
 export async function sahiplikDogrula(
   db: TenantClient,

@@ -4,7 +4,7 @@ import YanPanel from "@/components/panel/YanPanel";
 import { Topbar } from "@/components/layout/topbar";
 import { ImpersonationBandi } from "@/components/layout/impersonation-bandi";
 import { requireSession } from "@/lib/auth";
-import { etkinIzinler, rolNormalize, ROL_ETIKET } from "@/lib/yetki";
+import { etkinIzinler, rolNormalize, ROL_ETIKET, IZIN } from "@/lib/yetki";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
 import { getTenantDb } from "@/lib/tenant-db";
 import { hexToHslDegerleri } from "@/lib/utils";
@@ -24,6 +24,14 @@ export default async function AppLayout({
   // böylece tek satırla bütün bileşenler kiracının rengini alır. Geçersiz bir
   // renk değeri yok sayılır ve varsayılan tema korunur.
   const ayar = await kiraciAyari();
+
+  /*
+    Doğal dilde sorgu satırı (Faz 21 / G3) yalnızca izin + kiracı ayarı
+    açıkken gösterilir. Anahtar kontrolü kasten BURADA YOK: kural tabanlı
+    ayrıştırıcı anahtarsız da çalışır, yani özellik anahtar olmadan da
+    işlevlidir — model yalnızca çözülemeyen cümlelerde devreye girer.
+  */
+  const aiHazir = izinler.includes(IZIN.aiKullan) && ayar.aiAcik;
   const marka = ayar.anaRenk ? hexToHslDegerleri(ayar.anaRenk) : null;
 
   // Okunmamış bildirim sayısı (Faz 8 / D5) — üst çubuktaki zil rozeti.
@@ -53,6 +61,7 @@ export default async function AppLayout({
           rolEtiket={rolEtiket}
           izinler={izinler}
           logout={logoutAction}
+          aiAcik={aiHazir}
           platformAdmin={rolNormalize(session.role) === "platform_admin"}
           okunmamisBildirim={okunmamisBildirim}
         />

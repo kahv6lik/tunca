@@ -11,7 +11,7 @@
  */
 // Sürüm arttığında herkesten YENİDEN RIZA istenir. "2026-08-3": anket
 // yanıtları bölümü eklendi (Faz 19).
-export const KVKK_SURUM = "2026-08-3";
+export const KVKK_SURUM = "2026-08-4";
 
 export const KVKK_BASLIK = "Kişisel Verilerin Korunması Aydınlatma Metni";
 
@@ -72,6 +72,28 @@ export const KVKK_METNI: KvkkBolum[] = [
     ],
   },
   {
+    baslik: "Yapay zekâ destekli özellikler",
+    govde: [
+      "Kuruluş, dilerse yapay zekâ destekli özellikleri AÇABİLİR. Bu özellikler " +
+        "varsayılan olarak KAPALIDIR ve kuruluş yöneticisi tarafından her an " +
+        "kapatılabilir.",
+      "Fırsat ve aday SKORLAMASI kuruluşun kendi geçmiş kayıtlarından " +
+        "hesaplanır; bu işlem için hiçbir veri kuruluş dışına aktarılmaz.",
+      "DOĞAL DİLDE SORGU özelliğinde, dil modeline yalnızca kullanıcının " +
+        "yazdığı arama cümlesi iletilir; müşteri, kişi ya da işlem verisi " +
+        "iletilmez.",
+      "FİRMA ÖZETİ özelliği kullanıldığında, ilgili firmanın adı ile fırsat, " +
+        "teklif, sipariş ve destek kayıtlarının başlık, tutar ve durum " +
+        "bilgileri dil modeline iletilir. Kişilerin adı, telefonu ve e-postası, " +
+        "yüklenen dosyalar, ziyaret konumları ve anket yanıtları HİÇBİR ZAMAN " +
+        "iletilmez. Hangi bilgilerin iletildiği uygulamadaki AI ayar ekranında " +
+        "adlarıyla listelenir.",
+      "Yapılan her yapay zekâ çağrısı; tarihi, çağrıyı yapan kullanıcı ve " +
+        "konusuyla birlikte bir kullanım defterine kaydedilir. İstemin ya da " +
+        "yanıtın metni saklanmaz.",
+    ],
+  },
+  {
     baslik: "İşleme amacı ve hukuki sebep",
     govde: [
       "Hesap verileri, hizmetin sunulabilmesi ve sözleşmenin ifası için işlenir.",
@@ -105,6 +127,9 @@ export const KVKK_METNI: KvkkBolum[] = [
         "bir harita hizmet sağlayıcısına iletilebilir. Bu aktarım yalnızca ADRES " +
         "metnini kapsar; kişi, ziyaret ya da çalışan bilgisi içermez ve sonuç " +
         "koordinat olarak saklandığı için her görüntülemede tekrarlanmaz.",
+      "Kuruluş yapay zekâ özelliklerini açmışsa, yukarıda 'Yapay zekâ destekli " +
+        "özellikler' bölümünde sayılan sınırlı bilgiler bir dil modeli hizmet " +
+        "sağlayıcısına iletilir. Özellik kapalıyken hiçbir aktarım yapılmaz.",
     ],
   },
   {

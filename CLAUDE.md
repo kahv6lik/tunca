@@ -48,7 +48,8 @@ prisma/
                        # Siparis, SiparisKalemi, Sevkiyat, BelgeSayac,
                        # Proje, DestekKaydi, Sss, Dosya, Ziyaret,
                        # Anket, AnketSorusu, AnketGonderim, AnketYanit,
-                       # Oturum, SifreSifirlama, GirisDenemesi
+                       # Oturum, SifreSifirlama, GirisDenemesi,
+                       # AiKullanim
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
   seed.ts              # demo veri (800 firma) — üretimde kullanılmaz
@@ -92,6 +93,8 @@ src/
       raporlar/        # rapor MERKEZİ + genel/ mali/ satis/ urun/ aktivite/
       firmalar/[id]/   # firma ÇALIŞMA EKRANI — sekmeli (?sekme=) (Faz 20)
       firmalar/[id]/dosya/  # firma dosyası — tek belge PDF (Faz 18)
+      ai/              # AI ayarı + kullanım defteri (Faz 21)
+      ai-actions.ts    # firma özeti + doğal dilde sorgu action'ları (Faz 21)
       dosya-actions.ts # dosya eki yükleme/silme — tek action (Faz 17)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
@@ -143,6 +146,7 @@ src/
     palet/             # KomutPaleti — Ctrl/Cmd+K (Faz 20)
     panel/             # YanPanel, PanelBaglantisi, OzetDugmesi (Faz 20)
     zincir/            # ZincirSeridi — fırsat→teklif→sipariş→sevkiyat (Faz 20)
+    ai/                # SkorRozet, FirmaOzetPaneli, AiAyarPanel (Faz 21)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -189,6 +193,13 @@ src/
     dosya.ts              # dosya deposu — TEK KAPI (+ -tanimlar: tür/kota saf)
     anket-db.ts           # anket yanıtlama, oturumsuz — TEK KAPI (Faz 19)
     anket-tanimlar.ts     # soru tipleri, yanıt doğrulama, NPS — saf (Faz 19)
+    ai-tanimlar.ts        # AI kapıları + gönderilen/gönderilmeyen listesi — saf
+    ai.ts                 # dil modeli çağrısı — TEK KAPI, anahtarsızsa KAPALI
+    skor-saf.ts           # fırsat/aday skoru — saf istatistik, dış çağrı YOK
+    skor.ts               # skor tabanı (kiracının kendi geçmişi) (Faz 21)
+    firma-ozet-saf.ts     # firma özeti cümleleri + model istemi — saf (Faz 21)
+    firma-ozet.ts         # özet girdisi — izin süzgeçli (Faz 21)
+    sorgu-saf.ts          # doğal dilde sorgu: kural ayrıştırıcı + beyaz liste
     arama-tanimlar.ts     # arama/eylem kayıt defteri + panel adresi — saf (Faz 20)
     firma-sekme-tanimlar.ts # firma çalışma ekranı sekmeleri — saf (Faz 20)
     zincir-tanimlar.ts    # kayıt zinciri sırası — saf (Faz 20)
@@ -495,6 +506,36 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **KVKK metnine "Anket yanıtları" bölümü eklendi** ve sürüm `2026-08-3`e
   çıkarıldı; anonimlik sözü aydınlatma metninde de verilir.
 
+### AI Özellikleri (Faz 21)
+
+- **SKOR DİL MODELİNE SORULMAZ** (`skor-saf.ts`): kiracının kendi kapanmış
+  işlerinden istatistikle çıkar. Gerekçesi denetlenebilir, aynı veriye hep
+  aynı yanıtı verir, hiçbir şeyi dışarı çıkarmaz ve hiçbir şeye mal olmaz.
+  **Skor SAKLANMAZ**, her görüntülemede yeniden hesaplanır — saklanan skor
+  veri değiştikçe bayatlar. Taban bir kez kurulup bütün satırlarda kullanılır.
+- **AZ ÖRNEKLE KESİNLİK İDDİA EDİLMEZ:** on kapanmış işin altında rozet
+  "henüz güvenilir değil" der; kırılım oranı beş işin altında üretilmez.
+- **ÜÇ KAPI:** paket modülü (`ai`), `Tenant.aiAcik` (VARSAYILAN KAPALI) ve
+  sağlayıcı anahtarı. Üçü de açık değilse çağrı yapılmaz ve **SEBEBİ
+  söylenir**. Anahtar tanımsızsa KAPALIDIR (Faz 8 / Faz 17 deseni).
+- **ÖZET ÖNCE VERİDEN YAZILIR** (`firma-ozet-saf.ts`), model yalnızca
+  akıcılaştırır: özellik anahtarsız da işe yarar ve modele gönderilen metin
+  uygulamada üretildiği için ne gönderildiği tam bilinir — `/ai` ekranı
+  gönderilenleri VE gönderilmeyenleri adlarıyla listeler. Model bir
+  ANLATICIDIR; istem rakam eklemesini ve yorum yapmasını yasaklar.
+- **SAYFA AÇILIŞINDA MODEL ÇAĞRILMAZ:** özet paragrafı kullanıcı isterse
+  üretilir, yoksa her firma görüntülemesi ücretli bir istek olurdu.
+- **DOĞAL DİLDE SORGU MODELE VERİ GÖNDERMEZ:** model yalnızca cümleyi ve
+  alan sözlüğünü görür, ürettiği şey bir SÜZGEÇTİR ve sorguyu her zaman
+  uygulama çalıştırır. Modelden gelen süzgeç de kural ayrıştırıcısından
+  geleni de aynı `sorguDogrula`'dan geçer: tanımsız alan sessizce atılır,
+  izinsiz hedef reddedilir. **Anlaşılmayan cümle yanlış listeye götürmez.**
+- **AI EYLEMDİR, OKUMA DEĞİL:** `ai.kullan` salt okunur rolde YOKTUR (özet
+  istemek dış servise istek gönderir). `ai.yonet` yöneticidedir ve
+  açma/kapama denetim günlüğüne düşer.
+- **KULLANIM DEFTERİ** (`AiKullanim`) sözü geriye dönük denetlenebilir kılar;
+  istemin ve yanıtın METNİ saklanmaz.
+
 ### Birleşik Çalışma Ekranı (Faz 20)
 
 - **ARAMA VE EYLEMLER TEK KAYIT DEFTERİNDEN** gelir
@@ -655,7 +696,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**697 kontrol**.
+**753 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -663,10 +704,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (449 test, ~13 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (492 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı, gerçek tarayıcı (sunucu çalışırken, 227)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI, gerçek tarayıcı (sunucu çalışırken, 240)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -756,7 +797,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | ✅ tamamlandı |
 | 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | ✅ tamamlandı |
 | 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | ✅ tamamlandı |
-| 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | planlandı |
+| 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | ✅ tamamlandı |
 
 Faz tamamlandıkça bu tablodaki **Durum** sütunu güncellenir.
 
@@ -900,6 +941,14 @@ etkiliyor.
   ekranda toplayan çalışma ekranı (sipariş, proje, destek ve ziyaret ilk kez
   firma ekranına bağlandı; seçilmeyen sekme HİÇ sorgulanmaz); teklif ve
   sipariş detayında fırsat → teklif → sipariş → sevkiyat zincir şeridi.
+- **v1.21.0** — **Faz 21:** AI özellikleri. Kiracının KENDİ kapanmış
+  işlerinden hesaplanan, tıklanınca gerekçesini açan fırsat ve aday skoru
+  (dış çağrı yok, az örnekte "güvenilir değil" der); veriden üretilen ve
+  istenirse dil modeliyle paragraf hâline getirilen firma özeti; modele
+  yalnızca CÜMLE gönderen, süzgeç üretip sorguyu uygulamaya çalıştıran doğal
+  dilde sorgu (tanıdık kalıplar model olmadan da çözülür); açma/kapama,
+  gönderilen-gönderilmeyen listesi ve kullanım defteriyle `/ai` ayar ekranı.
+  KVKK metni `2026-08-4`e çıkarıldı. **Yol haritasının 21 fazı tamamlandı.**
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"
