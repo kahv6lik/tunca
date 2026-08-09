@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.18.0` — Faz 18: rapor merkezi, mali raporlar, firma dosyası |
-| **Sıradaki faz** | **Faz 19** — Anket tanımı, gönderim, yanıt toplama, rapor (`v1.19.0`) |
-| **Sonrası** | Faz 20: birleşik çalışma ekranı · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.19.0` — Faz 19: anket, oturumsuz yanıt toplama, NPS |
+| **Sıradaki faz** | **Faz 20** — Birleşik çalışma ekranı: komut paleti, yan panel (`v1.20.0`) |
+| **Sonrası** | Faz 21: AI (skorlama, özet, doğal dilde sorgu) |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -153,7 +153,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | ✅ tamamlandı | — |
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | ✅ tamamlandı | — |
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | ✅ tamamlandı | — |
-| 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | planlandı | |
+| 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | ✅ tamamlandı | — |
 | 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | planlandı | |
 | 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | planlandı | |
 
@@ -1300,22 +1300,56 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ## Faz 19 — Anket → `v1.19.0`
 
-- [ ] **N1 — Anket tanımı.** Başlık, açıklama, sorular (metin, çoktan
+- [x] **N1 — Anket tanımı.** Başlık, açıklama, sorular (metin, çoktan
       seçmeli, ölçek 1-5/1-10, evet-hayır), zorunluluk, sıra.
-- [ ] **N2 — Anket gönderimi.** Seçili firmalara/kontaklara e-postayla
+- [x] **N2 — Anket gönderimi.** Seçili firmalara/kontaklara e-postayla
       **kişiye özel bağlantı**. Bağlantı token'lıdır; token saklanmaz,
       yalnızca sha256 özeti tutulur (davet akışı deseni).
-- [ ] **N3 — Yanıt toplama.** Anket sayfası **oturum gerektirmez** —
+- [x] **N3 — Yanıt toplama.** Anket sayfası **oturum gerektirmez** —
       müşteri uygulamanın kullanıcısı değildir. Bu, kiracı sınırının
       **beşinci dar kapısıdır** ve tek bir dosyada toplanır
       (`anket-db.ts`); regresyon testi bunu denetler.
-- [ ] **N4 — Anket raporu.** Soru bazında dağılım, NPS/memnuniyet skoru,
+- [x] **N4 — Anket raporu.** Soru bazında dağılım, NPS/memnuniyet skoru,
       firma kırılımı, yanıtlama oranı, tarih aralığı.
 
-### Açık sorular
-- Anket yanıtları **anonim** mi olacak, yoksa kimin yanıtladığı görünecek mi?
-  Anonimse aydınlatma metninde bu söz verilmeli ve teknik olarak da
-  tutulmamalı (yanıt satırında kontak bağlantısı olmaz).
+### Açık sorular — YANITLANDI
+
+- Anket yanıtları **anonim** mi olacak? **KARAR: ANKETE GÖRE SEÇİLİR**
+  (v1.19.0). Anket tanımında bir `anonim` bayrağı vardır ve söz ARAYÜZDE
+  DEĞİL VERİDE tutulur: anonim ankette yanıt satırına `gonderimId` ve
+  `firmaId` HİÇ yazılmaz, yani sonradan "kim yanıtladı" diye sorulamaz.
+  Aydınlatma metnine "Anket yanıtları" bölümü eklendi ve metin sürümü
+  `2026-08-3`e çıkarıldı — herkesten yeniden rıza istenir. ✅
+- **Bağlantı ömrü: anketin bitiş tarihine kadar, TEK KULLANIMLIK** (v1.19.0).
+  Yanıtlandıktan sonra kapanır; geç kalan katılımcı teknik bir hata değil,
+  açık bir "anket kapandı" mesajı görür. ✅
+
+### Uygulama notları (v1.19.0)
+
+1. **BEŞİNCİ DAR KAPI: `anket-db.ts`** (`app.anket` bağlamı). Anketi dolduran
+   kişi uygulamanın kullanıcısı DEĞİLDİR; hesabı yoktur ve olmayacaktır.
+   Kapsam yalnızca dört anket tablosudur: anket ve soru SALT OKUNUR, yanıt
+   yalnızca YAZILIR (okunmaz — dolduran kişi başkalarının yanıtını göremez).
+   İş verisine hiçbir erişim yoktur. Regresyon testi hem bağlamın bu dosyanın
+   dışında kullanılmadığını hem de `/anket` sayfasının kiracı katmanını hiç
+   çağırmadığını denetler.
+2. **Anonimlik VERİDE tutulur, arayüzde değil.** Bir onay kutusunun sözü
+   ancak yazılmayan bir sütunla gerçek olur. Tarayıcı kontrolü de bunu
+   arayüz metninden değil VERİTABANINDAN doğrular: anonim ankette
+   kimlik bağlı yanıt sayısı sıfır olmalıdır.
+3. **Anonimlik yayından sonra DEĞİŞTİRİLEMEZ.** Toplanmış yanıtlar o karara
+   göre yazıldı; bayrağı sonradan çevirmek ya raporu tutarsızlaştırır ya da
+   verilmemiş bir sözü verilmiş gibi gösterir.
+4. **Token saklanmaz, sha256 özeti tutulur** (davet akışının aynı deseni) ve
+   bağlantı tek kullanımlıktır.
+5. **Yanıt toplanmış ankette soru değiştirilemez:** sonradan eklenen bir soru
+   önceki yanıtlayanlarda boş kalır ve yanıtlama oranını anlamsızlaştırır.
+6. **NPS standart eşiklerle** hesaplanır (9-10 destekçi, 7-8 nötr, 0-6
+   kötüleyen). Kendi eşiğimizi koymak rakamı sektör kıyaslamasından koparırdı.
+7. **Serbest metin yanıtlar GRAFİĞE dökülmez**, olduğu gibi listelenir: her
+   yanıt biriciktir ve "dağılım" göstermek her sütunu 1 yapardı.
+8. **Anket raporu merkeze BAĞLANDI, kopyalanmadı** (Faz 18 deseni): rapor
+   anket bazındadır, hangi anketin sonucuna bakılacağı listeden seçilir.
 
 ---
 

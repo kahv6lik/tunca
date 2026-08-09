@@ -1405,6 +1405,118 @@ async function main() {
     !uyeMerkez.url.includes("/yetkisiz")
   );
 
+  // 23 — Faz 19: anket, oturumsuz yanıtlama ve anonimlik
+  console.log("\n23. Faz 19 — anket ve anonim yanıt toplama");
+
+  const anketler = await sayfaGetir("admin@gezegen.com", "admin123", "/anketler");
+  kontrol(
+    "Anket listesi açılıyor",
+    !anketler.url.includes("/yetkisiz") && anketler.govde.includes("Müşteri Memnuniyeti")
+  );
+  kontrol("Anonim anket listede işaretli", anketler.govde.includes("anonim"));
+
+  const anonimAnket = await prisma.anket.findFirst({
+    where: { tenant: { slug: "gezegen" }, anonim: true },
+    select: { id: true },
+  });
+  if (anonimAnket) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/anketler/${anonimAnket.id}`
+    );
+    kontrol(
+      "Anonim ankette 'ne yanıtladığı bilinmez' uyarısı var",
+      detay.govde.includes("NE yanıtladığı bilinmez")
+    );
+
+    const rapor = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/anketler/${anonimAnket.id}/rapor`
+    );
+    kontrol(
+      "Anket raporu NPS gösteriyor",
+      !rapor.url.includes("/yetkisiz") && rapor.govde.includes("NPS")
+    );
+    kontrol(
+      "Anonim raporda firma kırılımı ÜRETİLEMEZ diye yazıyor",
+      rapor.govde.includes("kırılım teknik olarak üretilemez")
+    );
+
+    /**
+     * ANONİMLİĞİN VERİDEKİ KARŞILIĞI: yanıt satırlarında kimlik bağı
+     * OLMAMALIDIR. Arayüzdeki uyarı değil, bu kontrol asıl kanıttır.
+     */
+    const kimlikliYanit = await prisma.anketYanit.count({
+      where: {
+        anketId: anonimAnket.id,
+        OR: [{ gonderimId: { not: null } }, { firmaId: { not: null } }],
+      },
+    });
+    kontrol(
+      "Anonim ankette yanıtlar kişiye/firmaya BAĞLI DEĞİL (veride)",
+      kimlikliYanit === 0,
+      `kimlikli yanıt: ${kimlikliYanit}`
+    );
+  }
+
+  // Kimlikli ankette bağ VARDIR — anonimlik bayrağı gerçekten fark yaratıyor.
+  const kimlikliAnket = await prisma.anket.findFirst({
+    where: { tenant: { slug: "gezegen" }, anonim: false },
+    select: { id: true },
+  });
+  if (kimlikliAnket) {
+    const bagliYanit = await prisma.anketYanit.count({
+      where: { anketId: kimlikliAnket.id, gonderimId: { not: null } },
+    });
+    kontrol(
+      "Kimlikli ankette yanıtlar gönderime BAĞLI",
+      bagliYanit > 0,
+      `bağlı yanıt: ${bagliYanit}`
+    );
+  }
+
+  // OTURUMSUZ yanıt sayfası: giriş yapmadan açılmalı ve /login'e DÜŞMEMELİ.
+  const ctxAnket = await browser.newContext();
+  const anketSayfa = await ctxAnket.newPage();
+  await anketSayfa.goto(`${BASE}/anket/gecersiz-token`, {
+    waitUntil: "domcontentloaded",
+  });
+  await anketSayfa.waitForTimeout(1200);
+  const anketUrl = anketSayfa.url();
+  const anketGovde = await anketSayfa.locator("body").innerText();
+  await ctxAnket.close();
+
+  kontrol(
+    "Anket sayfası OTURUMSUZ açılıyor (giriş istemiyor)",
+    !anketUrl.includes("/login"),
+    anketUrl
+  );
+  kontrol(
+    "Geçersiz token hiçbir bilgi sızdırmıyor",
+    anketGovde.includes("Bağlantı geçersiz") &&
+      !anketGovde.includes("Gezegen Danışmanlık")
+  );
+
+  // Yetki ayrımı: üye anketi görür ve gönderir, TANIMLAYAMAZ.
+  const uyeAnket = await sayfaGetir("kullanici@gezegen.com", "user123", "/anketler");
+  kontrol(
+    "Üye anket listesini görüyor",
+    !uyeAnket.url.includes("/yetkisiz")
+  );
+  kontrol(
+    "Üye 'Yeni Anket' düğmesini GÖRMÜYOR (tanım yöneticinin işi)",
+    !uyeAnket.govde.includes("Yeni Anket")
+  );
+
+  // Kiracı sınırı.
+  const anadoluAnket = await sayfaGetir("admin@anadolu.com", "anadolu123", "/anketler");
+  kontrol(
+    "Komşu kiracı Gezegen'in anketlerini GÖRMÜYOR",
+    !anadoluAnket.govde.includes("Müşteri Memnuniyeti")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

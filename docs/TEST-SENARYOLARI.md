@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.19.0** | **Faz 19** — Anket tanımı, kişiye özel token'lı gönderim, OTURUMSUZ yanıt sayfası, anonimlik ve NPS raporu | Bir anket yayınla → kontaklara **Gönder** → gelen bağlantıyı GİRİŞ YAPMADAN aç ve doldur → **Sonuçlar** | Bağlantı giriş istemez ve bir kez çalışır; anonim ankette yanıt kişiye/firmaya bağlanmaz (veritabanında da bağ yoktur); rapor NPS ve yanıtlama oranını gösterir | 662 |
 | **v1.18.0** | **Faz 18** — Rapor merkezi, mali/satış/aktivite/ürün raporları, tek belgede firma dosyası (PDF) | `/raporlar`da **Bu çeyrek**'i seç → **Mali Rapor**'a gir → firma detayında **Dosya (PDF)** | Seçilen dönem raporlara taşınır; ciro yalnızca onaylı siparişten gelir ve beklenen tahsilat açıkça "tahmin" diye etiketlenir; firma dosyası izni olan modülleri tek belgede toplar | 626 |
 | **v1.17.0** | **Faz 17** — Dosya/fotoğraf eki (içerik doğrulamalı, kotalı), firma konumu, saha ziyareti ve konum doğrulama | Firma detayında **Fotoğraf** ile bir görsel yükle → `/ziyaretler`de **Konumumu al** + **Ziyareti Başlat** → sonra **Ziyareti Bitir** | Ek listede önizlemeyle çıkar; uzantısı değiştirilmiş dosya reddedilir; ziyaret yeşil/kırmızı/sarı işaretlenir, süre kendiliğinden hesaplanır ve firma zaman akışına aktivite düşer | 587 |
 | **v1.16.0** | **Faz 16** — Proje, destek kaydı (kanal/öncelik/atama/işlem geçmişi), destek raporu, SSS bilgi bankası | `/destek` → yeni kayıt aç → işlem ekle → durumu **Çözüldü** yap → `/destek/rapor` | Kayıt `DST-YIL-0001` numarasını alır; işlem hem destek geçmişinde hem firma zaman akışında görünür; çözüm tarihi ELLE girilmeden damgalanır ve raporda ortalama çözüm süresine yansır | 539 |
@@ -284,6 +285,35 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
 | 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
 | 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
+
+---
+
+### v1.19.0 — Anket ve oturumsuz yanıt toplama (Faz 19)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/anketler` → **Yeni Anket** (anonim işaretli) | Anket taslak olarak açılır; anonim rozeti listede görünür |
+| 2 | Soru ekle: ölçek 0-10, çoktan seçmeli, serbest metin | Seçenek alanı YALNIZCA çoktan seçmelide çıkar |
+| 3 | Çoktan seçmeliye tek seçenek gir | "En az iki seçenek girin" |
+| 4 | Anketi **Yayında** yap → **Gönder** | Kontak listesi açılır; e-postasız kontaklar listede yok |
+| 5 | Aynı kişiye ikinci kez göndermeyi dene | Kişi "gönderildi" işaretli ve seçilemez |
+| 6 | Taslak ankette **Gönder** | "Yalnızca yayındaki anketler gönderilebilir" |
+| 7 | Sorusuz ankette **Gönder** | "Sorusuz anket gönderilemez" |
+| 8 | E-postadaki bağlantıyı **gizli pencerede** (giriş yapmadan) aç | Anket açılır — giriş İSTEMEZ |
+| 9 | Anonim ankette sayfanın başına bak | "Bu anket anonimdir: yanıtlarınız adınıza veya firmanıza bağlanmaz" |
+| 10 | Zorunlu soruyu boş bırakıp gönder | Soru adıyla birlikte hata; hiçbir yanıt kaydedilmez |
+| 11 | Yanıtları gönder | Teşekkür ekranı çıkar |
+| 12 | AYNI bağlantıyı yeniden aç | "Bu anketi daha önce yanıtladınız" — tek kullanımlık |
+| 13 | Anketin bitiş tarihini geçmişe çekip bağlantıyı aç | "Yanıtlama süresi dolmuştur" (ayrı mesaj) |
+| 14 | Uydurma bir token ile `/anket/xyz` aç | "Bağlantı geçersiz" — kuruluş adı bile görünmez |
+| 15 | Ankette **Sonuçlar** | Yanıtlama oranı, NPS, soru bazında dağılım |
+| 16 | Anonim raporda firma kırılımına bak | "Kırılım teknik olarak üretilemez" — veri yoktur |
+| 17 | Kimlikli ankette aynı yere bak | Firma kırılımı dolu gelir |
+| 18 | Yayınlanmış ankette anonimliği değiştirmeyi dene | Alan kilitli; sunucu da reddeder |
+| 19 | Yanıt gelmiş ankete soru eklemeyi dene | "Yanıt toplanmış ankete yeni soru eklenemez" |
+| 20 | Üye hesabıyla `/anketler` | Liste açılır, **Yeni Anket** düğmesi YOK |
+| 21 | `/kvkk` aydınlatma metni | "Anket yanıtları" bölümü var; sürüm `2026-08-3` |
+| 22 | `admin@anadolu.com` ile `/anketler` | Gezegen'in anketleri görünmez |
 
 ---
 

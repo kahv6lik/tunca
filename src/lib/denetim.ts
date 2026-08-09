@@ -45,7 +45,10 @@ export type DenetimVarligi =
   | "Sss"
   // Faz 17 — dosya eki ve saha ziyareti
   | "Dosya"
-  | "Ziyaret";
+  | "Ziyaret"
+  // Faz 19 — anket
+  | "Anket"
+  | "AnketGonderim";
 
 export const VARLIK_ETIKET: Record<string, string> = {
   Firma: "Firma",

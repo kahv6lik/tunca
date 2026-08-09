@@ -679,6 +679,137 @@ async function sahaVerisi(tenantId: string) {
   console.log("✅ Saha verisi: 3 firmaya koordinat, 3 ziyaret (yerinde / uzak / doğrulanamadı).");
 }
 
+/**
+ * Anket demo verisi (Faz 19).
+ *
+ * İKİ ANKET üretilir: biri ANONİM (memnuniyet), biri KİMLİKLİ (eğitim geri
+ * bildirimi). Anonimliğin veri katmanındaki karşılığı demo veride de
+ * görülmeli — anonim ankette yanıt satırlarında gonderimId ve firmaId
+ * YAZILMAZ, kimliklide yazılır.
+ */
+async function anketVerisi(tenantId: string) {
+  const mevcut = await prisma.anket.count({ where: { tenantId } });
+  if (mevcut > 0) {
+    console.log("ℹ️  Anket verisi zaten var, üretim atlanıyor.");
+    return;
+  }
+
+  const kisiler = await prisma.kisi.findMany({
+    where: { tenantId, email: { not: null } },
+    take: 12,
+    select: { id: true, ad: true, email: true, firmaId: true },
+  });
+  if (kisiler.length === 0) return;
+
+  const anketler = [
+    {
+      baslik: "2026 Müşteri Memnuniyeti",
+      aciklama: "Hizmetlerimizi değerlendirmeniz bizim için değerli.",
+      anonim: true,
+      sorular: [
+        { tip: "olcek10", metin: "Bizi bir iş ortağınıza tavsiye eder misiniz?", zorunlu: true, secenekler: [] as string[] },
+        { tip: "olcek5", metin: "Genel memnuniyetiniz", zorunlu: true, secenekler: [] as string[] },
+        { tip: "coktan", metin: "Hangi hizmetimizi kullanıyorsunuz?", zorunlu: false, secenekler: ["Danışmanlık", "Eğitim", "Yazılım", "Diğer"] },
+        { tip: "metin", metin: "Eklemek istedikleriniz", zorunlu: false, secenekler: [] as string[] },
+      ],
+    },
+    {
+      baslik: "Eğitim Geri Bildirimi",
+      aciklama: "Katıldığınız eğitim hakkındaki görüşleriniz.",
+      anonim: false,
+      sorular: [
+        { tip: "olcek5", metin: "Eğitimin içeriği beklentinizi karşıladı mı?", zorunlu: true, secenekler: [] as string[] },
+        { tip: "evethayir", metin: "Eğitimi başkalarına önerir misiniz?", zorunlu: true, secenekler: [] as string[] },
+        { tip: "metin", metin: "Görüşleriniz", zorunlu: false, secenekler: [] as string[] },
+      ],
+    },
+  ];
+
+  for (const [ai, a] of anketler.entries()) {
+    const anket = await prisma.anket.create({
+      data: {
+        tenantId,
+        baslik: a.baslik,
+        aciklama: a.aciklama,
+        anonim: a.anonim,
+        durum: "yayinda",
+        bitisTarihi: new Date(Date.now() + 30 * 86_400_000),
+      },
+    });
+
+    const soruIdler: string[] = [];
+    for (const [si, soru] of a.sorular.entries()) {
+      const kayit = await prisma.anketSorusu.create({
+        data: {
+          tenantId,
+          anketId: anket.id,
+          sira: si,
+          tip: soru.tip,
+          metin: soru.metin,
+          secenekler: soru.secenekler,
+          zorunlu: soru.zorunlu,
+        },
+      });
+      soruIdler.push(kayit.id);
+    }
+
+    // Altı kişiye gönderilir, dördü yanıtlar — yanıtlama oranı demo veride
+    // de %100 olmasın ki rapor gerçekçi görünsün.
+    const alicilar = kisiler.slice(ai * 6, ai * 6 + 6);
+    for (const [ki, kisi] of alicilar.entries()) {
+      const yanitladi = ki < 4;
+      const gonderim = await prisma.anketGonderim.create({
+        data: {
+          tenantId,
+          anketId: anket.id,
+          firmaId: kisi.firmaId,
+          kisiId: kisi.id,
+          ad: kisi.ad,
+          email: kisi.email!,
+          // Demo veride token'ın kendisi hiç üretilmez; yalnızca benzersiz
+          // bir özet yazılır — bağlantı zaten gönderilmedi.
+          tokenOzeti: `demo-${anket.id}-${kisi.id}`,
+          gonderimTarihi: new Date(Date.now() - (10 - ki) * 86_400_000),
+          yanitTarihi: yanitladi
+            ? new Date(Date.now() - (8 - ki) * 86_400_000)
+            : null,
+        },
+      });
+
+      if (!yanitladi) continue;
+
+      const grup = `demo-grup-${anket.id}-${ki}`;
+      for (const [si, soru] of a.sorular.entries()) {
+        const deger =
+          soru.tip === "olcek10"
+            ? String([10, 9, 7, 4][ki % 4])
+            : soru.tip === "olcek5"
+              ? String([5, 4, 4, 3][ki % 4])
+              : soru.tip === "evethayir"
+                ? (ki % 3 === 0 ? "hayir" : "evet")
+                : soru.tip === "coktan"
+                  ? soru.secenekler[ki % soru.secenekler.length]
+                  : ["Ekip çok ilgili.", "Süreç biraz yavaş ilerledi.", "Memnunuz.", "Raporlama geliştirilebilir."][ki % 4];
+
+        await prisma.anketYanit.create({
+          data: {
+            tenantId,
+            anketId: anket.id,
+            soruId: soruIdler[si],
+            // ANONİM ANKETTE KİMLİK BAĞI YAZILMAZ.
+            gonderimId: a.anonim ? null : gonderim.id,
+            firmaId: a.anonim ? null : kisi.firmaId,
+            yanitGrubu: grup,
+            deger,
+          },
+        });
+      }
+    }
+  }
+
+  console.log("✅ Anket verisi: 2 anket (1 anonim), 12 gönderim, 8 yanıt.");
+}
+
 async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   const mevcut = await prisma.firma.count({ where: { tenantId } });
   if (mevcut > 0) {
@@ -1014,7 +1145,7 @@ async function paketleriKur() {
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
-        "dosya", "ziyaret",
+        "dosya", "ziyaret", "anket",
       ],
     },
     {
@@ -1032,7 +1163,7 @@ async function paketleriKur() {
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
         "proje", "destek", "sss",
-        "dosya", "ziyaret",
+        "dosya", "ziyaret", "anket",
       ],
     },
   ];
@@ -1149,6 +1280,7 @@ async function main() {
   if (ticariUrunler) await siparisVerisi(gezegen.id, ticariUrunler);
   await projeDestekVerisi(gezegen.id);
   await sahaVerisi(gezegen.id);
+  await anketVerisi(gezegen.id);
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");

@@ -139,6 +139,13 @@ export const IZIN = {
   ziyaretGoruntule: "ziyaret.goruntule",
   ziyaretOlustur: "ziyaret.olustur",
 
+  // ── Faz 19: anket ───────────────────────────────────────────────────────
+  // GÖNDERMEK ayrı bir izindir: anket müşteriye giden bir e-postadır ve
+  // yanlış zamanda gönderilen bir anket geri alınamaz.
+  anketGoruntule: "anket.goruntule",
+  anketYonet: "anket.yonet",
+  anketGonder: "anket.gonder",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -226,6 +233,9 @@ export const IZIN_ETIKET: Record<string, string> = {
   "dosya.sil": "Dosya eki sil",
   "ziyaret.goruntule": "Saha ziyaretlerini görüntüle",
   "ziyaret.olustur": "Saha ziyareti başlat ve bitir",
+  "anket.goruntule": "Anketleri ve sonuçlarını görüntüle",
+  "anket.yonet": "Anket tanımla ve düzenle",
+  "anket.gonder": "Anketi müşteriye gönder",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -275,6 +285,10 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
     ad: "Saha Ziyaretleri",
     izinler: [IZIN.ziyaretGoruntule, IZIN.ziyaretOlustur],
   },
+  {
+    ad: "Anketler",
+    izinler: [IZIN.anketGoruntule, IZIN.anketYonet, IZIN.anketGonder],
+  },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
@@ -323,6 +337,8 @@ const GORUNTULEME: Izin[] = [
   // Faz 17: eki ve ziyaret geçmişini GÖRMEK okuma işidir.
   IZIN.dosyaGoruntule,
   IZIN.ziyaretGoruntule,
+  // Faz 19: anket sonuçlarını görmek okuma işidir.
+  IZIN.anketGoruntule,
 ];
 
 const IS_VERISI_TAM: Izin[] = [
@@ -354,6 +370,9 @@ const IS_VERISI_TAM: Izin[] = [
   // ek bir kanıttır, yanlış yüklenen dosyayı yönetici kaldırır.
   IZIN.dosyaYukle,
   IZIN.ziyaretOlustur,
+  // Faz 19: anketi GÖNDERMEK saha/satış işidir; TANIMLAMAK kuruluşun
+  // müşteriye sorduğu soruyu belirlemektir ve yöneticidedir.
+  IZIN.anketGonder,
 ];
 
 /**
@@ -392,6 +411,8 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.sssYonet,
     // Faz 17: eki silmek geri alınamaz; yöneticidedir.
     IZIN.dosyaSil,
+    // Faz 19: anket sorusu kuruluşun müşteriye verdiği yüzdür.
+    IZIN.anketYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

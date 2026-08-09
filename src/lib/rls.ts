@@ -27,7 +27,8 @@ type Baglam =
   | { tur: "kiraci"; tenantId: string }
   | { tur: "yonetim" }
   | { tur: "kimlik" }
-  | { tur: "giris" };
+  | { tur: "giris" }
+  | { tur: "anket" };
 
 function ayarIfadesi(istemci: PrismaClient, baglam: Baglam) {
   switch (baglam.tur) {
@@ -39,6 +40,8 @@ function ayarIfadesi(istemci: PrismaClient, baglam: Baglam) {
       return istemci.$executeRaw`SELECT set_config('app.kimlik_dogrulama', 'evet', true)`;
     case "giris":
       return istemci.$executeRaw`SELECT set_config('app.giris', 'evet', true)`;
+    case "anket":
+      return istemci.$executeRaw`SELECT set_config('app.anket', 'evet', true)`;
   }
 }
 
@@ -101,4 +104,19 @@ export function kimlikIstemcisi(temel?: PrismaClient) {
  */
 export function girisIstemcisi(temel?: PrismaClient) {
   return rlsIstemcisi({ tur: "giris" }, temel);
+}
+
+/**
+ * Anket yanıtlama (Faz 19 / N3) — oturumsuz erişim.
+ *
+ * Anketi dolduran kişi uygulamanın kullanıcısı DEĞİLDİR; hesabı yoktur ve
+ * olmayacaktır. Kiracı bağlamı kurulamadığı için bu beşinci dar kapı açıldı.
+ *
+ * Kapsamı DARDIR: yalnızca dört anket tablosu. Anket ve soru SALT OKUNUR,
+ * yanıt yalnızca YAZILIR (okunmaz — dolduran kişi başkalarının yanıtını
+ * göremez). TEK kullanıcısı `src/lib/anket-db.ts`'tir; regresyon testi bunu
+ * denetler.
+ */
+export function anketIstemcisi(temel?: PrismaClient) {
+  return rlsIstemcisi({ tur: "anket" }, temel);
 }

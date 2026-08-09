@@ -9,7 +9,9 @@
  * onay istenir — "bir kere onayladı" savunması, değişen bir metin için
  * geçerli değildir.
  */
-export const KVKK_SURUM = "2026-08-2";
+// Sürüm arttığında herkesten YENİDEN RIZA istenir. "2026-08-3": anket
+// yanıtları bölümü eklendi (Faz 19).
+export const KVKK_SURUM = "2026-08-3";
 
 export const KVKK_BASLIK = "Kişisel Verilerin Korunması Aydınlatma Metni";
 
@@ -51,6 +53,22 @@ export const KVKK_METNI: KvkkBolum[] = [
         "çalışanın işini yapmasını engellemez.",
       "Konum kayıtları, kuruluşun belirlediği saklama süresine tabidir ve süre " +
         "dolduğunda diğer kayıtlarla birlikte silinir.",
+    ],
+  },
+  {
+    baslik: "Anket yanıtları",
+    govde: [
+      "Kuruluş, müşterilerine ve müşteri çalışanlarına e-posta ile anket " +
+        "gönderebilir. Anket bağlantısı kişiye özeldir, bir kez kullanılabilir " +
+        "ve anketin bitiş tarihine kadar geçerlidir.",
+      "Anket ANONİM olarak işaretlenmişse, verilen yanıtlar kişiye ve firmaya " +
+        "BAĞLANMAZ: yanıt kaydında hiçbir kimlik bilgisi tutulmaz ve kimin ne " +
+        "yanıtladığı sonradan da tespit edilemez. Bu durumda yalnızca ankete " +
+        "kaç kişiye gönderildiği ve kaçının yanıtladığı bilinir.",
+      "Anket anonim değilse, yanıtlar gönderildiği kişiye ve firmaya bağlı " +
+        "olarak saklanır; anketin başında bu durum katılımcıya bildirilir.",
+      "Anket yanıtları, kuruluşun belirlediği saklama süresine tabidir ve süre " +
+        "dolduğunda silinir.",
     ],
   },
   {

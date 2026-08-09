@@ -31,6 +31,7 @@ import {
   LifeBuoy,
   HelpCircle,
   MapPin,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -93,6 +94,8 @@ export const NAV: NavItem[] = [
   { href: "/sss", label: "SSS", icon: HelpCircle, izin: "sss.goruntule" },
   // Faz 17 — saha çalışması
   { href: "/ziyaretler", label: "Ziyaretler", icon: MapPin, izin: "ziyaret.goruntule" },
+  // Faz 19 — anket
+  { href: "/anketler", label: "Anketler", icon: ClipboardList, izin: "anket.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },

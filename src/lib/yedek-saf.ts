@@ -102,6 +102,14 @@ const MODELLER = [
   "siparis",
   "siparisKalemi",
   "sevkiyat",
+  // Faz 19 — anket. Sıra FK'ye bağlıdır: anket sorudan, soru gönderimden ve
+  // yanıttan önce gelir. GÖNDERİM TOKEN ÖZETİ de yedeğe girer; geri
+  // yüklendiğinde eski bağlantılar çalışmaya devam eder (özet tekildir,
+  // çakışırsa satır atlanır — geri yükleme ekleyicidir).
+  "anket",
+  "anketSorusu",
+  "anketGonderim",
+  "anketYanit",
 ] as const;
 
 type YedekModeli = (typeof MODELLER)[number];
@@ -137,6 +145,10 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   siparis: ["onayTarihi", "createdAt", "updatedAt"],
   siparisKalemi: [],
   sevkiyat: ["sevkTarihi", "teslimTarihi", "createdAt", "updatedAt"],
+  anket: ["bitisTarihi", "createdAt", "updatedAt"],
+  anketSorusu: [],
+  anketGonderim: ["gonderimTarihi", "yanitTarihi", "createdAt"],
+  anketYanit: ["createdAt"],
 };
 
 export type YedekIcerigi = {

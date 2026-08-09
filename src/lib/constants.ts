@@ -160,6 +160,8 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   islemde: { label: "İşlemde", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
   cozuldu: { label: "Çözüldü", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
   kapandi: { label: "Kapandı", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
+  // Faz 19 — anket
+  yayinda: { label: "Yayında", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
   sevkedildi: { label: "Sevk Edildi", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
   teslim: { label: "Teslim Edildi", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
 };
@@ -327,6 +329,8 @@ export const PAKET_MODULLERI = [
   // dosya eki kullanır ama saha ziyareti kaydetmez.
   { deger: "dosya", etiket: "Dosya Ekleri", izin: "dosya.goruntule" },
   { deger: "ziyaret", etiket: "Saha Ziyaretleri", izin: "ziyaret.goruntule" },
+  // Faz 19 — anket
+  { deger: "anket", etiket: "Anketler", izin: "anket.goruntule" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];

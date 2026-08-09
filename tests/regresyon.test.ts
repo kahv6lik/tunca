@@ -38,6 +38,7 @@ const IZINLI = [
   "src/lib/zamanlanmis.ts", // Faz 8: zamanlanmış işler, oturumsuz (tek kapı)
   "src/lib/giris-guvenlik.ts", // Faz 12: giriş güvenliği, oturum öncesi (tek kapı)
   "src/lib/iki-faktor.ts", // Faz 12: yedek kod tüketimi, oturum öncesi
+  "src/lib/anket-db.ts", // Faz 19: anket yanıtlama, oturumsuz (beşinci dar kapı)
 ];
 
 /**
@@ -63,6 +64,19 @@ const GIRIS_BAGLAMI_IZINLI = [
   "src/lib/rls.ts", // bağlamı tanımlayan dosya
   "src/lib/giris-guvenlik.ts",
   "src/lib/iki-faktor.ts",
+];
+
+/**
+ * Anket bağlamı (`anketIstemcisi`) OTURUMSUZ erişim verir: anketi dolduran
+ * kişi uygulamanın kullanıcısı değildir (Faz 19 / N3). Kapsamı yalnızca dört
+ * anket tablosudur; anket ve soru salt okunur, yanıt yalnızca yazılır.
+ *
+ * BU LİSTE İKİ DOSYADAN UZUN OLMAMALIDIR. Uzuyorsa, oturumsuz erişim
+ * uygulamaya sızıyor demektir ve durup düşünmek gerekir.
+ */
+const ANKET_BAGLAMI_IZINLI = [
+  "src/lib/rls.ts", // bağlamı tanımlayan dosya
+  "src/lib/anket-db.ts",
 ];
 
 describe("Veri erişimi kiracı katmanından geçiyor", () => {
@@ -131,6 +145,36 @@ describe("Platform katmanı kiracı sınırını dar bir kapıdan aşıyor (Faz 
       "Giriş bağlamı kimlik doğrulanmadan yazma yapar; yalnızca\n" +
         "giris-guvenlik.ts üzerinden kullanılmalıdır.\nİhlaller:\n" + ihlaller.join("\n")
     ).toEqual([]);
+  });
+
+  it("anket bağlamı yalnızca anket-db.ts içinde kullanılıyor (Faz 19)", () => {
+    const ihlaller = KAYNAK_DOSYALAR.filter(
+      (d) =>
+        !ANKET_BAGLAMI_IZINLI.includes(d) &&
+        /\banketIstemcisi\s*\(/.test(readFileSync(d, "utf8"))
+    );
+
+    expect(
+      ihlaller,
+      "Anket bağlamı oturumsuz erişim verir; yalnızca anket-db.ts\n" +
+        "üzerinden kullanılmalıdır.\nİhlaller:\n" + ihlaller.join("\n")
+    ).toEqual([]);
+    expect(ANKET_BAGLAMI_IZINLI.length, "dar kapı genişliyor").toBeLessThanOrEqual(2);
+  });
+
+  it("anket yanıtlama sayfası yalnızca anket katmanını kullanıyor (Faz 19)", () => {
+    // Oturumsuz sayfa iş verisine dokunmamalı: kiracı katmanı bile
+    // çağrılmamalı, çünkü orada oturum yoktur ve çağrı hata verirdi.
+    const dosyalar = KAYNAK_DOSYALAR.filter((d) => d.startsWith("src/app/anket/"));
+    expect(dosyalar.length, "anket sayfası bulunamadı").toBeGreaterThanOrEqual(2);
+
+    for (const d of dosyalar) {
+      const icerik = readFileSync(d, "utf8");
+      expect(
+        /getTenantDb|getTenantContext|requireSession/.test(icerik),
+        `${d}: oturumsuz sayfa kiracı katmanını çağırıyor`
+      ).toBe(false);
+    }
   });
 
   it("admin panelinin her sayfası platform kapısından geçiyor", () => {
@@ -303,6 +347,11 @@ describe("Yedek kapsamı şemayla tutarlı (Faz 16)", () => {
       ["siparisKalemi", "siparis"],
       ["sevkiyat", "siparis"],
       ["ozelAlanDeger", "ozelAlan"],
+      // Faz 19 — anket zinciri
+      ["anketSorusu", "anket"],
+      ["anketGonderim", "anket"],
+      ["anketYanit", "anketSorusu"],
+      ["anketYanit", "anketGonderim"],
     ];
 
     for (const [bagimli, once] of bagimliliklar) {

@@ -47,6 +47,7 @@ prisma/
                        # KampanyaKullanim, StokHareketi,
                        # Siparis, SiparisKalemi, Sevkiyat, BelgeSayac,
                        # Proje, DestekKaydi, Sss, Dosya, Ziyaret,
+                       # Anket, AnketSorusu, AnketGonderim, AnketYanit,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -59,6 +60,7 @@ src/
     davet/[token]/     # davet kabul — giriş gerektirmez (Faz 5)
     sifremi-unuttum/   # şifre sıfırlama isteği — giriş gerektirmez (Faz 12)
     sifre-sifirla/[token]/  # yeni şifre belirleme — giriş gerektirmez (Faz 12)
+    anket/[token]/     # anket yanıtlama — GİRİŞ GEREKTİRMEZ (Faz 19)
     admin/             # platform yönetimi — yalnızca platform_admin (Faz 5)
                        #   kiracilar/ (liste, detay, yeni), paketler/, page.tsx
     (app)/             # oturum gerektiren panel
@@ -86,6 +88,7 @@ src/
       destek/          # destek kaydı, işlem geçmişi, rapor/ (Faz 16)
       sss/             # SSS / bilgi bankası (Faz 16)
       ziyaretler/      # saha ziyareti, süre, konum doğrulama (Faz 17)
+      anketler/        # anket tanımı, gönderim, sonuç raporu (Faz 19)
       raporlar/        # rapor MERKEZİ + genel/ mali/ satis/ urun/ aktivite/
       firmalar/[id]/dosya/  # firma dosyası — tek belge PDF (Faz 18)
       dosya-actions.ts # dosya eki yükleme/silme — tek action (Faz 17)
@@ -133,6 +136,7 @@ src/
     ekler/             # EkPaneli, EkAcilir (Faz 17)
     ziyaretler/        # ZiyaretBaslat, ZiyaretBitir (Faz 17)
     raporlar/          # RaporSuzgeci — ortak süzgeç çubuğu (Faz 18)
+    anketler/          # AnketPanel, SoruFormu, GonderimPanel, YanitFormu
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -177,6 +181,8 @@ src/
     destek-tanimlar.ts    # durum damgaları + çözüm süresi + özet — saf (Faz 16)
     sss-tanimlar.ts       # etiket/kategori normalize — saf (Faz 16)
     dosya.ts              # dosya deposu — TEK KAPI (+ -tanimlar: tür/kota saf)
+    anket-db.ts           # anket yanıtlama, oturumsuz — TEK KAPI (Faz 19)
+    anket-tanimlar.ts     # soru tipleri, yanıt doğrulama, NPS — saf (Faz 19)
     rapor-tanimlar.ts     # rapor kayıt defteri — saf veri (Faz 18)
     rapor-saf.ts          # ciro, dönüşüm, dönem farkı, kırılım — saf (Faz 18)
     konum-saf.ts          # mesafe, doğrulama, süre, adres — saf (Faz 17)
@@ -197,7 +203,8 @@ src/
 `EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
 `PanoTercihi`, `KayitliGorunum` ve `Yedek`, Faz 11 ile `OzelAlan` ve
 `OzelAlanDeger`, Faz 12 ile `Oturum`, `SifreSifirlama` ve `GirisDenemesi`, Faz 16 ile `Proje`,
-`DestekKaydi` ve `Sss`, Faz 17 ile `Dosya` ve `Ziyaret` eklendi.
+`DestekKaydi` ve `Sss`, Faz 17 ile `Dosya` ve `Ziyaret`, Faz 19 ile `Anket`, `AnketSorusu`,
+`AnketGonderim` ve `AnketYanit` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -261,6 +268,7 @@ kullanılmadığını sürekli denetler:
 | Davet kabulü | `src/lib/davet-db.ts` | token sahibi | Davet edilen kişinin henüz hesabı yok |
 | Zamanlanmış iş | `src/lib/zamanlanmis.ts` | `GOREV_ANAHTARI` | Cron'un oturumu olamaz (Faz 8) |
 | Giriş güvenliği | `src/lib/giris-guvenlik.ts` | herkes (oturum öncesi) | Kilit sayacı ve sıfırlama kimlik doğrulanmadan YAZILIR (Faz 12) |
+| Anket yanıtlama | `src/lib/anket-db.ts` | token sahibi | Anketi dolduran müşteri, uygulamanın kullanıcısı DEĞİLDİR (Faz 19) |
 
 ```ts
 const db = await getPlatformDb();   // her çağrıda platform_admin doğrulanır
@@ -441,6 +449,42 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Yedek sırası FK'ye bağlıdır:** `proje` ve `destekKaydi`, `aktivite`den
   ÖNCE geri yüklenir; kural regresyon testiyle sabitlendi.
 
+### Anket ve Oturumsuz Yanıt Toplama (Faz 19)
+
+- **BEŞİNCİ DAR KAPI: `anket-db.ts`** (`app.anket` bağlamı). Anketi dolduran
+  kişi müşterinin çalışanıdır; uygulamanın kullanıcısı DEĞİLDİR ve
+  olmayacaktır. Kapsam yalnızca dört anket tablosudur: anket ve soru SALT
+  OKUNUR, yanıt yalnızca YAZILIR — dolduran kişi başkalarının yanıtını
+  göremez. İş verisine hiçbir erişim yoktur. Regresyon testi hem bağlamın bu
+  dosya dışında kullanılmadığını hem de `/anket` sayfasının kiracı katmanını
+  hiç çağırmadığını denetler.
+- **ANONİMLİK ANKET BAZINDADIR ve VERİDE tutulur.** Anonim ankette yanıt
+  satırına `gonderimId` ve `firmaId` HİÇ yazılmaz; söz bir onay kutusunda
+  değil, yazılmayan bir sütunda yaşar. "Kime gönderdik / kaçı yanıtladı" yine
+  bilinir — bu anonimlikle çelişmez, çünkü ayrı bir sorudur.
+- **Anonimlik yayından sonra değiştirilemez:** toplanmış yanıtlar o karara
+  göre yazıldı; bayrağı çevirmek ya raporu tutarsızlaştırır ya da verilmemiş
+  bir sözü verilmiş gibi gösterir.
+- **`yanitGrubu` bir doldurma OTURUMUNU işaretler:** anonim ankette bile
+  aynı kişinin yanıtlarını birbirine bağlar (kişi başına hesaplar için) ama
+  hiçbir kimliğe çevrilemez.
+- **Token saklanmaz, sha256 özeti tutulur** (davet deseni); bağlantı kişiye
+  özel, TEK KULLANIMLIK ve anketin bitiş tarihine bağlıdır. Üç engel ayrı
+  mesaj verir (taslak / kapandı / süre doldu / yanıtlandı) — hepsini
+  "bağlantı geçersiz" demek, süresi dolmuş anketi teknik hata gibi
+  gösterirdi.
+- **Yanıt toplanmış ankette soru değiştirilemez:** sonradan eklenen soru
+  önceki yanıtlayanlarda boş kalır ve yanıtlama oranını anlamsızlaştırır.
+- **Çoktan seçmeli yanıt TANIMDAKİ seçeneklerle** doğrulanır (özel
+  alanlardaki aynı kural); istemciden gelen değere güvenilmez.
+- **NPS standart eşiklerle** hesaplanır (9-10 / 7-8 / 0-6). Serbest metin
+  yanıtlar grafiğe dökülmez, olduğu gibi listelenir — her yanıt biriciktir.
+- **TANIMLAMAK ile GÖNDERMEK ayrı izinlerdir** (`anket.yonet` /
+  `anket.gonder`): anket kuruluşun müşteriye sorduğu sorudur, yanlış zamanda
+  gönderilen e-posta geri alınamaz. E-posta kuyruğa yazılır (Faz 8).
+- **KVKK metnine "Anket yanıtları" bölümü eklendi** ve sürüm `2026-08-3`e
+  çıkarıldı; anonimlik sözü aydınlatma metninde de verilir.
+
 ### Rapor Merkezi ve Firma Dosyası (Faz 18)
 
 - **Rapor merkezi KENDİ rakamını hesaplamaz.** `/raporlar` hiçbir sorgu
@@ -565,6 +609,7 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 | `app.kimlik_dogrulama` | `kimlikIstemcisi()` — yalnızca giriş | User+Tenant, salt okuma |
 | `app.yonetim` | `yonetimIstemcisi()` — kurulum betikleri | Tam erişim |
 | `app.giris` | `girisIstemcisi()` — yalnızca giriş güvenliği | User, Tenant, Oturum, SifreSifirlama, GirisDenemesi |
+| `app.anket` | `anketIstemcisi()` — oturumsuz anket yanıtlama | Anket ve soru SALT OKUNUR, yanıt yalnızca YAZILIR |
 
 Bağlam ayarlanmazsa veritabanı **sıfır satır** döndürür. Yani uygulama
 katmanında bir sorgu filtreyi unutsa bile veri sızmaz.
@@ -577,7 +622,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**626 kontrol**.
+**662 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -585,10 +630,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (402 test, ~13 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (426 test, ~13 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor, gerçek tarayıcı (sunucu çalışırken, 203)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket, gerçek tarayıcı (sunucu çalışırken, 215)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -676,7 +721,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | ✅ tamamlandı |
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | ✅ tamamlandı |
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | ✅ tamamlandı |
-| 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | planlandı |
+| 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | ✅ tamamlandı |
 | 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | planlandı |
 | 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | planlandı |
 
@@ -807,6 +852,14 @@ etkiliyor.
   bağlantı; bir firmanın her şeyini izin süzgecinden geçirerek tek belgede
   toplayan firma dosyası (PDF); rapor süzgeçlerinin kayıtlı görünüm olarak
   saklanması.
+- **v1.19.0** — **Faz 19:** Anket. Beş soru tipli (metin, çoktan seçmeli,
+  ölçek 1-5, ölçek 0-10, evet/hayır) anket tanımı; kontaklara e-postayla
+  kişiye özel, tek kullanımlık ve bitiş tarihine bağlı token'lı bağlantı
+  (token saklanmaz, sha256 özeti tutulur); OTURUM GEREKTİRMEYEN yanıt sayfası
+  ve beşinci dar kapı (`anket-db.ts`, `app.anket` bağlamı); anket bazında
+  seçilebilen ANONİMLİK — anonimde yanıt satırına kimlik bağı hiç yazılmaz;
+  soru bazında dağılım, ortalama, NPS ve yanıtlama oranı raporu. KVKK metni
+  `2026-08-3`e çıkarıldı.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

@@ -85,6 +85,17 @@ export const RAPORLAR: RaporTanimi[] = [
     suzgecler: ["tarih", "sorumlu"],
   },
   {
+    anahtar: "anket",
+    etiket: "Anket Sonuçları",
+    aciklama: "Yanıtlama oranı, NPS ve soru bazında dağılım",
+    izin: "anket.goruntule",
+    grup: "Operasyon",
+    // Rapor ANKET BAZINDADIR: hangi anketin sonucuna bakılacağı merkezden
+    // seçilemez, anket listesinden girilir.
+    disRota: "/anketler",
+    suzgecler: ["tarih"],
+  },
+  {
     anahtar: "destek",
     etiket: "Destek Raporu",
     aciklama: "Kanal kırılımı, öncelik dağılımı, kişi yükü, çözüm süresi",

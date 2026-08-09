@@ -6,7 +6,15 @@ const COOKIE_NAME = "gezegen_session";
 // henüz hesabı yoktur, hesabı bu sayfada oluşturur (Faz 5 / B3).
 // Şifre sıfırlama da giriş gerektirmez (Faz 12 / F1): kullanıcı zaten
 // giremediği için buradadır.
-const PUBLIC_PATHS = ["/login", "/davet", "/sifremi-unuttum", "/sifre-sifirla"];
+// `/anket` (Faz 19 / N3) aynı gerekçenin en uç hâlidir: anketi dolduran kişi
+// müşterinin çalışanıdır, uygulamanın kullanıcısı DEĞİLDİR ve hiç olmayacaktır.
+const PUBLIC_PATHS = [
+  "/login",
+  "/davet",
+  "/sifremi-unuttum",
+  "/sifre-sifirla",
+  "/anket",
+];
 
 function getSecret(): Uint8Array {
   return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");

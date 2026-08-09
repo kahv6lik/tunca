@@ -112,6 +112,10 @@ model Tenant {
   Sss              Sss[]
   Dosya            Dosya[]
   Ziyaret          Ziyaret[]
+  Anket            Anket[]
+  AnketSorusu      AnketSorusu[]
+  AnketGonderim    AnketGonderim[]
+  AnketYanit       AnketYanit[]
 
   @@index([durum])
 }
@@ -202,6 +206,7 @@ model Firma {
   DestekKaydi      DestekKaydi[]
   Dosya            Dosya[]
   Ziyaret          Ziyaret[]
+  AnketGonderim    AnketGonderim[]
 
   @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
@@ -1582,4 +1587,129 @@ model Ziyaret {
   @@index([tenantId, firmaId])
   @@index([tenantId, kullaniciId, baslangic])
   @@index([tenantId, dogrulama])
+}
+
+// Anket tanımı (Faz 19 / N1).
+//
+// ANONİMLİK ANKET BAZINDADIR (karar: v1.19.0). Memnuniyet anketi anonim
+// olmalı ki müşteri düşük puan vermekten çekinmesin; bilgi formu ise kimlikli
+// olmalı ki yanıt takip edilebilsin. Bayrak yanıt YAZILIRKEN uygulanır:
+// anonim ankette `AnketYanit.gonderimId` ve `firmaId` HİÇ yazılmaz — yani söz
+// arayüzde değil VERİDE tutulur ve sonradan "kim yanıtladı" diye sorulamaz.
+model Anket {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  baslik   String
+  aciklama String?
+
+  // taslak | yayinda | kapandi
+  durum String @default("taslak")
+
+  anonim Boolean @default(false)
+
+  // Bağlantı bu tarihe kadar geçerlidir (karar: v1.19.0). Boşsa süre sınırı
+  // yoktur ama anket "kapandi" yapılınca yine kapanır.
+  bitisTarihi DateTime?
+
+  olusturanId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sorular     AnketSorusu[]
+  gonderimler AnketGonderim[]
+  yanitlar    AnketYanit[]
+
+  @@index([tenantId, durum])
+}
+
+// Anket sorusu.
+//
+// Seçenekler ayrı bir tabloda DEĞİL dizide durur: soru silinince seçenekleri
+// de gider, sıralama alan sırasıdır ve tek sorguyla okunur. Seçenek başına
+// rapor kırılımı zaten yanıt metnine göre yapılır.
+model AnketSorusu {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  anketId String
+  anket   Anket  @relation(fields: [anketId], references: [id], onDelete: Cascade)
+
+  sira Int    @default(0)
+  // metin | coktan | olcek5 | olcek10 | evethayir
+  tip  String @default("metin")
+
+  metin      String
+  secenekler String[] @default([])
+  zorunlu    Boolean  @default(false)
+
+  yanitlar AnketYanit[]
+
+  @@index([tenantId, anketId])
+}
+
+// Gönderim kaydı — kime, hangi bağlantıyla gönderildi (Faz 19 / N2).
+//
+// TOKEN SAKLANMAZ, yalnızca sha256 özeti tutulur (davet akışının aynı
+// deseni): veritabanı sızsa bile kimsenin anketi kimse adına dolduramaması
+// için. Gönderim kaydı anonim anketlerde de kimlik taşır — "kime gönderdik"
+// ile "kim ne yanıtladı" AYRI sorulardır; ikincisi anonimde yanıtsız kalır.
+model AnketGonderim {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  anketId String
+  anket   Anket  @relation(fields: [anketId], references: [id], onDelete: Cascade)
+
+  firmaId String?
+  firma   Firma?  @relation(fields: [firmaId], references: [id], onDelete: SetNull)
+  kisiId  String?
+  ad      String?
+  email   String
+
+  tokenOzeti String @unique
+
+  gonderimTarihi DateTime?
+  yanitTarihi    DateTime?
+
+  createdAt DateTime @default(now())
+
+  yanitlar AnketYanit[]
+
+  @@index([tenantId, anketId])
+}
+
+// Tek bir soruya verilen yanıt.
+//
+// `yanitGrubu` bir doldurma OTURUMUNU işaretler: anonim ankette gönderim
+// bağı yazılmadığı için, aynı kişinin verdiği yanıtları birbirine bağlayan
+// tek şey budur (NPS gibi kişi başına hesaplar bunu kullanır). Rastgele
+// üretilir ve hiçbir kimliğe çevrilemez.
+model AnketYanit {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  anketId String
+  anket   Anket       @relation(fields: [anketId], references: [id], onDelete: Cascade)
+  soruId  String
+  soru    AnketSorusu @relation(fields: [soruId], references: [id], onDelete: Cascade)
+
+  // ANONİM ANKETTE İKİSİ DE NULL yazılır — söz veride tutulur.
+  gonderimId String?
+  gonderim   AnketGonderim? @relation(fields: [gonderimId], references: [id], onDelete: SetNull)
+  firmaId    String?
+
+  yanitGrubu String
+  deger      String
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, anketId])
+  @@index([tenantId, soruId])
+  @@index([tenantId, yanitGrubu])
 }

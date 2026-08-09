@@ -74,6 +74,11 @@ const KIRACI_MODELLERI = new Set([
   // Faz 17 — dosya eki ve saha ziyareti
   "Dosya",
   "Ziyaret",
+  // Faz 19 — anket
+  "Anket",
+  "AnketSorusu",
+  "AnketGonderim",
+  "AnketYanit",
   // Davet kiracıya bağlıdır ve RLS'te kiracı politikası vardır: kuruluş
   // yöneticisi kendi ekibini /kullanicilar üzerinden davet eder.
   "Davet",
@@ -229,7 +234,12 @@ export type KiraciModeli =
   | "sss"
   // Faz 17 — dosya eki ve saha ziyareti
   | "dosya"
-  | "ziyaret";
+  | "ziyaret"
+  // Faz 19 — anket
+  | "anket"
+  | "anketSorusu"
+  | "anketGonderim"
+  | "anketYanit";
 
 export async function sahiplikDogrula(
   db: TenantClient,
