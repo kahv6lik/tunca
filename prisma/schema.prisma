@@ -98,6 +98,9 @@ model Tenant {
   SiparisKalemi    SiparisKalemi[]
   Sevkiyat         Sevkiyat[]
   BelgeSayac       BelgeSayac[]
+  Proje            Proje[]
+  DestekKaydi      DestekKaydi[]
+  Sss              Sss[]
 
   @@index([durum])
 }
@@ -176,6 +179,8 @@ model Firma {
   KampanyaFirma    KampanyaFirma[]
   KampanyaKullanim KampanyaKullanim[]
   Siparis          Siparis[]
+  Proje            Proje[]
+  DestekKaydi      DestekKaydi[]
 
   @@unique([tenantId, firmaNo])
   @@index([tenantId, ad])
@@ -368,6 +373,7 @@ model Kisi {
   aktiviteler  Aktivite[]
   ozelDegerler OzelAlanDeger[]
   Siparis      Siparis[]
+  DestekKaydi  DestekKaydi[]
 
   @@index([tenantId, firmaId])
   @@index([tenantId, ad])
@@ -451,11 +457,15 @@ model Aktivite {
   // Bağlam — hepsi isteğe bağlıdır; bir aktivite yalnızca firmaya, ya da
   // firma + kişi + fırsata birden bağlanabilir.
   firmaId  String?
-  firma    Firma?  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  firma    Firma?       @relation(fields: [firmaId], references: [id], onDelete: Cascade)
   kisiId   String?
-  kisi     Kisi?   @relation(fields: [kisiId], references: [id], onDelete: SetNull)
+  kisi     Kisi?        @relation(fields: [kisiId], references: [id], onDelete: SetNull)
   firsatId String?
-  firsat   Firsat? @relation(fields: [firsatId], references: [id], onDelete: Cascade)
+  firsat   Firsat?      @relation(fields: [firsatId], references: [id], onDelete: Cascade)
+  // Faz 16: destek kaydının işlem geçmişi aktivite olarak tutulur; böylece
+  // destek işlemleri firma zaman akışında da görünür.
+  destekId String?
+  destek   DestekKaydi? @relation(fields: [destekId], references: [id], onDelete: Cascade)
 
   // Görev alanları. `sonTarih` doluysa kayıt "yapılacak iş"tir.
   atananId   String?
@@ -469,6 +479,7 @@ model Aktivite {
 
   @@index([tenantId, firmaId])
   @@index([tenantId, firsatId])
+  @@index([tenantId, destekId])
   @@index([tenantId, atananId, sonTarih])
   @@index([tenantId, createdAt])
 }
@@ -526,6 +537,9 @@ model Teklif {
   firma    Firma   @relation(fields: [firmaId], references: [id], onDelete: Cascade)
   firsatId String?
   firsat   Firsat? @relation(fields: [firsatId], references: [id], onDelete: SetNull)
+  // Faz 16 — proje bağı OPSİYONELDİR (karar: v1.16.0).
+  projeId  String?
+  proje    Proje?  @relation(fields: [projeId], references: [id], onDelete: SetNull)
   kisiId   String?
 
   no     String // kiracı içinde benzersiz teklif numarası
@@ -1226,6 +1240,9 @@ model Siparis {
   // sipariş ayakta kalır: satış gerçekleşmiştir.
   teklifId String?
   teklif   Teklif? @relation(fields: [teklifId], references: [id], onDelete: SetNull)
+  // Faz 16 — proje bağı OPSİYONELDİR (karar: v1.16.0).
+  projeId  String?
+  proje    Proje?  @relation(fields: [projeId], references: [id], onDelete: SetNull)
 
   durum String @default("onaybekliyor") // constants.ts → SIPARIS_DURUM
 
@@ -1336,4 +1353,119 @@ model BelgeSayac {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@id([tenantId, tur, yil])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJE, DESTEK KAYDI VE SSS (Faz 16)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Proje (P1).
+//
+// Teklif ve sipariş projeye OPSİYONEL olarak bağlanır (karar: v1.16.0).
+// Zorunlu olsaydı tek seferlik küçük satışlar için gereksiz bir adım
+// doğardı ve mevcut kayıtların hepsine proje atamak gerekirdi.
+model Proje {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firmaId  String
+  firma    Firma  @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  kod      String
+  ad       String
+  aciklama String?
+
+  sorumluId String?
+  durum     String  @default("planlandi") // constants.ts → PROJE_DURUM
+
+  baslangic DateTime?
+  bitis     DateTime?
+
+  butce      Float  @default(0)
+  paraBirimi String @default("TRY")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teklifler  Teklif[]
+  siparisler Siparis[]
+  destekler  DestekKaydi[]
+
+  @@unique([tenantId, kod])
+  @@index([tenantId, durum, baslangic])
+  @@index([tenantId, firmaId])
+}
+
+// Destek / başvuru kaydı (P2).
+//
+// AYRI BİR MODELDİR (karar: v1.16.0). Aktivite "ne yaptık" günlüğüdür;
+// destek kaydı ise SAHİBİ, ÖNCELİĞİ ve DURUMU olan bir iştir — ikisini tek
+// tabloda tutmak raporları (kanal kırılımı, çözüm süresi) anlamsızlaştırırdı.
+//
+// YAPILAN İŞLEMLER ise Aktivite kayıtlarıyla tutulur (`Aktivite.destekId`):
+// böylece destek işlemleri firma zaman akışında da görünür ve timeline tek
+// sorguyla kurulmaya devam eder.
+model DestekKaydi {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  no      String
+  firmaId String
+  firma   Firma   @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+  kisiId  String?
+  kisi    Kisi?   @relation(fields: [kisiId], references: [id], onDelete: SetNull)
+  projeId String?
+  proje   Proje?  @relation(fields: [projeId], references: [id], onDelete: SetNull)
+
+  baslik   String
+  aciklama String?
+
+  kanal   String @default("telefon") // constants.ts → DESTEK_KANAL
+  oncelik String @default("orta") // constants.ts → DESTEK_ONCELIK
+  durum   String @default("acik") // constants.ts → DESTEK_DURUM
+
+  atananId String?
+  acanId   String?
+
+  // Çözüm süresi raporu bu iki damgadan hesaplanır; durum değişiminde
+  // KENDİLİĞİNDEN yazılır (kullanıcıya tarih girdirmek unutulan bir adımdır).
+  cozumTarihi   DateTime?
+  kapanisTarihi DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  islemler Aktivite[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, durum, oncelik])
+  @@index([tenantId, firmaId])
+  @@index([tenantId, atananId, durum])
+}
+
+// SSS / bilgi bankası (P4).
+//
+// Elle girilir; arama Türkçe duyarsızdır (Faz 13 / H2 yardımcısı).
+// `goruntulenme` sayacı "hangi soru gerçekten işe yarıyor" sorusunu
+// yanıtlar — sıralama elle değil kullanımla da düzenlenebilsin.
+model Sss {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  soru      String
+  yanit     String
+  kategori  String?
+  etiketler String[] @default([])
+
+  durum        String @default("aktif") // aktif | pasif
+  sira         Int    @default(0)
+  goruntulenme Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, durum, sira])
+  @@index([tenantId, kategori])
 }

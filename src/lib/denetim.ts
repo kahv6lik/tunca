@@ -38,7 +38,11 @@ export type DenetimVarligi =
   | "StokHareketi"
   // Faz 15 — sipariş ve sevkiyat
   | "Siparis"
-  | "Sevkiyat";
+  | "Sevkiyat"
+  // Faz 16
+  | "Proje"
+  | "DestekKaydi"
+  | "Sss";
 
 export const VARLIK_ETIKET: Record<string, string> = {
   Firma: "Firma",
@@ -55,6 +59,9 @@ export const VARLIK_ETIKET: Record<string, string> = {
   StokHareketi: "Stok Hareketi",
   Siparis: "Sipariş",
   Sevkiyat: "Sevkiyat",
+  Proje: "Proje",
+  DestekKaydi: "Destek Kaydı",
+  Sss: "SSS",
   Firsat: "Fırsat",
   Aktivite: "Aktivite",
   Lead: "Aday",

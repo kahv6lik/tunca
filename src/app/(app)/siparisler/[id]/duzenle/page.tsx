@@ -48,7 +48,7 @@ export default async function SiparisDuzenlePage(props: {
     );
   }
 
-  const [firmalar, urunler, kisiler] = await Promise.all([
+  const [firmalar, urunler, kisiler, projeler] = await Promise.all([
     db.firma.findMany({
       where: { durum: "aktif" },
       orderBy: { ad: "asc" },
@@ -68,6 +68,12 @@ export default async function SiparisDuzenlePage(props: {
       where: { firmaId: siparis.firmaId },
       orderBy: { ad: "asc" },
       select: { id: true, ad: true },
+    }),
+    db.proje.findMany({
+      where: { durum: { in: ["planlandi", "devam", "beklemede"] } },
+      orderBy: { ad: "asc" },
+      take: 300,
+      select: { id: true, kod: true, ad: true },
     }),
   ]);
 
@@ -94,10 +100,12 @@ export default async function SiparisDuzenlePage(props: {
         urunler={urunler}
         kampanyalar={kampanyalar}
         kisiler={kisiler}
+        projeler={projeler}
         mevcut={{
           id: siparis.id,
           firmaId: siparis.firmaId,
           kisiId: siparis.kisiId ?? "",
+          projeId: siparis.projeId ?? "",
           paraBirimi: siparis.paraBirimi,
           notlar: siparis.notlar ?? "",
           kalemler: siparis.kalemler.map((k) => ({

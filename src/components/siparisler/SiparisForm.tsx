@@ -38,6 +38,7 @@ export type SiparisDegerleri = {
   id: string;
   firmaId: string;
   kisiId: string;
+  projeId?: string;
   paraBirimi: string;
   notlar: string;
   kalemler: SiparisKalemDegeri[];
@@ -72,6 +73,8 @@ export default function SiparisForm({
   varsayilanKalemler,
   varsayilanParaBirimi,
   varsayilanKisiId,
+  projeler,
+  varsayilanProjeId,
 }: {
   firmalar: { id: string; ad: string }[];
   urunler: UrunSecenek[];
@@ -88,6 +91,9 @@ export default function SiparisForm({
   varsayilanKalemler?: SiparisKalemDegeri[];
   varsayilanParaBirimi?: string;
   varsayilanKisiId?: string;
+  /** Proje bağı OPSİYONELDİR (Faz 16): tek seferlik satışlar projesiz olur. */
+  projeler?: { id: string; kod: string; ad: string }[];
+  varsayilanProjeId?: string;
 }) {
   const action = mevcut ? siparisGuncelle.bind(null, mevcut.id) : siparisOlustur;
   const [state, formAction] = useFormState<FormState, FormData>(action, {});
@@ -187,6 +193,23 @@ export default function SiparisForm({
               <option value="">—</option>
               {kisiler.map((k) => (
                 <option key={k.id} value={k.id}>{k.ad}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {projeler && projeler.length > 0 && (
+          <div>
+            <label className="label" htmlFor="projeId">Proje</label>
+            <select
+              id="projeId"
+              name="projeId"
+              defaultValue={mevcut?.projeId ?? varsayilanProjeId ?? ""}
+              className="input"
+            >
+              <option value="">— (projesiz)</option>
+              {projeler.map((p) => (
+                <option key={p.id} value={p.id}>{p.kod} — {p.ad}</option>
               ))}
             </select>
           </div>

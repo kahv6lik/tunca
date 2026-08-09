@@ -29,6 +29,8 @@ export const BILDIRIM_TURLERI = [
   { deger: "siparis.onaybekliyor", etiket: "Onayıma bir sipariş düştüğünde" },
   { deger: "siparis.karar", etiket: "Siparişim onaylandığında ya da reddedildiğinde" },
   { deger: "siparis.sevkiyat", etiket: "Sevkiyat için onaylı sipariş hazır olduğunda" },
+  // Faz 16 — destek kaydı
+  { deger: "destek.atandi", etiket: "Bana bir destek kaydı atandığında" },
 ] as const;
 
 export type BildirimTuru = (typeof BILDIRIM_TURLERI)[number]["deger"];

@@ -41,6 +41,8 @@ const schema = z.object({
   firmaId: z.string().min(1, "Firma zorunludur."),
   kisiId: z.string().trim().optional(),
   teklifId: z.string().trim().optional(),
+  // Faz 16 — proje bağı OPSİYONELDİR (karar: v1.16.0).
+  projeId: z.string().trim().optional(),
   paraBirimi: z.enum(["TRY", "USD", "EUR"]).default("TRY"),
   notlar: z.string().trim().optional(),
 });
@@ -246,6 +248,7 @@ export async function siparisOlustur(
   await firmaSahipligiDogrula(db, parsed.data.firmaId);
   if (parsed.data.kisiId) await sahiplikDogrula(db, "kisi", parsed.data.kisiId);
   if (parsed.data.teklifId) await sahiplikDogrula(db, "teklif", parsed.data.teklifId);
+  if (parsed.data.projeId) await sahiplikDogrula(db, "proje", parsed.data.projeId);
 
   const hesap = await tutarlariHesapla(db, kalemler);
   const no = await siradakiBelgeNo(siparisIstemcisi(db), tenantId, "siparis");
@@ -259,6 +262,7 @@ export async function siparisOlustur(
     firmaId: parsed.data.firmaId,
     kisiId: parsed.data.kisiId || null,
     teklifId: parsed.data.teklifId || null,
+    projeId: parsed.data.projeId || null,
     durum: "onaybekliyor",
     paraBirimi: parsed.data.paraBirimi,
     notlar: parsed.data.notlar || null,
@@ -327,6 +331,7 @@ export async function siparisGuncelle(
   await tenantGuncelle(db, "siparis", id, {
     firmaId: parsed.data.firmaId,
     kisiId: parsed.data.kisiId || null,
+    projeId: parsed.data.projeId || null,
     paraBirimi: parsed.data.paraBirimi,
     notlar: parsed.data.notlar || null,
     araToplam: hesap.araToplam,

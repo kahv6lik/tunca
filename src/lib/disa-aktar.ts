@@ -5,6 +5,8 @@ import { veriKumesiBul, type Bicim, type VeriKumesi } from "./disa-aktar-tanimla
 import { degerBicimle, csvUret } from "./disa-aktar-saf";
 import { firmaNoMu } from "./firma-no-saf";
 import { metinArama } from "./arama";
+import { cozumSuresiSaat } from "./destek-tanimlar";
+import { etiketMetni } from "./sss-tanimlar";
 import {
   alanlariGetir,
   topluDegerHaritasi,
@@ -308,6 +310,73 @@ async function satirlariOku(
         siparisNo: s.siparis.no,
         firmaAd: s.siparis.firma.ad,
       }));
+    }
+
+    // ── Proje, destek ve SSS (Faz 16) ──
+    case "projeler": {
+      const kayitlar = await db.proje.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("kod", "ad", "firma.ad") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: AZAMI_SATIR,
+        include: { firma: { select: { ad: true } } },
+      });
+      const kullanicilar = await db.user.findMany({ select: { id: true, name: true } });
+      const adOf = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+      return kayitlar.map((p) => ({
+        ...p,
+        firmaAd: p.firma.ad,
+        sorumluAd: p.sorumluId ? adOf.get(p.sorumluId) ?? null : null,
+      }));
+    }
+
+    case "destekler": {
+      const kayitlar = await db.destekKaydi.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("no", "baslik", "firma.ad") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: AZAMI_SATIR,
+        include: {
+          firma: { select: { ad: true } },
+          kisi: { select: { ad: true } },
+          proje: { select: { kod: true } },
+        },
+      });
+      const kullanicilar = await db.user.findMany({ select: { id: true, name: true } });
+      const adOf = new Map(kullanicilar.map((k) => [k.id, k.name]));
+
+      return kayitlar.map((d) => ({
+        ...d,
+        firmaAd: d.firma.ad,
+        kisiAd: d.kisi?.ad ?? null,
+        projeKod: d.proje?.kod ?? null,
+        atananAd: d.atananId ? adOf.get(d.atananId) ?? null : null,
+        // Süre saf fonksiyondan gelir; dosyadaki değer ekrandakiyle aynıdır.
+        cozumSaat: cozumSuresiSaat(d),
+      }));
+    }
+
+    case "sss": {
+      const kayitlar = await db.sss.findMany({
+        where: {
+          AND: [
+            ara ? { OR: metin("soru", "yanit", "kategori") } : {},
+            durum ? { durum } : {},
+          ],
+        },
+        orderBy: [{ sira: "asc" }, { soru: "asc" }],
+        take: AZAMI_SATIR,
+      });
+      return kayitlar.map((s) => ({ ...s, etiketMetni: etiketMetni(s.etiketler) }));
     }
 
     case "hizmetler": {

@@ -46,6 +46,7 @@ prisma/
                        # Urun, Paket, PaketKalemi, Kampanya(+Urun/Paket/Firma),
                        # KampanyaKullanim, StokHareketi,
                        # Siparis, SiparisKalemi, Sevkiyat, BelgeSayac,
+                       # Proje, DestekKaydi, Sss,
                        # Oturum, SifreSifirlama, GirisDenemesi
   migrations/          # prisma migrate deploy ile uygulanır (RLS dahil)
   _sqlite-arsiv/       # Faz 2 öncesi SQLite migration'ları (uygulanmaz)
@@ -81,6 +82,9 @@ src/
       stok/            # stok durumu ve hareket defteri (Faz 14)
       siparisler/      # sipariş, onay/ret, tekliften sipariş (Faz 15)
       sevkiyat/        # sevkiyat kuyruğu ve raporu (Faz 15)
+      projeler/        # proje listesi ve detayı (Faz 16)
+      destek/          # destek kaydı, işlem geçmişi, rapor/ (Faz 16)
+      sss/             # SSS / bilgi bankası (Faz 16)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
       kvkk/            # aydınlatma metni + açık rıza kaydı (Faz 12)
@@ -117,6 +121,10 @@ src/
                        # KullanimPanel (Faz 14)
     siparisler/        # SiparisForm, OnayPanel, SevkiyatPanel,
                        # DurumDugmeleri (Faz 15)
+    projeler/          # ProjePanel (Faz 16)
+    destek/            # DestekPanel, IslemFormu, OncelikRozet,
+                       # DestekDurumDugmeleri (Faz 16)
+    sss/               # SssPanel, SssKarti (Faz 16)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -158,6 +166,8 @@ src/
     stok.ts               # stok hareket defteri + atomik bakiye (Faz 14)
     urun-tanimlar.ts      # kod normalize, stok durumu — saf (Faz 14)
     siparis.ts            # onay akışı + sevkiyat kapısı + belge no (Faz 15)
+    destek-tanimlar.ts    # durum damgaları + çözüm süresi + özet — saf (Faz 16)
+    sss-tanimlar.ts       # etiket/kategori normalize — saf (Faz 16)
     rls.ts                # PostgreSQL RLS bağlamları
     yetki-tanimlar.ts     # izin anahtarları + rol matrisi (saf veri)
     yetki.ts              # yetki kontrolü (server-only)
@@ -173,8 +183,8 @@ src/
 `TeklifKalemi`, Faz 8 ile `Bildirim`, `BildirimTercihi`, `EpostaAyari`,
 `EpostaKuyrugu`, `EpostaKaydi`, `IsAkisi` ve `IsAkisiCalismasi`, Faz 10 ile
 `PanoTercihi`, `KayitliGorunum` ve `Yedek`, Faz 11 ile `OzelAlan` ve
-`OzelAlanDeger`, Faz 12 ile `Oturum`, `SifreSifirlama` ve `GirisDenemesi`
-eklendi.
+`OzelAlanDeger`, Faz 12 ile `Oturum`, `SifreSifirlama` ve `GirisDenemesi`, Faz 16 ile `Proje`,
+`DestekKaydi` ve `Sss` eklendi.
 `Plan` bilinçli olarak kiracıya ait DEĞİLDİR: platform genelinde tanımlanır,
 kiracılar ona atanır. `Firma` iş verisinin
 merkezidir; `YatirimDestegi`, `Egitim`, `Hizmet`, `Kisi` ve `Firsat` kayıtları
@@ -386,6 +396,38 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Kabul edilen tekliften tek tuşla sipariş** açılır; kalemler teklifin
   kalemlerinden hazır gelir.
 
+### Proje, Destek ve Bilgi Bankası (Faz 16)
+
+- **Destek kaydı ayrı modeldir, işlem geçmişi AKTİVİTEDİR.** `DestekKaydi`
+  sahibi, önceliği ve durumu olan bir iştir; yapılan işlemler ise
+  `Aktivite.destekId` ile aktivite satırı olarak yazılır. Böylece destek
+  işlemleri firma zaman akışında da görünür ve timeline tek sorguyla
+  kurulmaya devam eder.
+- **Çözüm ve kapanış damgaları KENDİLİĞİNDEN atılır** (`durumDamgalari`):
+  kullanıcıya tarih girdirmek unutulacak bir adımdır ve çözüm süresi raporunu
+  sessizce bozar. Çözüm damgası bir kez atılır ve geri ALINMAZ; kapanış
+  damgası kayıt yeniden açılınca temizlenir. Doğrudan "kapandı"ya çekilen
+  kayıt da çözülmüş sayılır.
+- **Destek listesi arşiv değil İŞ KUYRUĞUDUR:** varsayılan görünüm açık
+  işlerdir (`durum=hepsi` ile hepsi gelir) ve sıralama tarihe değil
+  ÖNCELİĞE bakar.
+- **Kanal ve öncelik SABİT listedir** (`DESTEK_KANAL`, `DESTEK_ONCELIK`);
+  serbest metin kanal kırılımı raporunu anlamsızlaştırırdı (departman
+  alanındaki aynı gerekçe). Kayıt numarası `BelgeSayac`'tan gelir
+  (`DST-2026-0001`) — firma numarasındaki atomik desenin aynısı.
+- **Kişi yükü YALNIZCA açık kayıtları sayar**; kapanmış iş kimsenin üzerinde
+  yük değildir. Rapor hesabı saf fonksiyondadır (`destekOzeti`) ve testler
+  veritabanı olmadan onu sınar.
+- **Proje bağı OPSİYONELDİR** (teklif, sipariş, destek): tek seferlik küçük
+  satış için proje açmak zorunda kalmak, boş proje üretmeye iterdi. Proje
+  silinince bağlı kayıtlar SİLİNMEZ, yalnızca bağ kopar (`SetNull`).
+- **SSS'de görüntüleme ile yönetim ayrı izinlerdir** (`sss.goruntule` /
+  `sss.yonet`). Etiketler Türkçe kurallarıyla küçültülüp tekilleştirilir —
+  "İADE" ile "iade" tek etikettir. Görüntülenme sayacı atomiktir ama denetim
+  günlüğüne yazılmaz: bir yanıtı okumak değişiklik değildir.
+- **Yedek sırası FK'ye bağlıdır:** `proje` ve `destekKaydi`, `aktivite`den
+  ÖNCE geri yüklenir; kural regresyon testiyle sabitlendi.
+
 ### Arayüz ve Veri Düzeltmeleri (Faz 13)
 
 - **Firma numarası oluşturmada verilir ve DEĞİŞMEZ** (`A0001`–`Z9999`,
@@ -452,7 +494,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**498 kontrol**.
+**539 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -460,10 +502,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (314 test, ~12 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (341 test, ~12 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış, gerçek tarayıcı (sunucu çalışırken, 163)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek, gerçek tarayıcı (sunucu çalışırken, 177)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -548,7 +590,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 13 | Arayüz/veri düzeltmeleri: firma no, filtreler, menü düzeni (H1-H9) | `v1.13.0` | ✅ tamamlandı |
 | 14 | Ürün kataloğu, stok, paket, kampanya, fiyat motoru (T1-T8) | `v1.14.0` | ✅ tamamlandı |
 | 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | ✅ tamamlandı |
-| 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | planlandı |
+| 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | ✅ tamamlandı |
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | planlandı |
 | 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | planlandı |
 | 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | planlandı |
@@ -653,6 +695,15 @@ etkiliyor.
   sevkiyat kuyruğu, taşıyıcı/takip no ve durum akışı; sevkiyat raporu
   (durum kırılımı, bekleme süresi, gecikenler); onay/ret/sevkiyat
   bildirimleri; kabul edilen tekliften tek tuşla sipariş.
+- **v1.16.0** — **Faz 16:** Proje, destek kaydı ve bilgi bankası. Firmaya
+  bağlı proje (kod, sorumlu, tarih aralığı, bütçe; teklif/sipariş/destek
+  kayıtları detayında toplanır ve oradan açılır); kanal, öncelik, atama ve
+  durum akışı olan destek kaydı (`DST-2026-0001`), işlem geçmişi aktivite
+  olarak tutulduğu için firma zaman akışında da görünür; kendiliğinden atılan
+  çözüm/kapanış damgalarına dayanan destek raporu (kanal kırılımı, öncelik
+  dağılımı, kişi yükü, ortalama çözüm süresi, en uzun bekleyenler, firma ve
+  tarih süzgeci); kategori/etiketli, Türkçe duyarsız aramalı SSS bilgi
+  bankası ve destek kaydından tek tıkla erişim.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

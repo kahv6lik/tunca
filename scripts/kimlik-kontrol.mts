@@ -111,6 +111,26 @@ async function main() {
   // 6 — Yetkilendirme (Faz 4)
   console.log("\n6. Yetkilendirme — roller farklı şey görüyor");
 
+  /**
+   * Sayfanın adresi DURULANA kadar bekler.
+   *
+   * Sabit `waitForTimeout` yetmiyor: Next yanıtı akıtmaya başladıktan sonra
+   * `redirect()` çağrıldığında 307 gönderemez, yönlendirmeyi istemci tarafında
+   * yapar. Yükün yüksek olduğu anlarda bu, sabit beklemeden SONRAYA kalıyor ve
+   * "üye yetkisiz sayfaya girebildi" gibi YANLIŞ bir başarısızlık üretiyordu
+   * (bir kez yaşandı). Burada adres iki ardışık yoklamada aynı kalana kadar
+   * beklenir.
+   */
+  const durulmasiniBekle = async (page: import("playwright").Page) => {
+    let onceki = page.url();
+    for (let i = 0; i < 12; i++) {
+      await page.waitForTimeout(250);
+      const simdi = page.url();
+      if (simdi === onceki && i >= 3) return;
+      onceki = simdi;
+    }
+  };
+
   const sayfaGetir = async (email: string, sifre: string, yol: string) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
@@ -120,7 +140,7 @@ async function main() {
     await page.click("button[type=submit]");
     await page.waitForTimeout(2000);
     await page.goto(`${BASE}${yol}`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1200);
+    await durulmasiniBekle(page);
     const url = page.url();
     const govde = await page.locator("body").innerText();
     await ctx.close();
@@ -1085,6 +1105,107 @@ async function main() {
   kontrol(
     "Komşu kiracı Gezegen'in siparişlerini GÖRMÜYOR",
     !anadoluSiparis.govde.includes("SIP-")
+  );
+
+  // 20 — Faz 16: proje, destek kaydı ve SSS
+  console.log("\n20. Faz 16 — proje, destek kaydı ve bilgi bankası");
+
+  const projeler = await sayfaGetir("admin@gezegen.com", "admin123", "/projeler");
+  kontrol(
+    "Yönetici proje listesini açabiliyor",
+    !projeler.url.includes("/yetkisiz") && projeler.govde.includes("PRJ-001")
+  );
+
+  const proje = await prisma.proje.findFirst({
+    where: { tenant: { slug: "gezegen" }, kod: "PRJ-001" },
+    select: { id: true },
+  });
+  if (proje) {
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/projeler/${proje.id}`
+    );
+    kontrol(
+      "Proje detayında bağlı destek kayıtları bölümü var",
+      detay.govde.includes("Destek Kayıtları")
+    );
+    kontrol("Proje bütçesi görünüyor", detay.govde.toLocaleLowerCase("tr").includes("bütçe"));
+  }
+
+  const destek = await sayfaGetir("admin@gezegen.com", "admin123", "/destek");
+  kontrol(
+    "Destek listesi açılıyor ve kayıt numarası taşıyor",
+    !destek.url.includes("/yetkisiz") && destek.govde.includes("DST-")
+  );
+  kontrol(
+    "Varsayılan görünüm AÇIK işlerdir (kapanmış kayıt listeyi doldurmaz)",
+    destek.govde.includes("açık işler")
+  );
+
+  // Kapanmış kayıt yalnızca `durum=hepsi` ile gelir.
+  const kapali = await prisma.destekKaydi.findFirst({
+    where: { tenant: { slug: "gezegen" }, durum: "kapandi" },
+    select: { id: true, no: true },
+  });
+  if (kapali) {
+    kontrol(
+      "Kapanmış kayıt varsayılan listede YOK",
+      !destek.govde.includes(kapali.no)
+    );
+    const hepsi = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      "/destek?durum=hepsi"
+    );
+    kontrol("'Hepsi' süzgeci kapanmış kaydı getiriyor", hepsi.govde.includes(kapali.no));
+
+    const detay = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/destek/${kapali.id}`
+    );
+    // Damga durum değişiminde kendiliğinden atıldığı için süre DOLU olmalı;
+    // "—" görülürse damga mantığı kırılmış demektir.
+    const kucuk = detay.govde.toLocaleLowerCase("tr");
+    kontrol(
+      "Kapanmış kayıtta çözüm süresi hesaplanmış",
+      kucuk.includes("çözüm süresi") && (kucuk.includes(" gün") || kucuk.includes(" saat"))
+    );
+  }
+
+  const destekRapor = await sayfaGetir("admin@gezegen.com", "admin123", "/destek/rapor");
+  kontrol(
+    "Destek raporu açılıyor",
+    !destekRapor.url.includes("/yetkisiz") &&
+      destekRapor.govde.toLocaleLowerCase("tr").includes("kişi yükü")
+  );
+
+  const sss = await sayfaGetir("admin@gezegen.com", "admin123", "/sss");
+  kontrol(
+    "SSS ekranı açılıyor",
+    !sss.url.includes("/yetkisiz") && sss.govde.includes("Fatura adresimi")
+  );
+  kontrol("Yönetici SSS içeriğini yönetebiliyor", sss.govde.includes("Yeni Soru"));
+
+  // Türkçe duyarsız arama: "FATURA" büyük harfle de bulmalı (Faz 13 / H2).
+  const sssArama = await sayfaGetir("admin@gezegen.com", "admin123", "/sss?ara=FATURA");
+  kontrol(
+    "SSS araması Türkçe büyük/küçük harften bağımsız",
+    sssArama.govde.includes("Fatura adresimi")
+  );
+
+  const uyeSss = await sayfaGetir("kullanici@gezegen.com", "user123", "/sss");
+  kontrol(
+    "Üye SSS'yi okuyor ama 'Yeni Soru' düğmesini GÖRMÜYOR",
+    !uyeSss.url.includes("/yetkisiz") && !uyeSss.govde.includes("Yeni Soru")
+  );
+
+  // Kiracı sınırı.
+  const anadoluDestek = await sayfaGetir("admin@anadolu.com", "anadolu123", "/destek");
+  kontrol(
+    "Komşu kiracı Gezegen'in destek kayıtlarını GÖRMÜYOR",
+    !anadoluDestek.govde.includes("DST-")
   );
 
   await browser.close();

@@ -69,7 +69,7 @@ export function belgeNo(onEk: string, yil: number, sira: number): string {
 export async function siradakiBelgeNo(
   db: SayacIstemcisi,
   tenantId: string,
-  tur: "siparis" | "sevkiyat",
+  tur: "siparis" | "sevkiyat" | "destek",
   yil = new Date().getFullYear()
 ): Promise<string> {
   await db.belgeSayac.upsert({
@@ -88,7 +88,8 @@ export async function siradakiBelgeNo(
   );
 
   const sira = satirlar[0]?.sonSira ?? 1;
-  return belgeNo(tur === "siparis" ? "SIP" : "SVK", yil, sira);
+  const onEk = tur === "siparis" ? "SIP" : tur === "sevkiyat" ? "SVK" : "DST";
+  return belgeNo(onEk, yil, sira);
 }
 
 // ── Onay akışı ─────────────────────────────────────────────────────────────

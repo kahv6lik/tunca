@@ -27,7 +27,8 @@ export type TimelineOgesi = {
     | "yatirim"
     | "egitim"
     | "hizmet"
-    | "kisi";
+    | "kisi"
+    | "destek";
   baslik: string;
   aciklama?: string | null;
   tarih: Date;
@@ -168,6 +169,33 @@ export async function firmaTimeline(
               tarih: h.tarih,
               etiket: h.tur,
               durum: h.durum,
+            });
+          }
+        })
+    );
+  }
+
+  if (izinler.has("destek.goruntule")) {
+    /**
+     * Destek kaydının KENDİSİ akışa girer; İŞLEMLERİ ise zaten aktivite
+     * olarak yukarıda okundu (Faz 16 / P2). Böylece "talep açıldı" ile
+     * "ne yapıldı" aynı çizgide, ama tek sorguyla değil çift kayıtla da
+     * değil — işlem satırları ikinci kez eklenmez.
+     */
+    isteler.push(
+      db.destekKaydi
+        .findMany({ where: { firmaId }, orderBy: { createdAt: "desc" }, take: limit })
+        .then((kayitlar) => {
+          for (const d of kayitlar) {
+            ogeler.push({
+              id: `destek-${d.id}`,
+              tur: "destek",
+              baslik: `${d.no} — ${d.baslik}`,
+              aciklama: d.aciklama,
+              tarih: d.createdAt,
+              etiket: d.kanal,
+              durum: d.durum,
+              link: `/destek/${d.id}`,
             });
           }
         })

@@ -61,6 +61,12 @@ const MODELLER = [
   "asama",
   "kisi",
   "firsat",
+  // Faz 16 — proje ve destek kaydı AKTİVİTEDEN ÖNCE gelir: `Aktivite.destekId`
+  // destek kaydına, `DestekKaydi.projeId` de projeye bağlıdır. Sıra bozulursa
+  // geri yükleme FK hatasıyla düşer.
+  "proje",
+  "destekKaydi",
+  "sss",
   "aktivite",
   "lead",
   "teklif",
@@ -101,6 +107,9 @@ const TARIH_ALANLARI: Record<YedekModeli, string[]> = {
   asama: ["createdAt", "updatedAt"],
   kisi: ["createdAt", "updatedAt"],
   firsat: ["kapanisTarihi", "createdAt", "updatedAt"],
+  proje: ["baslangic", "bitis", "createdAt", "updatedAt"],
+  destekKaydi: ["cozumTarihi", "kapanisTarihi", "createdAt", "updatedAt"],
+  sss: ["createdAt", "updatedAt"],
   aktivite: ["sonTarih", "tamamlandi", "createdAt", "updatedAt"],
   lead: ["donusumTarihi", "createdAt", "updatedAt"],
   teklif: ["gecerlilikTarihi", "gonderimTarihi", "createdAt", "updatedAt"],

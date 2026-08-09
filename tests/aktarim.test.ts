@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { csvOku, otomatikEslestir, onIzlemeUret } from "../src/lib/ice-aktar-saf";
 import {
@@ -180,6 +181,17 @@ describe("Veri kümesi tanımları", () => {
       const anahtarlar = k.sutunlar.map((s) => s.anahtar);
       expect(new Set(anahtarlar).size).toBe(anahtarlar.length);
     }
+  });
+
+  it("tanımlı her veri kümesinin dışa aktarım sorgusu var", () => {
+    /**
+     * Tanım eklemek yetmez: `disa-aktar.ts` içinde o kümenin `case`'i yoksa
+     * indirme düğmesi görünür ama boş dosya üretir. Faz 16'da üç küme
+     * (proje, destek, sss) birden eklendiği için bu kapı yazıldı.
+     */
+    const kaynak = readFileSync("src/lib/disa-aktar.ts", "utf8");
+    const eksik = VERI_KUMELERI.filter((k) => !kaynak.includes(`case "${k.deger}":`));
+    expect(eksik.map((k) => k.deger), "sorgusu olmayan küme").toEqual([]);
   });
 
   it("içe aktarılabilen her kümede en az bir zorunlu sütun var", () => {

@@ -296,6 +296,68 @@ export const VERI_KUMELERI: VeriKumesi[] = [
       { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
     ],
   },
+  // ── Proje, destek ve SSS (Faz 16) ──
+  {
+    deger: "projeler",
+    etiket: "Projeler",
+    izin: "proje.goruntule",
+    // Proje kodu tekildir ve bir sayaçtan değil kullanıcıdan gelir; içe
+    // aktarım açılabilirdi ama proje sayısı azdır ve elle girilir.
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "kod", etiket: "Proje Kodu" },
+      { anahtar: "ad", etiket: "Proje Adı" },
+      { anahtar: "firmaAd", etiket: "Firma" },
+      { anahtar: "sorumluAd", etiket: "Sorumlu" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "baslangic", etiket: "Başlangıç", tur: "tarih" },
+      { anahtar: "bitis", etiket: "Bitiş", tur: "tarih" },
+      { anahtar: "butce", etiket: "Bütçe", tur: "sayi" },
+      { anahtar: "paraBirimi", etiket: "Para Birimi" },
+      { anahtar: "aciklama", etiket: "Açıklama" },
+      { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
+    ],
+  },
+  {
+    deger: "destekler",
+    etiket: "Destek Kayıtları",
+    izin: "destek.goruntule",
+    // Kayıt numarası atomik sayaçtan gelir; dosyadan okunması numaranın
+    // tekillik sözünü bozardı (firma numarasındaki gerekçe).
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "no", etiket: "Kayıt No" },
+      { anahtar: "baslik", etiket: "Konu" },
+      { anahtar: "firmaAd", etiket: "Firma" },
+      { anahtar: "kisiAd", etiket: "Bildiren" },
+      { anahtar: "projeKod", etiket: "Proje" },
+      { anahtar: "kanal", etiket: "Kanal" },
+      { anahtar: "oncelik", etiket: "Öncelik" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "atananAd", etiket: "Atanan" },
+      { anahtar: "cozumTarihi", etiket: "Çözüm Tarihi", tur: "tarih" },
+      { anahtar: "kapanisTarihi", etiket: "Kapanış Tarihi", tur: "tarih" },
+      { anahtar: "cozumSaat", etiket: "Çözüm Süresi (saat)", tur: "sayi" },
+      { anahtar: "aciklama", etiket: "Açıklama" },
+      { anahtar: "createdAt", etiket: "Açılış", tur: "tarih" },
+    ],
+  },
+  {
+    deger: "sss",
+    etiket: "SSS / Bilgi Bankası",
+    izin: "sss.goruntule",
+    iceAktarilir: false,
+    sutunlar: [
+      { anahtar: "soru", etiket: "Soru" },
+      { anahtar: "yanit", etiket: "Yanıt" },
+      { anahtar: "kategori", etiket: "Kategori" },
+      { anahtar: "etiketMetni", etiket: "Etiketler" },
+      { anahtar: "durum", etiket: "Durum", tur: "durum" },
+      { anahtar: "sira", etiket: "Sıra", tur: "sayi" },
+      { anahtar: "goruntulenme", etiket: "Görüntülenme", tur: "sayi" },
+      { anahtar: "createdAt", etiket: "Oluşturma", tur: "tarih" },
+    ],
+  },
 ];
 
 export function veriKumesiBul(deger: string): VeriKumesi | undefined {

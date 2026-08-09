@@ -32,15 +32,32 @@ SUNUCU_PID=""
 # veritabanı dosyasını tutmaya devam eder. Bir sonraki çalıştırma yeni sunucuyu
 # ayağa kaldıramaz ama eski sunucu isteklere cevap verdiği için testler sessizce
 # ESKİ VERİYLE koşar ve anlamsız şekilde patlar. Bu tuzağa bir kez düşüldü.
+# Portu tutan süreçleri bulur.
+#
+# `lsof -ti:PORT` TEK BAŞINA YETMEZ: bazı konteynerlerde soket sahibini
+# göremiyor ve boş dönüyor — o zaman "port boş" denip bayat sunucuya
+# bakılabilirdi. İkinci yol olarak süreç listesinde bu portla başlatılmış
+# `next start` aranır.
+port_pidleri() {
+  {
+    lsof -ti:"$PORT" 2>/dev/null || true
+    pgrep -f "next start -p ${PORT}\b" 2>/dev/null || true
+  } | sort -u
+}
+
+port_dolu_mu() {
+  [[ -n "$(port_pidleri)" ]] || curl -s -o /dev/null --max-time 2 "http://localhost:${PORT}/login"
+}
+
 port_bosalt() {
   local pidler
-  pidler="$(lsof -ti:"$PORT" 2>/dev/null || true)"
+  pidler="$(port_pidleri)"
   if [[ -n "$pidler" ]]; then
     # shellcheck disable=SC2086
     kill -9 $pidler 2>/dev/null || true
   fi
   for _ in $(seq 1 15); do
-    lsof -ti:"$PORT" >/dev/null 2>&1 || return 0
+    port_dolu_mu || return 0
     sleep 1
   done
   return 1
@@ -228,8 +245,16 @@ fi
 # (Bayat sunucuya karşı ikinci emniyet; birincisi HTTP izolasyon kontrolündeki
 #  "kendi firma sayısını görüyor" testidir — sayfadaki sayı veritabanındakiyle
 #  karşılaştırılır, bayat veritabanında bu tutmaz.)
-if kill -0 "$SUNUCU_PID" 2>/dev/null && grep -q "Ready" "${GECICI}/server.log"; then
-  adim "Cevap veren sunucu bu çalıştırmaya ait" "GECTI" "pid=${SUNUCU_PID}"
+# NOT: `kill -0 $SUNUCU_PID` GÜVENİLİR DEĞİL — `setsid` süreç grubu lideri
+# olmak için çatallanabiliyor; o durumda `$!` hemen sonlanan ara süreçtir ve
+# sunucu ayakta olsa bile kontrol "kaldı" verir (bir kez yaşandı).
+#
+# Asıl kanıt LOG DOSYASIDIR: `$GECICI` bu çalıştırmada `mktemp -d` ile
+# açılır, yani oraya "Ready" yazan sunucu bayat OLAMAZ. Süreç kimliği
+# yalnızca raporda görünsün diye aranır.
+DINLEYEN_PID="$(port_pidleri | head -1)"
+if grep -q "Ready" "${GECICI}/server.log"; then
+  adim "Cevap veren sunucu bu çalıştırmaya ait" "GECTI" "pid=${DINLEYEN_PID:-?}"
   TOPLAM_GECTI=$((TOPLAM_GECTI + 1))
 else
   adim "Cevap veren sunucu bu çalıştırmaya ait" "KALDI" \

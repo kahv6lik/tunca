@@ -117,6 +117,19 @@ export const IZIN = {
   sevkiyatGoruntule: "sevkiyat.goruntule",
   sevkiyatYonet: "sevkiyat.yonet",
 
+  // ── Faz 16: proje, destek kaydı, SSS ────────────────────────────────────
+  projeGoruntule: "proje.goruntule",
+  projeOlustur: "proje.olustur",
+  projeDuzenle: "proje.duzenle",
+  projeSil: "proje.sil",
+  destekGoruntule: "destek.goruntule",
+  destekOlustur: "destek.olustur",
+  destekDuzenle: "destek.duzenle",
+  destekSil: "destek.sil",
+  // SSS okumak herkesin işidir; YAZMAK kurumsal bilgiyi değiştirmektir.
+  sssGoruntule: "sss.goruntule",
+  sssYonet: "sss.yonet",
+
   kullaniciYonet: "kullanici.yonet",
   grupYonet: "grup.yonet",
   denetimGoruntule: "denetim.goruntule",
@@ -189,6 +202,16 @@ export const IZIN_ETIKET: Record<string, string> = {
   "siparis.onayla": "Siparişleri onayla / reddet",
   "sevkiyat.goruntule": "Sevkiyatları görüntüle",
   "sevkiyat.yonet": "Sevkiyat oluştur ve güncelle",
+  "proje.goruntule": "Projeleri görüntüle",
+  "proje.olustur": "Proje ekle",
+  "proje.duzenle": "Proje düzenle",
+  "proje.sil": "Proje sil",
+  "destek.goruntule": "Destek kayıtlarını görüntüle",
+  "destek.olustur": "Destek kaydı aç",
+  "destek.duzenle": "Destek kaydı düzenle",
+  "destek.sil": "Destek kaydı sil",
+  "sss.goruntule": "SSS'yi görüntüle",
+  "sss.yonet": "SSS içeriğini yönet",
   "kullanici.yonet": "Kullanıcıları yönet",
   "grup.yonet": "Grupları yönet",
   "denetim.goruntule": "Denetim günlüğünü görüntüle",
@@ -219,6 +242,17 @@ export const IZIN_MODULLERI: { ad: string; izinler: Izin[] }[] = [
     ],
   },
   { ad: "Sevkiyat", izinler: [IZIN.sevkiyatGoruntule, IZIN.sevkiyatYonet] },
+  {
+    ad: "Projeler",
+    izinler: [IZIN.projeGoruntule, IZIN.projeOlustur, IZIN.projeDuzenle, IZIN.projeSil],
+  },
+  {
+    ad: "Destek Kayıtları",
+    izinler: [
+      IZIN.destekGoruntule, IZIN.destekOlustur, IZIN.destekDuzenle, IZIN.destekSil,
+    ],
+  },
+  { ad: "SSS", izinler: [IZIN.sssGoruntule, IZIN.sssYonet] },
   { ad: "Raporlar", izinler: [IZIN.raporGoruntule] },
   { ad: "Yönetim", izinler: [IZIN.kullaniciYonet, IZIN.grupYonet, IZIN.denetimGoruntule, IZIN.yedekYonet, IZIN.ozelAlanYonet] },
 ];
@@ -260,6 +294,10 @@ const GORUNTULEME: Izin[] = [
   // Faz 15: siparişi görmek satış ekibinin günlük işidir.
   IZIN.siparisGoruntule,
   IZIN.sevkiyatGoruntule,
+  // Faz 16
+  IZIN.projeGoruntule,
+  IZIN.destekGoruntule,
+  IZIN.sssGoruntule,
 ];
 
 const IS_VERISI_TAM: Izin[] = [
@@ -282,6 +320,10 @@ const IS_VERISI_TAM: Izin[] = [
   // Sevkiyat kaydı depo işidir; onaylanmamış siparişten sevkiyat açılamaz
   // (kural veri katmanında, izinle değil).
   IZIN.sevkiyatYonet,
+  // Faz 16: proje ve destek kaydı günlük iştir; SSS YAZMAK kurumsal bilgiyi
+  // değiştirmektir ve bilinçli olarak yöneticidedir.
+  IZIN.projeOlustur, IZIN.projeDuzenle, IZIN.projeSil,
+  IZIN.destekOlustur, IZIN.destekDuzenle, IZIN.destekSil,
 ];
 
 /**
@@ -317,6 +359,7 @@ export const ROL_IZINLERI: Record<string, Izin[]> = {
     IZIN.kampanyaYonet,
     // Faz 15: onay yetkisi yöneticidedir.
     IZIN.siparisOnayla,
+    IZIN.sssYonet,
   ],
   [ROL.uye]: IS_VERISI_TAM,
   [ROL.saltOkunur]: GORUNTULEME,

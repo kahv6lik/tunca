@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.15.0` — Faz 15: sipariş, onay akışı, sevkiyat |
-| **Sıradaki faz** | **Faz 16** — Proje, destek kaydı, SSS (`v1.16.0`) |
-| **Sonrası** | Faz 17–20: saha geri bildirimleri · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.16.0` — Faz 16: proje, destek kaydı, SSS |
+| **Sıradaki faz** | **Faz 17** — Dosya eki, ziyaret ve konum doğrulama (`v1.17.0`) |
+| **Sonrası** | Faz 18–20: saha geri bildirimleri · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -150,7 +150,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 13 | H1–H9 — Arayüz ve veri düzeltmeleri (firma no, filtreler, menü) | `v1.13.0` | ✅ tamamlandı | — |
 | 14 | T1–T8 — Ürün kataloğu, **stok**, paket, kampanya, fiyat motoru | `v1.14.0` | ✅ tamamlandı | — |
 | 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | ✅ tamamlandı | — |
-| 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | planlandı | |
+| 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | ✅ tamamlandı | — |
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | planlandı | |
 | 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | planlandı | |
 | 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | planlandı | |
@@ -1078,25 +1078,62 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ## Faz 16 — Proje, Destek Kaydı ve SSS → `v1.16.0`
 
-- [ ] **P1 — Proje modülü.** Firma, ad, kod, sorumlu, başlangıç/bitiş,
+- [x] **P1 — Proje modülü.** Firma, ad, kod, sorumlu, başlangıç/bitiş,
       durum, bütçe. Projeye bağlı **teklifler ve siparişler** proje
       detayında listelenir ve oradan oluşturulabilir.
-- [ ] **P2 — Destek / başvuru kaydı (ticket).** Firma bazında açılır.
+- [x] **P2 — Destek / başvuru kaydı (ticket).** Firma bazında açılır.
       Alanlar: **geliş kanalı** (telefon, e-posta, web, saha ziyareti,
       sosyal medya…), **öncelik** (düşük/orta/yüksek/kritik), **atanan
       kişi**, durum (açık · işlemde · beklemede · çözüldü · kapandı),
       **yapılan işlemler** (zaman damgalı işlem geçmişi).
-- [ ] **P3 — Destek raporu.** Firma bazında ve genel: kanal kırılımı,
+- [x] **P3 — Destek raporu.** Firma bazında ve genel: kanal kırılımı,
       öncelik dağılımı, kişi bazında yük, çözüm süresi, tarih aralığı.
-- [ ] **P4 — SSS (bilgi bankası).** Manuel giriş: soru, yanıt, kategori,
+- [x] **P4 — SSS (bilgi bankası).** Manuel giriş: soru, yanıt, kategori,
       etiketler. Üstünde **arama** (Türkçe duyarsız). Destek kaydı
       ekranından ilgili SSS'ye hızlı erişim.
 
-### Açık sorular
+### Açık sorular — YANITLANDI
+
 - Destek kaydı ile mevcut **Aktivite** modülü ne kadar ayrışacak? Aktivite
   "ne yaptık" günlüğüdür; destek kaydı ise **sahibi, önceliği ve durumu olan
-  bir iş**. **Önerim: ayrı model**, ama destek kaydının işlem geçmişi
-  aktivite kayıtlarıyla tutulsun — firma zaman akışında ikisi birden görünür.
+  bir iş**. **KARAR: ayrı model + aktivite geçmişi.** `DestekKaydi` kendi
+  tablosudur; işlem geçmişi ise `Aktivite.destekId` ile aktivite satırı
+  olarak tutulur. Böylece destek işlemleri firma zaman akışında da görünür
+  ve timeline tek sorguyla kurulmaya devam eder. ✅
+- Teklif/siparişin projeye bağı **OPSİYONELDİR**: tek seferlik küçük satış
+  için proje açmak zorunda kalmak, kullanıcıyı boş proje üretmeye iterdi. ✅
+
+### Uygulama notları (v1.16.0)
+
+1. **Çözüm ve kapanış damgaları KENDİLİĞİNDEN atılır** (`durumDamgalari`).
+   Kullanıcıya "çözüm tarihini de yaz" dedirtmek bir gün unutulacak bir
+   adımdır ve çözüm süresi raporunu sessizce bozar. Çözüm damgası bir kez
+   atılır ve geri ALINMAZ (kayıt yeniden açılsa bile ilk çözüm anı
+   gerçekti); kapanış damgası yeniden açılışta temizlenir. Doğrudan
+   "kapandı"ya çekilen kayıt da çözülmüş sayılır — yoksa süre raporunda hiç
+   görünmezdi.
+2. **Destek listesi bir ARŞİV değil İŞ KUYRUĞUDUR:** varsayılan görünüm
+   açık işlerdir, kapanmışlar `durum=hepsi` ile gelir. Sıralama tarihe
+   değil ÖNCELİĞE bakar.
+3. **Kanal ve öncelik SABİT listedir.** Serbest metin olsaydı "telefon" /
+   "Telefon" / "Tel" üç ayrı kanal gibi sayılır ve kırılım raporu
+   anlamsızlaşırdı (v1.12.1'deki departman kararının aynısı).
+4. **Kayıt numarası sipariş/sevkiyattaki atomik sayaçtan** gelir
+   (`DST-2026-0001`, `BelgeSayac`). Aynı desen dördüncü kez kullanıldı.
+5. **Kişi yükü YALNIZCA açık kayıtları sayar:** "kimde kaç iş var" sorusu
+   bugünü sorar, kapanmış iş kimsenin üzerinde yük değildir.
+6. **SSS'de görüntüleme ile yönetim ayrı izinlerdir** (`sss.goruntule` /
+   `sss.yonet`): destek ekibinin tamamı yanıtları okumalı, kurumsal cevabı
+   yalnızca yetkili değiştirmelidir. Etiketler Türkçe kurallarıyla küçültülüp
+   tekilleştirilir — "İADE" ve "iade" tek etikettir.
+7. **Görüntülenme sayacı atomiktir** (`increment`) ama denetim günlüğüne
+   yazılmaz ve sayfayı yeniden doğrulamaz: bir yanıtı okumak değişiklik
+   değildir.
+8. **Yedek sırası FK'ye bağlıdır:** `proje` ve `destekKaydi`, `aktivite`den
+   ÖNCE geri yüklenir. Bu kural artık regresyon testiyle sabitlendi
+   ("Yedek kapsamı şemayla tutarlı").
+9. **Proje silmek bağlı kayıtları silmez:** teklif/sipariş/destek FK'leri
+   `SetNull` — satış ve destek geçmişi projenin kapatılmasıyla yok olmamalı.
 
 ---
 

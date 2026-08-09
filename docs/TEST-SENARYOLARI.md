@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.16.0** | **Faz 16** — Proje, destek kaydı (kanal/öncelik/atama/işlem geçmişi), destek raporu, SSS bilgi bankası | `/destek` → yeni kayıt aç → işlem ekle → durumu **Çözüldü** yap → `/destek/rapor` | Kayıt `DST-YIL-0001` numarasını alır; işlem hem destek geçmişinde hem firma zaman akışında görünür; çözüm tarihi ELLE girilmeden damgalanır ve raporda ortalama çözüm süresine yansır | 539 |
 | **v1.15.0** | **Faz 15** — Sipariş, yönetici onay akışı, sevkiyat kuyruğu ve raporu | Üye ile sipariş gir → yönetici ile onayla → sevkiyat aç → durumu ilerlet | Sipariş onaya düşer; onayda stok ve kampanya kotası düşer; sevkiyat düğmesi ancak ONAYDAN SONRA çıkar; stok yetersizse onay verilmez ve hiçbir şey düşmez | 498 |
 | **v1.14.0** | **Faz 14** — Ürün kataloğu, müşteriye özel paketler, kampanya (kota + kullanım raporu), fiyat motoru, gerçek stok takibi | `/urunler`de ürün ekle → `/paketler`de iki ürünü paketle → `/kampanyalar`da kotalı kampanya aç → `/stok`ta giriş/çıkış gir | Paket önizlemesi müşteri avantajını gösterir; kampanya kotası her kullanımda düşer ve tükenince reddeder; stok çıkışı eldekinden fazlaysa hata verir ve hareket yazılmaz | 465 |
 | **v1.13.0** | **Faz 13** — Firma numarası (`A0001`), Türkçe duyarsız arama, Kontaklar adı + menü düzeni, Adaylar fırsatlar sekmesi, fırsattan firma/teklif, takvim kategori süzgeci, raporlarda tarih aralığı | Firmalar listesinde bir numarayı arama kutusuna yaz; `/firsatlar`da **+ Yeni firma ekle** ile fırsat aç | Numara tam eşleşmeyle o firmayı getirir; fırsat ve firma tek işlemde açılır, firma sıradaki numarayı ve denetim kaydını alır | 400 |
@@ -281,6 +282,35 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
 | 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
 | 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
+
+---
+
+### v1.16.0 — Proje, destek ve bilgi bankası (Faz 16)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `admin@gezegen.com` ile `/projeler` → **Yeni Proje** | Kod tekildir; aynı kodu ikinci kez vermek reddedilir |
+| 2 | Başlangıcı bitişten SONRAYA yaz | "Başlangıç tarihi bitişten sonra olamaz" — kayıt açılmaz |
+| 3 | Proje detayını aç | Teklif, sipariş ve destek bölümleri; bütçeye karşı onaylı sipariş toplamı çubuğu |
+| 4 | `/siparisler/yeni?proje=<id>` ile sipariş aç | Proje seçili gelir; proje detayında listelenir |
+| 5 | `/destek` → **Yeni Destek Kaydı** (kanal: telefon, öncelik: kritik) | Kayıt `DST-YIL-0001` numarasıyla **açık** durumunda açılır |
+| 6 | Başka bir kullanıcıya ata | Atanan kişinin zilinde bildirim çıkar (kendine atayan kişiye gitmez) |
+| 7 | Detayda **İşlem Ekle** | İşlem kronolojik listeye düşer; firmanın zaman akışında da görünür |
+| 8 | Durumu **Çözüldü** yap | Çözüm tarihi kendiliğinden damgalanır; "Çözüm süresi" dolar |
+| 9 | Kaydı yeniden **İşlemde**'ye çek | Kapanış damgası temizlenir, ÇÖZÜM anı korunur (geri alınmaz) |
+| 10 | `/destek` listesine dön | Kapanmış kayıt görünmez — varsayılan görünüm AÇIK işlerdir |
+| 11 | Durum süzgecini **Hepsi** yap | Kapanmış kayıt geri gelir |
+| 12 | Listeyi öncelikle karşılaştır | Kritik kayıtlar üstte; tarih değil öncelik sıralar |
+| 13 | `/destek/rapor` | Kanal kırılımı, öncelik dağılımı, kişi yükü, ortalama çözüm süresi, en uzun bekleyenler |
+| 14 | Raporda bir firma seç | Rakamlar yalnızca o firmayı sayar; başlıkta firma adı yazar |
+| 15 | Kişi yükü kutusuna bak | Yalnızca AÇIK kayıtlar sayılır; kapanmış işi olan kişi listede yok |
+| 16 | `/sss` → **Yeni Soru** (etiket: "İADE, iade") | Tek etiket kaydedilir — Türkçe küçültme ile tekilleşir |
+| 17 | Arama kutusuna büyük harfle "FATURA" yaz | Küçük harfli kayıt bulunur (Türkçe duyarsız arama) |
+| 18 | Bir soruyu aç, sayfayı yenile | Görüntülenme sayacı artmış |
+| 19 | `kullanici@gezegen.com` ile `/sss` | Yanıtları okur ama **Yeni Soru** düğmesi yok |
+| 20 | Destek detayında **SSS'de ara** | SSS ekranı kaydın konusu aranmış hâlde açılır |
+| 21 | Projeyi sil | Bağlı teklif/sipariş/destek SİLİNMEZ, yalnızca proje bağı kopar |
+| 22 | `admin@anadolu.com` ile `/destek` | Gezegen'in hiçbir destek kaydı görünmez |
 
 ---
 

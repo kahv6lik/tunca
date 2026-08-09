@@ -274,6 +274,47 @@ describe("Paket modülleri seed ile tutarlı (Faz 14'te yaşandı)", () => {
   });
 });
 
+describe("Yedek kapsamı şemayla tutarlı (Faz 16)", () => {
+  const yedek = readFileSync("src/lib/yedek-saf.ts", "utf8");
+  const modeller = (
+    yedek.match(/const MODELLER = \[([\s\S]*?)\] as const;/)?.[1] ?? ""
+  )
+    .split("\n")
+    .map((satir) => satir.trim().match(/^"([a-zA-Z]+)",$/)?.[1])
+    .filter((m): m is string => Boolean(m));
+
+  it("model listesi okunabildi", () => {
+    expect(modeller.length).toBeGreaterThan(20);
+  });
+
+  it("FK'si olan model, bağlandığı modelden SONRA geri yüklenir", () => {
+    /**
+     * Geri yükleme sırayla `createMany` çağırır; bağlı olduğu satır henüz
+     * yoksa FK hatası verir. Faz 16'da `Aktivite.destekId` eklendiği için
+     * destek kaydı aktiviteden ÖNCE gelmek zorunda kaldı — sıra bir
+     * ayrıntı değil, geri yüklemenin çalışma koşuludur.
+     */
+    const sira = new Map(modeller.map((m, i) => [m, i]));
+    const bagimliliklar: [string, string][] = [
+      ["destekKaydi", "firma"],
+      ["destekKaydi", "proje"],
+      ["aktivite", "destekKaydi"],
+      ["teklifKalemi", "teklif"],
+      ["siparisKalemi", "siparis"],
+      ["sevkiyat", "siparis"],
+      ["ozelAlanDeger", "ozelAlan"],
+    ];
+
+    for (const [bagimli, once] of bagimliliklar) {
+      const a = sira.get(bagimli);
+      const b = sira.get(once);
+      expect(a, `${bagimli} yedek kapsamında yok`).toBeDefined();
+      expect(b, `${once} yedek kapsamında yok`).toBeDefined();
+      expect(b! < a!, `${once}, ${bagimli} modelinden ÖNCE gelmeli`).toBe(true);
+    }
+  });
+});
+
 describe("Şema kuralları", () => {
   const sema = readFileSync("prisma/schema.prisma", "utf8");
 

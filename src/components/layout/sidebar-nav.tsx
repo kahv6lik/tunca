@@ -27,6 +27,9 @@ import {
   ShoppingCart,
   Truck,
   FileLock2,
+  FolderKanban,
+  LifeBuoy,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,6 +86,10 @@ export const NAV: NavItem[] = [
   { href: "/sevkiyat", label: "Sevkiyat", icon: Truck, izin: "sevkiyat.goruntule" },
   { href: "/kampanyalar", label: "Kampanyalar", icon: Ticket, izin: "kampanya.goruntule" },
   { href: "/stok", label: "Stok", icon: Warehouse, izin: "stok.goruntule" },
+  // ── Proje, destek ve bilgi bankası (Faz 16) ──
+  { href: "/projeler", label: "Projeler", icon: FolderKanban, izin: "proje.goruntule" },
+  { href: "/destek", label: "Destek", icon: LifeBuoy, izin: "destek.goruntule" },
+  { href: "/sss", label: "SSS", icon: HelpCircle, izin: "sss.goruntule" },
   { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
   { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
   { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },

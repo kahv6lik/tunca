@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * kalmamalıdır (Faz 13 / H7'deki fırsat→teklif geçişiyle aynı gerekçe).
  */
 export default async function YeniSiparisPage(props: {
-  searchParams: Promise<{ firma?: string; teklif?: string }>;
+  searchParams: Promise<{ firma?: string; teklif?: string; proje?: string }>;
 }) {
   const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.siparisOlustur);
@@ -34,7 +34,7 @@ export default async function YeniSiparisPage(props: {
 
   const firmaId = teklif?.firmaId ?? searchParams.firma;
 
-  const [firmalar, urunler, kisiler] = await Promise.all([
+  const [firmalar, urunler, kisiler, projeler] = await Promise.all([
     db.firma.findMany({
       where: { durum: "aktif" },
       orderBy: { ad: "asc" },
@@ -57,6 +57,13 @@ export default async function YeniSiparisPage(props: {
           select: { id: true, ad: true },
         })
       : Promise.resolve([]),
+    // Proje bağı opsiyoneldir; liste boşsa seçici hiç görünmez.
+    db.proje.findMany({
+      where: { durum: { in: ["planlandi", "devam", "beklemede"] } },
+      orderBy: { ad: "asc" },
+      take: 300,
+      select: { id: true, kod: true, ad: true },
+    }),
   ]);
 
   // Firma için geçerli kampanyalar — kapsam ve tarih süzgeci saf katmanda.
@@ -103,6 +110,8 @@ export default async function YeniSiparisPage(props: {
         varsayilanKalemler={teklifKalemleri.length > 0 ? teklifKalemleri : undefined}
         varsayilanKisiId={teklif?.kisiId ?? undefined}
         varsayilanParaBirimi={teklif?.paraBirimi}
+        projeler={projeler}
+        varsayilanProjeId={teklif?.projeId ?? searchParams.proje}
       />
     </div>
   );

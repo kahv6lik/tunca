@@ -379,6 +379,205 @@ async function siparisVerisi(tenantId: string, urunler: Record<string, string>) 
   console.log("✅ Sipariş verisi: 3 sipariş (onay bekleyen, onaylı, reddedilen) + 1 sevkiyat.");
 }
 
+/**
+ * Proje, destek kaydı ve SSS demo verisi (Faz 16).
+ *
+ * Destek kayıtları BİLEREK farklı durumlarda üretilir (açık, işlemde,
+ * çözülmüş, kapanmış): çözüm süresi raporu ve kişi yükü ekranı demo veride
+ * de anlamlı çıkmalı, yoksa "ortalama yok" gösterir ve rapor sınanmamış olur.
+ */
+async function projeDestekVerisi(tenantId: string) {
+  const mevcut = await prisma.destekKaydi.count({ where: { tenantId } });
+  if (mevcut > 0) {
+    console.log("ℹ️  Proje/destek verisi zaten var, üretim atlanıyor.");
+    return;
+  }
+
+  const firmalar = await prisma.firma.findMany({
+    where: { tenantId },
+    take: 4,
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (firmalar.length === 0) return;
+
+  const yonetici = await prisma.user.findFirst({
+    where: { tenantId, role: { in: ["tenant_admin", "admin"] } },
+    select: { id: true },
+  });
+  const uye = await prisma.user.findFirst({
+    where: { tenantId, role: "uye" },
+    select: { id: true },
+  });
+
+  const proje = await prisma.proje.create({
+    data: {
+      tenantId,
+      kod: "PRJ-001",
+      ad: "ERP Geçiş Projesi",
+      aciklama: "Mevcut sistemden yeni CRM'e veri taşıma ve eğitim.",
+      firmaId: firmalar[0].id,
+      sorumluId: yonetici?.id ?? null,
+      durum: "devam",
+      baslangic: new Date(Date.now() - 30 * 86_400_000),
+      bitis: new Date(Date.now() + 60 * 86_400_000),
+      butce: 250_000,
+    },
+  });
+  await prisma.proje.create({
+    data: {
+      tenantId,
+      kod: "PRJ-002",
+      ad: "Saha Ekibi Mobil Kurulum",
+      firmaId: firmalar[1]?.id ?? firmalar[0].id,
+      sorumluId: uye?.id ?? null,
+      durum: "planlandi",
+      butce: 80_000,
+    },
+  });
+
+  const yil = new Date().getFullYear();
+  const gun = 86_400_000;
+  let sira = 0;
+  const no = () => `DST-${yil}-${String(++sira).padStart(4, "0")}`;
+
+  const kayitlar = [
+    {
+      baslik: "Barkod okuyucu bilgisayara bağlanmıyor",
+      kanal: "telefon",
+      oncelik: "kritik",
+      durum: "acik",
+      atananId: uye?.id ?? null,
+      projeId: null as string | null,
+      gecmis: 2,
+      cozumGun: null as number | null,
+    },
+    {
+      baslik: "Veri aktarımında Türkçe karakterler bozuk geliyor",
+      kanal: "eposta",
+      oncelik: "yuksek",
+      durum: "islemde",
+      atananId: yonetici?.id ?? null,
+      projeId: proje.id,
+      gecmis: 5,
+      cozumGun: null,
+    },
+    {
+      baslik: "Fatura adresi güncellemesi",
+      kanal: "web",
+      oncelik: "dusuk",
+      durum: "cozuldu",
+      atananId: uye?.id ?? null,
+      projeId: null,
+      gecmis: 7,
+      cozumGun: 6,
+    },
+    {
+      baslik: "Kullanıcı eğitimi talebi",
+      kanal: "saha",
+      oncelik: "orta",
+      durum: "kapandi",
+      atananId: yonetici?.id ?? null,
+      projeId: proje.id,
+      gecmis: 12,
+      cozumGun: 9,
+    },
+    {
+      baslik: "Yeni kullanıcı hesabı açılması",
+      kanal: "whatsapp",
+      oncelik: "orta",
+      durum: "beklemede",
+      atananId: null,
+      projeId: null,
+      gecmis: 3,
+      cozumGun: null,
+    },
+  ];
+
+  for (const [i, k] of kayitlar.entries()) {
+    const acilis = new Date(Date.now() - k.gecmis * gun);
+    const cozum = k.cozumGun === null ? null : new Date(Date.now() - k.cozumGun * gun);
+    const kayit = await prisma.destekKaydi.create({
+      data: {
+        tenantId,
+        no: no(),
+        firmaId: firmalar[i % firmalar.length].id,
+        projeId: k.projeId,
+        baslik: k.baslik,
+        kanal: k.kanal,
+        oncelik: k.oncelik,
+        durum: k.durum,
+        atananId: k.atananId,
+        acanId: yonetici?.id ?? null,
+        createdAt: acilis,
+        cozumTarihi: cozum,
+        kapanisTarihi: k.durum === "kapandi" ? cozum : null,
+      },
+    });
+
+    // İşlem geçmişi AKTİVİTE olarak yazılır; firma zaman akışında da görünür.
+    if (k.durum !== "acik") {
+      await prisma.aktivite.create({
+        data: {
+          tenantId,
+          tur: "arama",
+          baslik: "Müşteri arandı, durum bilgisi verildi",
+          destekId: kayit.id,
+          firmaId: kayit.firmaId,
+          olusturanId: k.atananId ?? yonetici?.id ?? null,
+          createdAt: new Date(acilis.getTime() + gun / 2),
+        },
+      });
+    }
+  }
+
+  await prisma.belgeSayac.upsert({
+    where: { tenantId_tur_yil: { tenantId, tur: "destek", yil } },
+    create: { tenantId, tur: "destek", yil, sonSira: sira },
+    update: { sonSira: sira },
+  });
+
+  const sorular = [
+    {
+      soru: "Şifremi unuttum, nasıl sıfırlarım?",
+      yanit:
+        "Giriş ekranındaki \"Şifremi unuttum\" bağlantısına tıklayın. E-posta adresinize gelen bağlantı 1 saat geçerlidir.",
+      kategori: "Hesap",
+      etiketler: ["şifre", "giriş"],
+      sira: 0,
+    },
+    {
+      soru: "Fatura adresimi nasıl değiştiririm?",
+      yanit:
+        "Firma detay ekranından Düzenle'ye basıp adres alanını güncelleyin. Değişiklik yalnızca yeni faturalara yansır.",
+      kategori: "Faturalama",
+      etiketler: ["fatura", "adres"],
+      sira: 1,
+    },
+    {
+      soru: "Siparişim neden onay bekliyor?",
+      yanit:
+        "Her sipariş yönetici onayından geçer. Onay anında stok ve kampanya kotası düşülür; onaylanmadan sevkiyat açılamaz.",
+      kategori: "Sipariş",
+      etiketler: ["sipariş", "onay"],
+      sira: 2,
+    },
+    {
+      soru: "Verilerimin yedeği alınıyor mu?",
+      yanit:
+        "Evet, her gece otomatik yedek alınır ve son 7 yedek saklanır. Yedekler ekranından elle de yedek alabilir, indirebilirsiniz.",
+      kategori: "Güvenlik",
+      etiketler: ["yedek", "veri"],
+      sira: 3,
+    },
+  ];
+  for (const s of sorular) {
+    await prisma.sss.create({ data: { tenantId, ...s, goruntulenme: s.sira * 3 } });
+  }
+
+  console.log("✅ Proje/destek verisi: 2 proje, 5 destek kaydı, 4 SSS.");
+}
+
 async function veriUret(tenantId: string, firmaSayisi: number, etiket: string) {
   const mevcut = await prisma.firma.count({ where: { tenantId } });
   if (mevcut > 0) {
@@ -713,6 +912,7 @@ async function paketleriKur() {
         // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
+        "proje", "destek", "sss",
       ],
     },
     {
@@ -729,6 +929,7 @@ async function paketleriKur() {
         // kapalı sayılır ve ekranlar /yetkisiz'e düşer (bir kez yaşandı).
         "urun", "kampanya", "stok",
         "siparis", "sevkiyat",
+        "proje", "destek", "sss",
       ],
     },
   ];
@@ -843,6 +1044,7 @@ async function main() {
 
   await veriUret(gezegen.id, 800, "Gezegen Danışmanlık");
   if (ticariUrunler) await siparisVerisi(gezegen.id, ticariUrunler);
+  await projeDestekVerisi(gezegen.id);
   await veriUret(anadolu.id, 120, "Anadolu Yatırım");
 
   console.log("\n🎉 Seed tamamlandı. Giriş bilgileri:");

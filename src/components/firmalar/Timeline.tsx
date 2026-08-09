@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Wrench,
   Contact,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import type { TimelineOgesi } from "@/lib/timeline";
@@ -21,6 +22,7 @@ const IKON: Record<TimelineOgesi["tur"], LucideIcon> = {
   egitim: GraduationCap,
   hizmet: Wrench,
   kisi: Contact,
+  destek: LifeBuoy,
 };
 
 const RENK: Record<TimelineOgesi["tur"], string> = {
@@ -31,6 +33,7 @@ const RENK: Record<TimelineOgesi["tur"], string> = {
   egitim: "bg-sky-500/10 text-sky-400",
   hizmet: "bg-indigo-500/10 text-indigo-400",
   kisi: "bg-slate-500/10 text-slate-400",
+  destek: "bg-rose-500/10 text-rose-400",
 };
 
 const TUR_ETIKET: Record<TimelineOgesi["tur"], string> = {
@@ -41,6 +44,7 @@ const TUR_ETIKET: Record<TimelineOgesi["tur"], string> = {
   egitim: "Eğitim",
   hizmet: "Hizmet",
   kisi: "Kişi",
+  destek: "Destek Kaydı",
 };
 
 /**

@@ -154,6 +154,12 @@ export const DURUM_ETIKET: Record<string, { label: string; className: string }> 
   // etiketleri sipariş için de doğru, ikinci kez tanımlanmıyor.
   onaybekliyor: { label: "Onay Bekliyor", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
   hazirlaniyor: { label: "Hazırlanıyor", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  // proje ve destek (Faz 16) — "planlandi" zaten eğitimden geliyor, tekrar
+  // tanımlanmıyor.
+  beklemede: { label: "Beklemede", className: "bg-amber-500/15 text-amber-400 ring-amber-500/25" },
+  islemde: { label: "İşlemde", className: "bg-sky-500/15 text-sky-400 ring-sky-500/25" },
+  cozuldu: { label: "Çözüldü", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
+  kapandi: { label: "Kapandı", className: "bg-slate-500/15 text-slate-400 ring-slate-500/25" },
   sevkedildi: { label: "Sevk Edildi", className: "bg-indigo-500/15 text-indigo-400 ring-indigo-500/25" },
   teslim: { label: "Teslim Edildi", className: "bg-emerald-500/15 text-emerald-500 ring-emerald-500/25" },
 };
@@ -232,6 +238,54 @@ export const SEVKIYAT_DURUM = [
 
 export type SevkiyatDurumu = (typeof SEVKIYAT_DURUM)[number];
 
+// ── Proje, destek ve SSS (Faz 16) ──────────────────────────────────────────
+
+export const PROJE_DURUM = [
+  "planlandi",
+  "devam",
+  "beklemede",
+  "tamamlandi",
+  "iptal",
+] as const;
+
+/**
+ * Destek kaydının GELİŞ KANALI.
+ *
+ * Sabit listedir: kanal kırılımı raporunun anlamlı olması için serbest metin
+ * olamaz — "Telefon", "telefon", "Tel" üç ayrı kanal gibi sayılırdı.
+ */
+export const DESTEK_KANAL = [
+  { deger: "telefon", etiket: "Telefon" },
+  { deger: "eposta", etiket: "E-posta" },
+  { deger: "web", etiket: "Web formu" },
+  { deger: "saha", etiket: "Saha ziyareti" },
+  { deger: "sosyal", etiket: "Sosyal medya" },
+  { deger: "whatsapp", etiket: "WhatsApp" },
+  { deger: "diger", etiket: "Diğer" },
+] as const;
+
+export type DestekKanali = (typeof DESTEK_KANAL)[number]["deger"];
+
+export const DESTEK_ONCELIK = [
+  { deger: "dusuk", etiket: "Düşük", sira: 0 },
+  { deger: "orta", etiket: "Orta", sira: 1 },
+  { deger: "yuksek", etiket: "Yüksek", sira: 2 },
+  { deger: "kritik", etiket: "Kritik", sira: 3 },
+] as const;
+
+export type DestekOnceligi = (typeof DESTEK_ONCELIK)[number]["deger"];
+
+/**
+ * Destek kaydı durumları.
+ *
+ * "cozuldu" ile "kapandi" bilinçli olarak AYRIDIR: çözüm anı süre hesabının
+ * dayanağıdır, kapanış ise müşteri onayından sonra gelir. İkisini
+ * birleştirmek "ne kadar sürede çözdük" sorusunu yanıtsız bırakırdı.
+ */
+export const DESTEK_DURUM = ["acik", "islemde", "beklemede", "cozuldu", "kapandi"] as const;
+
+export type DestekDurumu = (typeof DESTEK_DURUM)[number];
+
 // Kiracı (kuruluş) durumları — admin panelde kullanılır
 export const KIRACI_DURUM = ["aktif", "askida", "pasif"] as const;
 
@@ -265,6 +319,10 @@ export const PAKET_MODULLERI = [
   // sipariş alır ama kargo göndermez.
   { deger: "siparis", etiket: "Siparişler", izin: "siparis.goruntule" },
   { deger: "sevkiyat", etiket: "Sevkiyat", izin: "sevkiyat.goruntule" },
+  // Faz 16 — proje, destek kaydı ve bilgi bankası
+  { deger: "proje", etiket: "Projeler", izin: "proje.goruntule" },
+  { deger: "destek", etiket: "Destek Kayıtları", izin: "destek.goruntule" },
+  { deger: "sss", etiket: "SSS / Bilgi Bankası", izin: "sss.goruntule" },
 ] as const;
 
 export type PaketModulu = (typeof PAKET_MODULLERI)[number]["deger"];
