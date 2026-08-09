@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.17.0` — Faz 17: dosya eki, ziyaret ve konum doğrulama |
-| **Sıradaki faz** | **Faz 18** — Rapor merkezi, mali raporlar, firma dosyası PDF (`v1.18.0`) |
-| **Sonrası** | Faz 19–20: saha geri bildirimleri · Faz 21: AI |
+| **Son çıkan sürüm** | `v1.18.0` — Faz 18: rapor merkezi, mali raporlar, firma dosyası |
+| **Sıradaki faz** | **Faz 19** — Anket tanımı, gönderim, yanıt toplama, rapor (`v1.19.0`) |
+| **Sonrası** | Faz 20: birleşik çalışma ekranı · Faz 21: AI |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -152,7 +152,7 @@ Durum işaretleri: `planlandı` · `🔨 devam ediyor` · `⏸ beklemede` · `�
 | 15 | S1–S6 — Sipariş, yönetici onayı, depo/sevkiyat | `v1.15.0` | ✅ tamamlandı | — |
 | 16 | P1–P4 — Proje, destek kaydı, SSS | `v1.16.0` | ✅ tamamlandı | — |
 | 17 | A1–A5 — Dosya/fotoğraf eki, ziyaret ve konum doğrulama | `v1.17.0` | ✅ tamamlandı | — |
-| 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | planlandı | |
+| 18 | R1–R5 — Rapor merkezi, mali raporlar, firma dosyası PDF | `v1.18.0` | ✅ tamamlandı | — |
 | 19 | N1–N4 — Anket tanımı, gönderim, yanıt toplama, rapor | `v1.19.0` | planlandı | |
 | 20 | U1–U4 — Birleşik çalışma ekranı (komut paleti, yan panel) | `v1.20.0` | planlandı | |
 | 21 | G1–G3 — AI özellikleri (**en sona alındı**) | `v1.21.0` | planlandı | |
@@ -1229,24 +1229,72 @@ Ticari çekirdeğin temeli. Sipariş bu fazın üstüne kurulur.
 
 ## Faz 18 — Raporlama Merkezi ve Firma Dosyası → `v1.18.0`
 
-- [ ] **R1 — Rapor merkezi.** Bütün raporlar tek bir çatı altında: ortak
+- [x] **R1 — Rapor merkezi.** Bütün raporlar tek bir çatı altında: ortak
       tarih aralığı, ortak süzgeçler (firma, sorumlu, durum), ortak dışa
       aktarım. Yeni bir rapor eklemek kayıt defterine satır eklemek olur
       (pano kartlarındaki desen).
-- [ ] **R2 — Mali raporlar.** Ciro (teklif/sipariş bazlı), tahsilat
+- [x] **R2 — Mali raporlar.** Ciro (teklif/sipariş bazlı), tahsilat
       beklentisi, kampanya maliyeti/indirim toplamı, ürün ve paket bazında
       satış, firma bazında ciro, dönem karşılaştırması.
-- [ ] **R3 — Modül raporları.** Fırsat hattı ve dönüşüm oranları, aktivite
+- [x] **R3 — Modül raporları.** Fırsat hattı ve dönüşüm oranları, aktivite
       yükü, destek kaydı performansı, sevkiyat durumu, eğitim/hizmet/yatırım
       dağılımları — hepsi tarih aralığına duyarlı.
-- [ ] **R4 — Firma dosyası (tek PDF).** Bir firma için yapılan HER ŞEYİN tek
+- [x] **R4 — Firma dosyası (tek PDF).** Bir firma için yapılan HER ŞEYİN tek
       belgede toplanması: künye, kontaklar, fırsatlar, teklifler, siparişler,
       projeler, destek kayıtları, aktiviteler, yatırım/eğitim/hizmet kayıtları
       ve zaman akışı. Kiracı markasıyla, tarayıcı yazdırma motoruyla (Faz 9
       deseni). İçerik izin süzgecinden geçer — izni olmayan modül belgeye
       girmez.
-- [ ] **R5 — Rapor özelleştirme.** Kullanıcı hangi kolonları/kırılımları
+- [x] **R5 — Rapor özelleştirme.** Kullanıcı hangi kolonları/kırılımları
       istediğini seçer ve kaydeder (kayıtlı görünüm altyapısı kullanılır).
+
+### Kararlar (v1.18.0)
+
+1. **Tahsilat beklentisi MEVCUT VERİDEN türetildi; ödeme/fatura modeli
+   EKLENMEDİ.** Sistemde "kim ne zaman ödedi" kaydı yoktur ve rapor bunu
+   ekranda açıkça söyler ("tahmindir"). Rakam üç kalemden oluşur: onay
+   bekleyen siparişler + kabul edilmiş teklifler + açık fırsatların
+   olasılıkla ağırlıklı toplamı. Gerçek bir cari/alacak takibi ayrı bir
+   fazın işidir; Faz 18 rapor fazı olarak kaldı. ✅
+2. **R5 kayıtlı görünüm altyapısıyla karşılandı** (Faz 10 / E4): rapor
+   süzgeci zaten querystring'de yaşadığı için tek yapılan `GORUNUM_LISTELERI`
+   listesine `raporlar` eklemek oldu. Kolon seçimi ve rapor oluşturucu
+   bilinçli olarak KAPSAM DIŞINDA — ikisi de kendi başına bir faz
+   büyüklüğünde ve R1-R4'ü geciktirirdi. ✅
+
+### Uygulama notları (v1.18.0)
+
+1. **Merkez KENDİ rakamını hesaplamaz.** `/raporlar` hiçbir sorgu
+   çalıştırmaz; kayıt defterini (`rapor-tanimlar.ts`) okur ve ortak süzgeci
+   raporlara taşır. Hub açmak, kullanıcının bakmayacağı onlarca sorgu
+   tetiklememelidir.
+2. **YENİ RAPOR EKLEMEK = KAYIT DEFTERİNE SATIR EKLEMEK** (pano kartlarındaki
+   desen). Regresyon testi, defterde tanımlı her iç raporun sayfasının
+   gerçekten var olduğunu denetler — tanım eklenip sayfa unutulursa hub'da
+   404 veren bir kart kalırdı.
+3. **Destek, sevkiyat ve kampanya raporları KOPYALANMADI**, merkeze
+   BAĞLANDI. Kopyalamak iki ayrı doğruluk kaynağı üretir; biri düzeltilince
+   öteki sessizce yanlış kalır. Kartlar bunun modülün kendi ekranı olduğunu
+   yazar ve ortak süzgeç oraya TAŞINMAZ (o ekranların kendi anahtarları var;
+   uydurma bir querystring sessizce yok sayılırdı).
+4. **CİRO = ONAYLANMIŞ SİPARİŞ.** Teklif bir niyet, fırsat bir tahmindir.
+   Onay anı, stok ve kampanya kotasının düştüğü (Faz 15), yani kuruluşun
+   taahhüde girdiği andır.
+5. **DÖNÜŞÜM ORANI KAPANMIŞ işler üzerinden** hesaplanır. Açık fırsatları
+   paydaya koymak, hattı doldurdukça başarı oranını düşük gösterir ve satış
+   ekibini yeni fırsat girmekten caydırırdı.
+6. **Önceki dönem SIFIRSA yüzde üretilmez** ("%500 artış" tanımsızdır) ve
+   karşılaştırma yalnızca KAPALI bir aralık seçilmişse yapılır — açık uçlu
+   aralıkta "önceki dönem" diye bir şey yoktur, uydurmak yanlış oran
+   göstermekten kötüdür.
+7. **Firma dosyası izin süzgecinden geçer:** izni olmayan modül HİÇ
+   SORGULANMAZ ve belgeye girmez. Yazdırılan belge elden ele dolaşır;
+   kullanıcının ekranda göremediği veri kâğıda da düşmemelidir. Künye ve
+   kontaklar tarih aralığından bağımsızdır — firmanın kimliği bir döneme ait
+   değildir.
+8. **PDF yine tarayıcının yazdırma motoruyla** üretilir (Faz 9 / E5'teki
+   aynı gerekçeler); bölümler `break-inside-avoid` ile sayfa ortasından
+   bölünmez.
 
 ---
 

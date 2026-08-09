@@ -11,6 +11,10 @@ export const GORUNUM_LISTELERI = [
   "firsatlar",
   "adaylar",
   "teklifler",
+  // Faz 18 / R5 — rapor merkezinin ortak süzgeci de adlandırılıp kaydedilir.
+  // Kayıtlı görünüm altyapısı hiçbir değişiklik gerektirmedi: rapor süzgeci
+  // zaten querystring'de yaşıyor.
+  "raporlar",
 ] as const;
 
 export type GorunumListesi = (typeof GORUNUM_LISTELERI)[number];

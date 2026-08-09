@@ -53,6 +53,7 @@ Demo hesaplar:
 | **v1.7.0** | **Faz 7** — Aktivite/görev, aday (Lead) ve dönüştürme, firma timeline, kalemli/revizyonlu teklif | Bir adayı **Dönüştür** → sonra bir teklifi **Revize Et** | Firma + kişi (+ fırsat) açılır, aday silinmez; revizyon yeni satır olur, eski sürüm dondurulur | 203 |
 | **v1.8.0** | **Faz 8** — Bildirim merkezi, kiracı bazlı SMTP (şifreli), iş akışı otomasyonu, IMAP senkron, takvim + `.ics` | Bir görevi başkasına ata → `/otomasyon`'da bir kuralı **şimşek** düğmesiyle çalıştır | Atanan kişinin zilinde rozet çıkar; kural çalışır ve aynı kayda ikinci kez bildirim göndermez | 235 |
 | **v1.9.0** | **Faz 9** — Excel/CSV dışa aktarım (filtreye saygılı), sütun eşleştirmeli içe aktarım, kiracı markalı PDF | Firmalarda filtre uygula → **Dışa Aktar**; sonra `/ice-aktar` ile geri yükle; bir teklifte **Yazdır / PDF** | İnen dosya ekrandaki filtreyle aynı; içe aktarım ön izleme gösterir, hatalı satırı atlar; PDF kuruluş logosu ve rengiyle çıkar | 273 |
+| **v1.18.0** | **Faz 18** — Rapor merkezi, mali/satış/aktivite/ürün raporları, tek belgede firma dosyası (PDF) | `/raporlar`da **Bu çeyrek**'i seç → **Mali Rapor**'a gir → firma detayında **Dosya (PDF)** | Seçilen dönem raporlara taşınır; ciro yalnızca onaylı siparişten gelir ve beklenen tahsilat açıkça "tahmin" diye etiketlenir; firma dosyası izni olan modülleri tek belgede toplar | 626 |
 | **v1.17.0** | **Faz 17** — Dosya/fotoğraf eki (içerik doğrulamalı, kotalı), firma konumu, saha ziyareti ve konum doğrulama | Firma detayında **Fotoğraf** ile bir görsel yükle → `/ziyaretler`de **Konumumu al** + **Ziyareti Başlat** → sonra **Ziyareti Bitir** | Ek listede önizlemeyle çıkar; uzantısı değiştirilmiş dosya reddedilir; ziyaret yeşil/kırmızı/sarı işaretlenir, süre kendiliğinden hesaplanır ve firma zaman akışına aktivite düşer | 587 |
 | **v1.16.0** | **Faz 16** — Proje, destek kaydı (kanal/öncelik/atama/işlem geçmişi), destek raporu, SSS bilgi bankası | `/destek` → yeni kayıt aç → işlem ekle → durumu **Çözüldü** yap → `/destek/rapor` | Kayıt `DST-YIL-0001` numarasını alır; işlem hem destek geçmişinde hem firma zaman akışında görünür; çözüm tarihi ELLE girilmeden damgalanır ve raporda ortalama çözüm süresine yansır | 539 |
 | **v1.15.0** | **Faz 15** — Sipariş, yönetici onay akışı, sevkiyat kuyruğu ve raporu | Üye ile sipariş gir → yönetici ile onayla → sevkiyat aç → durumu ilerlet | Sipariş onaya düşer; onayda stok ve kampanya kotası düşer; sevkiyat düğmesi ancak ONAYDAN SONRA çıkar; stok yetersizse onay verilmez ve hiçbir şey düşmez | 498 |
@@ -283,6 +284,30 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 | 18 | `kullanici@gezegen.com` ile `/urunler` | Açılır ama **Yeni Ürün** düğmesi yok (tanım yöneticide) |
 | 19 | `admin@anadolu.com` ile `/urunler` | Gezegen'in ürünlerinden hiçbiri görünmez |
 | 20 | Ürünleri **Dışa Aktar** → `/ice-aktar` ile geri yükle | Dosyada stok miktarı sütunu var ama içe aktarım eşleştirmesinde YOK |
+
+---
+
+### v1.18.0 — Rapor merkezi ve firma dosyası (Faz 18)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/raporlar` (menüde **Raporlar**) | Rapor kartları gruplu listelenir; merkez hiçbir rakam hesaplamaz |
+| 2 | **Bu çeyrek** hazır aralığına bas | Dönem URL'e yazılır; başlıkta görünür |
+| 3 | **Mali Rapor** kartına gir | Seçilen dönem taşınmış olarak açılır |
+| 4 | Ciro kutusuna bak | Yalnızca ONAYLI siparişlerin toplamı; bekleyen sipariş dahil değil |
+| 5 | "Beklenen tahsilat" kutusunun altını oku | "Tahmindir — ödeme kaydı tutulmaz" yazar; üç kalemi ayrı gösterilir |
+| 6 | Kapalı bir aralık seçip ciroya bak | Önceki AYNI UZUNLUKTAKİ dönemle karşılaştırma yüzdesi çıkar |
+| 7 | Yalnızca başlangıç tarihi ver | Karşılaştırma GÖSTERİLMEZ (açık uçlu aralıkta önceki dönem tanımsız) |
+| 8 | **Satış Hattı** raporu | Dönüşüm oranı kapanmış işler üzerinden; açık fırsatlar paydada değil |
+| 9 | **Aktivite Yükü** raporu | Kişi tablosunda geciken sayısı açık görevlerin içinde |
+| 10 | **Ürün Satışı** raporu | Tutar ve adet kırılımı; kalemler onaylı siparişlerden gelir |
+| 11 | **Destek Raporu** kartına bas | Modülün kendi ekranına (`/destek/rapor`) gider; kart bunu yazar |
+| 12 | Merkezde bir dönem seçip **Görünüm kaydet** | Kayıtlı görünüm oluşur; varsayılan yapılırsa `/raporlar` doğrudan o döneme açılır |
+| 13 | Firma detayı → **Dosya (PDF)** | Künye, kontaklar, fırsat, teklif, sipariş, proje, destek, ziyaret ve zaman akışı tek belgede |
+| 14 | Belgede **Yazdır**'a bas | Arayüz kabuğu ve düğmeler baskıda görünmez; kuruluş logosu ve rengi çıkar |
+| 15 | `?bas=&bit=` ile dosyayı dönemli aç | Kayıtlar süzülür; künye ve kontaklar SÜZÜLMEZ |
+| 16 | Salt okunur kullanıcıyla aynı dosyayı aç | Belge açılır ama izni olmayan modüller belgeye GİRMEZ |
+| 17 | `admin@anadolu.com` ile `/raporlar/mali` | Yalnızca kendi kiracısının rakamları |
 
 ---
 

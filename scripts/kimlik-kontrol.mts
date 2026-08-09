@@ -131,6 +131,22 @@ async function main() {
     }
   };
 
+  /**
+   * Girişin TAMAMLANMASINI bekler.
+   *
+   * Sabit `waitForTimeout(2000)` yük altında yetmiyor: oturum çerezi
+   * yazılmadan ikinci gezinme yapılınca middleware `/login?from=…`e
+   * yönlendiriyor ve kontrol, uygulamada bir sorun yokken "kullanıcı sayfaya
+   * giremedi" diyordu (iki kez yaşandı — farklı sayfalarda). Burada giriş
+   * sayfasından ÇIKILANA kadar beklenir.
+   */
+  const girisiBekle = async (page: import("playwright").Page) => {
+    for (let i = 0; i < 40; i++) {
+      if (!page.url().includes("/login")) return;
+      await page.waitForTimeout(250);
+    }
+  };
+
   const sayfaGetir = async (email: string, sifre: string, yol: string) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
@@ -138,7 +154,7 @@ async function main() {
     await page.fill("#email", email);
     await page.fill("#password", sifre);
     await page.click("button[type=submit]");
-    await page.waitForTimeout(2000);
+    await girisiBekle(page);
     await page.goto(`${BASE}${yol}`, { waitUntil: "domcontentloaded" });
     await durulmasiniBekle(page);
     const url = page.url();
@@ -1284,6 +1300,109 @@ async function main() {
     "Komşu kiracı Gezegen'in ziyaretlerini GÖRMÜYOR",
     !anadoluZiyaret.govde.includes("Konum doğrulandı") &&
       !anadoluZiyaret.govde.includes("Konum uyuşmuyor")
+  );
+
+  // 22 — Faz 18: rapor merkezi ve firma dosyası
+  console.log("\n22. Faz 18 — rapor merkezi ve firma dosyası");
+
+  const merkez = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar");
+  kontrol(
+    "Rapor merkezi açılıyor",
+    !merkez.url.includes("/yetkisiz") && merkez.govde.includes("Rapor Merkezi")
+  );
+  kontrol("Mali rapor kartı listeleniyor", merkez.govde.includes("Mali Rapor"));
+  kontrol(
+    "Modülün kendi raporu merkeze BAĞLANMIŞ (kopyalanmamış)",
+    merkez.govde.includes("Modülün kendi rapor ekranında")
+  );
+
+  const mali = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar/mali");
+  kontrol(
+    "Mali rapor açılıyor",
+    !mali.url.includes("/yetkisiz") && mali.govde.includes("Beklenen tahsilat")
+  );
+  kontrol(
+    "Tahsilat rakamının TAHMİN olduğu ekranda yazılı",
+    mali.govde.toLocaleLowerCase("tr").includes("tahmindir")
+  );
+
+  const satis = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar/satis");
+  kontrol(
+    "Satış hattı raporu açılıyor",
+    !satis.url.includes("/yetkisiz") &&
+      satis.govde.toLocaleLowerCase("tr").includes("dönüşüm oranı")
+  );
+
+  const aktiviteRapor = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/raporlar/aktivite"
+  );
+  kontrol(
+    "Aktivite yükü raporu açılıyor",
+    !aktiviteRapor.url.includes("/yetkisiz") &&
+      aktiviteRapor.govde.toLocaleLowerCase("tr").includes("kişi yükü")
+  );
+
+  const urunRapor = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar/urun");
+  kontrol(
+    "Ürün satış raporu açılıyor",
+    !urunRapor.url.includes("/yetkisiz") && urunRapor.govde.includes("Satış tutarı")
+  );
+
+  // Genel rapor eski adresten yeni adrese taşındı.
+  const genel = await sayfaGetir("admin@gezegen.com", "admin123", "/raporlar/genel");
+  kontrol(
+    "Genel durum raporu yeni adresinde",
+    !genel.url.includes("/yetkisiz") && genel.govde.includes("Genel Durum")
+  );
+
+  // Firma dosyası: her şey tek belgede, kiracı markasıyla.
+  const dosyaFirma = await prisma.firma.findFirst({
+    where: { tenant: { slug: "gezegen" } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, ad: true },
+  });
+  if (dosyaFirma) {
+    const dosya = await sayfaGetir(
+      "admin@gezegen.com",
+      "admin123",
+      `/firmalar/${dosyaFirma.id}/dosya`
+    );
+    kontrol(
+      "Firma dosyası açılıyor",
+      !dosya.url.includes("/yetkisiz") && dosya.govde.includes("Firma Dosyası")
+    );
+    // NOT: `innerText` CSS'in `text-transform`'unu UYGULAR. Belgedeki bölüm
+    // başlıkları `uppercase` sınıfıyla çizildiği için gövdede "KÜNYE" olarak
+    // görünür — düz `includes("Künye")` boşuna başarısız olur (bir kez
+    // yaşandı). Karşılaştırma Türkçe kurallarıyla küçültülerek yapılır.
+    const dosyaKucuk = dosya.govde.toLocaleLowerCase("tr");
+    kontrol("Dosyada künye bölümü var", dosyaKucuk.includes("künye"));
+    kontrol(
+      "Dosyada firmanın adı geçiyor",
+      dosya.govde.includes(dosyaFirma.ad)
+    );
+
+    // İZİN SÜZGECİ: salt okunur kullanıcı belgeyi açar ama izni olmayan
+    // modüller belgeye girmez. Salt okunur rolde sipariş görüntüleme YOK.
+    const saltDosya = await sayfaGetir(
+      "okuyucu@gezegen.com",
+      "okuyucu123",
+      `/firmalar/${dosyaFirma.id}/dosya`
+    );
+    kontrol(
+      "Salt okunur kullanıcı firma dosyasını açabiliyor",
+      !saltDosya.url.includes("/yetkisiz")
+    );
+  }
+
+  // Yetki: üye mali raporu görebilir (sipariş görüntüleme üyede var),
+  // ama izni olmayan bir raporun kartı merkeze düşmez.
+  const uyeMerkez = await sayfaGetir("kullanici@gezegen.com", "user123", "/raporlar");
+  kontrol(
+    "Üye rapor merkezini açabiliyor",
+    !uyeMerkez.url.includes("/yetkisiz")
   );
 
   await browser.close();

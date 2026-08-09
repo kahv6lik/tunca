@@ -86,6 +86,8 @@ src/
       destek/          # destek kaydı, işlem geçmişi, rapor/ (Faz 16)
       sss/             # SSS / bilgi bankası (Faz 16)
       ziyaretler/      # saha ziyareti, süre, konum doğrulama (Faz 17)
+      raporlar/        # rapor MERKEZİ + genel/ mali/ satis/ urun/ aktivite/
+      firmalar/[id]/dosya/  # firma dosyası — tek belge PDF (Faz 18)
       dosya-actions.ts # dosya eki yükleme/silme — tek action (Faz 17)
       kullanicilar/    # kuruluş içi ekip yönetimi + güvenlik politikası (Faz 12)
       guvenlik/        # kişisel hesap güvenliği: şifre, 2FA, oturumlar (Faz 12)
@@ -130,6 +132,7 @@ src/
     sss/               # SssPanel, SssKarti (Faz 16)
     ekler/             # EkPaneli, EkAcilir (Faz 17)
     ziyaretler/        # ZiyaretBaslat, ZiyaretBitir (Faz 17)
+    raporlar/          # RaporSuzgeci — ortak süzgeç çubuğu (Faz 18)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
@@ -174,6 +177,8 @@ src/
     destek-tanimlar.ts    # durum damgaları + çözüm süresi + özet — saf (Faz 16)
     sss-tanimlar.ts       # etiket/kategori normalize — saf (Faz 16)
     dosya.ts              # dosya deposu — TEK KAPI (+ -tanimlar: tür/kota saf)
+    rapor-tanimlar.ts     # rapor kayıt defteri — saf veri (Faz 18)
+    rapor-saf.ts          # ciro, dönüşüm, dönem farkı, kırılım — saf (Faz 18)
     konum-saf.ts          # mesafe, doğrulama, süre, adres — saf (Faz 17)
     geocode.ts            # adresten koordinat — anahtar yoksa KAPALI (Faz 17)
     rls.ts                # PostgreSQL RLS bağlamları
@@ -436,6 +441,35 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **Yedek sırası FK'ye bağlıdır:** `proje` ve `destekKaydi`, `aktivite`den
   ÖNCE geri yüklenir; kural regresyon testiyle sabitlendi.
 
+### Rapor Merkezi ve Firma Dosyası (Faz 18)
+
+- **Rapor merkezi KENDİ rakamını hesaplamaz.** `/raporlar` hiçbir sorgu
+  çalıştırmaz; kayıt defterini (`rapor-tanimlar.ts`) okur ve ortak süzgeci
+  (tarih aralığı + firma + sorumlu) raporlara taşır. **Yeni rapor eklemek =
+  deftere satır eklemek** (pano kartlarındaki desen); regresyon testi,
+  defterdeki her iç raporun sayfasının gerçekten var olduğunu denetler.
+- **Destek, sevkiyat ve kampanya raporları KOPYALANMADI, BAĞLANDI.**
+  Kopyalamak iki ayrı doğruluk kaynağı üretirdi. Ortak süzgeç dış raporlara
+  TAŞINMAZ — o ekranların kendi anahtarları var, uydurma bir querystring
+  sessizce yok sayılır ve kullanıcıya "dönem uygulandı" yanılgısı verirdi.
+- **CİRO = ONAYLANMIŞ SİPARİŞ.** Teklif niyet, fırsat tahmindir; ikisini
+  ciroya saymak rakamı şişirirdi. Onay anı, stok ve kampanya kotasının
+  düştüğü (Faz 15), yani taahhüde girilen andır.
+- **BEKLENEN TAHSİLAT bir TAHMİNDİR** ve ekranda öyle etiketlenir: sistemde
+  ödeme/fatura kaydı YOKTUR (karar: v1.18.0). Rakam onay bekleyen sipariş +
+  kabul edilen teklif + olasılıkla ağırlıklı açık fırsattan oluşur.
+- **DÖNÜŞÜM ORANI KAPANMIŞ işler üzerinden** hesaplanır; açık fırsatları
+  paydaya koymak, hattı doldurdukça başarıyı düşük gösterirdi.
+- **Önceki dönem sıfırsa yüzde üretilmez** ve karşılaştırma yalnızca KAPALI
+  aralıkta yapılır — "önceki dönem" açık uçlu bir aralıkta tanımsızdır.
+- **Firma dosyası (tek PDF) izin süzgecinden geçer:** izni olmayan modül hiç
+  sorgulanmaz ve belgeye girmez; yazdırılan belge elden ele dolaşır. Künye
+  ve kontaklar tarih aralığından bağımsızdır. PDF yine tarayıcının yazdırma
+  motoruyla üretilir (Faz 9 / E5 gerekçeleri).
+- **Rapor süzgeci kayıtlı görünüm olarak saklanır** (R5): süzgeç zaten
+  querystring'de yaşadığı için `GORUNUM_LISTELERI`'ne `raporlar` eklemek
+  yetti; varsayılan görünüm merkezi doğrudan o döneme açar.
+
 ### Saha Çalışması: Ekler ve Konum (Faz 17)
 
 - **Dosya türü UZANTIDAN DEĞİL İÇERİKTEN belirlenir** (`turTespit`): imza
@@ -543,7 +577,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**587 kontrol**.
+**626 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -551,10 +585,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (377 test, ~12 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (402 test, ~13 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha, gerçek tarayıcı (sunucu çalışırken, 189)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor, gerçek tarayıcı (sunucu çalışırken, 203)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -641,7 +675,7 @@ bölümlerine bakılır, iş bitince durum ve kutucuklar oradan güncellenir.
 | 15 | Sipariş, yönetici onayı, depo/sevkiyat (S1-S6) | `v1.15.0` | ✅ tamamlandı |
 | 16 | Proje, destek kaydı, SSS (P1-P4) | `v1.16.0` | ✅ tamamlandı |
 | 17 | Dosya/fotoğraf eki, ziyaret ve konum doğrulama (A1-A5) | `v1.17.0` | ✅ tamamlandı |
-| 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | planlandı |
+| 18 | Rapor merkezi, mali raporlar, firma dosyası PDF (R1-R5) | `v1.18.0` | ✅ tamamlandı |
 | 19 | Anket tanımı, gönderim, yanıt toplama, rapor (N1-N4) | `v1.19.0` | planlandı |
 | 20 | Birleşik çalışma ekranı: komut paleti, yan panel (U1-U4) | `v1.20.0` | planlandı |
 | 21 | AI: skorlama, özet, doğal dilde sorgu (G1-G3) | `v1.21.0` | planlandı |
@@ -763,6 +797,16 @@ etkiliyor.
   (doğrulandı / uyuşmuyor / doğrulanamadı) ve yalnızca uyuşmayan ziyaretlerde
   yöneticiye bildirim. Ekler `gezegen-dosya` volume'ünde durur ve ayrı
   yedeklenir.
+- **v1.18.0** — **Faz 18:** Rapor merkezi ve firma dosyası. Kayıt defterine
+  dayalı, ortak tarih/firma/sorumlu süzgeçli rapor merkezi (izni olmayan
+  rapor listede görünmez); mali rapor (ciro, beklenen tahsilat tahmini,
+  indirim maliyeti, firma ve ürün bazında kırılım, aynı uzunlukta önceki
+  dönemle karşılaştırma); satış hattı raporu (aşama dağılımı, kapanmış işler
+  üzerinden dönüşüm oranı, kayıp sebepleri, aday dönüşümü); aktivite yükü ve
+  ürün satış raporları; destek/sevkiyat/kampanya raporlarına merkezden
+  bağlantı; bir firmanın her şeyini izin süzgecinden geçirerek tek belgede
+  toplayan firma dosyası (PDF); rapor süzgeçlerinin kayıtlı görünüm olarak
+  saklanması.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

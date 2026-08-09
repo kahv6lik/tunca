@@ -1,165 +1,86 @@
-import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
-import { KpiCard } from "@/components/dashboard/kpi-card";
-import { ChartCard } from "@/components/dashboard/chart-card";
-import { BarChart } from "@/components/charts/bar-chart";
-import { DonutChart } from "@/components/charts/donut-chart";
-import { durumBadge } from "@/lib/constants";
-import { DURUM_RENK } from "@/lib/chart-theme";
-import { tarihAraligi, araliktanEtiket, hazirAraliklar } from "@/lib/tarih-araligi";
 import Link from "next/link";
+import { ArrowRight, ExternalLink } from "lucide-react";
+import { etkinIzinler, IZIN, yetkiGerektir } from "@/lib/yetki";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { hazirAraliklar, tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
+import { RAPORLAR, RAPOR_GRUPLARI, raporSorgusu } from "@/lib/rapor-tanimlar";
+import { gorunumleriGetir, varsayilanaYonlendir } from "@/lib/gorunum";
+import GorunumBar from "@/components/GorunumBar";
 
 export const dynamic = "force-dynamic";
 
-export default async function RaporlarPage(props: {
-  searchParams: Promise<{ bas?: string; bit?: string }>;
+/**
+ * Rapor merkezi — Faz 18 / R1.
+ *
+ * Bütün raporlar tek çatı altında listelenir. Merkez KENDİ rakamını
+ * hesaplamaz: hiçbir sorgu çalıştırmaz, yalnızca kayıt defterini okur ve
+ * seçilen ortak süzgeci raporlara taşır. Böylece hub açmak, kullanıcının
+ * görmeyeceği onlarca sorgu tetiklemez.
+ *
+ * İZNİ OLMAYAN RAPOR LİSTEDE GÖRÜNMEZ. Paket kısıtı `etkinIzinler()` içinde
+ * uygulandığı için kapalı modülün raporu da kendiliğinden düşer — burada
+ * ayrıca paket kontrolü yazmak gerekmez.
+ */
+export default async function RaporMerkeziPage(props: {
+  searchParams: Promise<{ bas?: string; bit?: string; firma?: string; sorumlu?: string }>;
 }) {
   const searchParams = await props.searchParams;
   await yetkiGerektir(IZIN.raporGoruntule);
-  const db = await getTenantDb();
 
   /**
-   * Tarih aralığı (Faz 13 / H9). Firma kayıtlarında EKLENME tarihi,
-   * yatırım/eğitim/hizmet kayıtlarında işin KENDİ tarihi süzülür — "ağustosta
-   * ne yaptık" sorusunda beklenen budur, kaydın ne zaman girildiği değil.
+   * Varsayılan görünüm (R5): merkez PARAMETRESİZ açıldıysa kullanıcının
+   * kaydettiği döneme yönlendirilir. `/raporlar` rotası liste adıyla aynı
+   * olduğu için mevcut yardımcı olduğu gibi çalışır — "her pazartesi
+   * baktığım dönem" tek tıkla değil, hiç tıklamadan gelir.
    */
-  const aralik = tarihAraligi(searchParams.bas, searchParams.bit);
-  const kayitSuzgeci = aralik ? { tarih: aralik } : {};
-  const firmaSuzgeci = aralik ? { createdAt: aralik } : {};
-  const aralikEtiketi = araliktanEtiket(aralik);
+  await varsayilanaYonlendir("raporlar", searchParams);
 
-  const [
-    firmaSayisi,
-    yatirimByDurum,
-    yatirimByTur,
-    egitimByDurum,
-    hizmetByDurum,
-    firmaByIl,
-    firmaBySektor,
-    egitimAgg,
-    yatirimTryAgg,
-    topFirmalarRaw,
-  ] = await Promise.all([
-    db.firma.count({ where: firmaSuzgeci }),
-    db.yatirimDestegi.groupBy({
-      by: ["durum"],
-      where: kayitSuzgeci,
-      _count: { _all: true },
-    }),
-    db.yatirimDestegi.groupBy({
-      by: ["tur"],
-      where: { paraBirimi: "TRY", ...kayitSuzgeci },
-      _sum: { tutar: true },
-    }),
-    db.egitim.groupBy({ by: ["durum"], where: kayitSuzgeci, _count: { _all: true } }),
-    db.hizmet.groupBy({ by: ["durum"], where: kayitSuzgeci, _count: { _all: true } }),
-    db.firma.groupBy({ by: ["il"], where: firmaSuzgeci, _count: { _all: true } }),
-    db.firma.groupBy({ by: ["sektor"], where: firmaSuzgeci, _count: { _all: true } }),
-    db.egitim.aggregate({
-      where: kayitSuzgeci,
-      _sum: { sureSaat: true, katilimci: true },
-    }),
-    db.yatirimDestegi.aggregate({
-      where: {
-        paraBirimi: "TRY",
-        durum: { in: ["onaylandi", "tamamlandi"] },
-        ...kayitSuzgeci,
-      },
-      _sum: { tutar: true },
-    }),
-    db.yatirimDestegi.groupBy({
-      by: ["firmaId"],
-      where: { paraBirimi: "TRY", ...kayitSuzgeci },
-      _sum: { tutar: true },
-      orderBy: { _sum: { tutar: "desc" } },
-      take: 8,
-    }),
-  ]);
+  const izinler = await etkinIzinler();
+  const gorunumler = await gorunumleriGetir("raporlar");
 
-  const topFirmaIdler = topFirmalarRaw.map((t) => t.firmaId);
-  const topFirmaKayit = await db.firma.findMany({
-    where: { id: { in: topFirmaIdler } },
-    select: { id: true, ad: true },
-  });
-  const adMap = new Map(topFirmaKayit.map((f) => [f.id, f.ad]));
-  const etiket = (d: string) => durumBadge(d).label;
-
-  const yatirimDurumData = yatirimByDurum.map((y) => ({
-    label: etiket(y.durum),
-    value: y._count._all,
-    color: DURUM_RENK[y.durum],
-  }));
-  const egitimDurumData = egitimByDurum.map((e) => ({
-    label: etiket(e.durum),
-    value: e._count._all,
-    color: DURUM_RENK[e.durum],
-  }));
-  const hizmetDurumData = hizmetByDurum.map((h) => ({
-    label: etiket(h.durum),
-    value: h._count._all,
-    color: DURUM_RENK[h.durum],
-  }));
-  const turData = yatirimByTur.map((y) => ({
-    label: y.tur ?? "Belirtilmemiş",
-    value: Math.round(y._sum.tutar ?? 0),
-  }));
-  const ilData = firmaByIl
-    .map((f) => ({ label: f.il ?? "Belirtilmemiş", value: f._count._all }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8);
-  const sektorData = firmaBySektor
-    .map((f) => ({ label: f.sektor ?? "Belirtilmemiş", value: f._count._all }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8);
-  const topFirmaData = topFirmalarRaw.map((t) => ({
-    label: adMap.get(t.firmaId) ?? "—",
-    value: Math.round(t._sum.tutar ?? 0),
-    color: "#10b981",
-  }));
+  const filtre = {
+    bas: searchParams.bas,
+    bit: searchParams.bit,
+    firma: searchParams.firma,
+    sorumlu: searchParams.sorumlu,
+  };
+  const aralikEtiketi = araliktanEtiket(tarihAraligi(filtre.bas, filtre.bit));
+  const gorunenler = RAPORLAR.filter((r) => izinler.has(r.izin));
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
-        title="Raporlar"
+        title="Rapor Merkezi"
         subtitle={
           aralikEtiketi
-            ? `Firma, yatırım, eğitim ve hizmet istatistikleri · ${aralikEtiketi}`
-            : "Firma, yatırım, eğitim ve hizmet istatistikleri · tüm zamanlar"
+            ? `${gorunenler.length} rapor · ${aralikEtiketi}`
+            : `${gorunenler.length} rapor · tüm zamanlar`
+        }
+        action={
+          <GorunumBar liste="raporlar" gorunumler={gorunumler} filtreler={filtre} />
         }
       />
 
-      {/* Tarih aralığı süzgeci (Faz 13 / H9) — querystring'de yaşar, yani
-          seçilen dönem paylaşılabilir ve yer imine eklenebilir. */}
-      <form method="get" className="card flex flex-wrap items-end gap-3 p-4">
+      {/* Dönem seçimi merkezde yapılır ve BÜTÜN raporlara taşınır: "bu çeyreği
+          seçtim" demek her raporda yeniden seçmek anlamına gelmemeli. */}
+      <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">
         <div>
           <label className="label" htmlFor="bas">Başlangıç</label>
-          <input
-            id="bas"
-            name="bas"
-            type="date"
-            defaultValue={searchParams.bas ?? ""}
-            className="input"
-          />
+          <input id="bas" name="bas" type="date" defaultValue={filtre.bas ?? ""} className="input" />
         </div>
         <div>
           <label className="label" htmlFor="bit">Bitiş</label>
-          <input
-            id="bit"
-            name="bit"
-            type="date"
-            defaultValue={searchParams.bit ?? ""}
-            className="input"
-          />
+          <input id="bit" name="bit" type="date" defaultValue={filtre.bit ?? ""} className="input" />
         </div>
-        <button type="submit" className="btn-primary">Uygula</button>
+        <button type="submit" className="btn-primary">Dönemi Uygula</button>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           {hazirAraliklar().map((h) => {
-            const secili = searchParams.bas === h.bas && searchParams.bit === h.bit;
+            const secili = filtre.bas === h.bas && filtre.bit === h.bit;
             return (
               <Link
                 key={h.anahtar}
-                href={`/raporlar?bas=${h.bas}&bit=${h.bit}`}
+                href={`/raporlar${raporSorgusu({ ...filtre, bas: h.bas, bit: h.bit })}`}
                 className={`rounded-lg border px-2 py-1 transition-colors ${
                   secili
                     ? "border-primary/40 bg-primary/10 text-primary"
@@ -171,99 +92,71 @@ export default async function RaporlarPage(props: {
             );
           })}
         </div>
-        {(searchParams.bas || searchParams.bit) && (
+        {(filtre.bas || filtre.bit) && (
           <Link href="/raporlar" className="btn-secondary">Temizle</Link>
         )}
       </form>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard index={0} label="Toplam Firma" value={firmaSayisi} icon="building" accent="#6366f1" />
-        <KpiCard
-          index={1}
-          label="Onaylı Yatırım (TRY)"
-          value={yatirimTryAgg._sum.tutar ?? 0}
-          prefix="₺"
-          icon="wallet"
-          accent="#10b981"
+      {gorunenler.length === 0 ? (
+        <EmptyState
+          title="Görüntüleyebileceğiniz rapor yok"
+          description="Raporlar, ilgili modülün görüntüleme iznine bağlıdır."
         />
-        <KpiCard
-          index={2}
-          label="Eğitim Saati"
-          value={egitimAgg._sum.sureSaat ?? 0}
-          suffix=" s"
-          icon="clock"
-          accent="#f59e0b"
-        />
-        <KpiCard
-          index={3}
-          label="Toplam Katılımcı"
-          value={egitimAgg._sum.katilimci ?? 0}
-          icon="users"
-          accent="#0ea5e9"
-        />
-      </div>
+      ) : (
+        <div className="space-y-6">
+          {RAPOR_GRUPLARI.map((grup) => {
+            const grubunRaporlari = gorunenler.filter((r) => r.grup === grup);
+            if (grubunRaporlari.length === 0) return null;
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Yatırım Desteği — Durum Dağılımı" subtitle="Kayıt adedi">
-          {yatirimDurumData.length ? (
-            <DonutChart data={yatirimDurumData} height={230} centerLabel="kayıt" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
+            return (
+              <section key={grup}>
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {grup}
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {grubunRaporlari.map((r) => {
+                    /**
+                     * Dış rapora giderken ortak süzgeç TAŞINMAZ: o ekranların
+                     * kendi süzgeç anahtarları var ve uydurma bir querystring
+                     * göndermek sessizce yok sayılırdı. Kullanıcıya yanlış bir
+                     * "dönem uygulandı" izlenimi vermemek için bağlantı sade
+                     * bırakılır ve kart bunu söyler.
+                     */
+                    const adres = r.disRota
+                      ? r.disRota
+                      : `/raporlar/${r.anahtar}${raporSorgusu(filtre)}`;
 
-        <ChartCard title="Yatırım Tutarı — Tür Bazında" subtitle="TRY">
-          {turData.length ? (
-            <BarChart data={turData} height={230} format="currency" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-
-        <ChartCard title="Eğitim — Durum Dağılımı" subtitle="Kayıt adedi">
-          {egitimDurumData.length ? (
-            <DonutChart data={egitimDurumData} height={230} centerLabel="eğitim" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-
-        <ChartCard title="Hizmet — Durum Dağılımı" subtitle="Kayıt adedi">
-          {hizmetDurumData.length ? (
-            <DonutChart data={hizmetDurumData} height={230} centerLabel="hizmet" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-
-        <ChartCard title="İl Bazında Firma Sayısı" subtitle="İlk 8">
-          {ilData.length ? (
-            <BarChart data={ilData} height={300} horizontal format="firma" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-
-        <ChartCard title="Sektör Bazında Firma Sayısı" subtitle="İlk 8">
-          {sektorData.length ? (
-            <BarChart data={sektorData} height={300} horizontal format="firma" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-
-        <ChartCard title="En Çok Yatırım Alan Firmalar" subtitle="TRY · İlk 8" className="lg:col-span-2">
-          {topFirmaData.length ? (
-            <BarChart data={topFirmaData} height={320} horizontal format="currency" />
-          ) : (
-            <Empty />
-          )}
-        </ChartCard>
-      </div>
+                    return (
+                      <Link
+                        key={r.anahtar}
+                        href={adres}
+                        className="card group flex items-start justify-between gap-3 p-5 transition-colors hover:border-primary/40"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground">{r.etiket}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {r.aciklama}
+                          </p>
+                          {r.disRota && (
+                            <p className="mt-2 text-[11px] text-muted-foreground/70">
+                              Modülün kendi rapor ekranında
+                            </p>
+                          )}
+                        </div>
+                        {r.disRota ? (
+                          <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+                        ) : (
+                          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
-}
-
-function Empty() {
-  return <p className="py-12 text-center text-sm text-muted-foreground">Veri yok.</p>;
 }

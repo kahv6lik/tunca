@@ -17,7 +17,7 @@ import { createHizmet, updateHizmet, deleteHizmet } from "../../hizmetler/action
 import { createKisi, updateKisi, deleteKisi } from "../../kisiler/actions";
 import { deleteFirsat } from "../../firsatlar/actions";
 import FirsatPanel from "@/components/firsatlar/FirsatPanel";
-import { Star, Plus } from "lucide-react";
+import { Star, Plus, FileText } from "lucide-react";
 import { etkinIzinler } from "@/lib/yetki";
 import { firmaTimeline } from "@/lib/timeline";
 import { Timeline } from "@/components/firmalar/Timeline";
@@ -281,6 +281,14 @@ export default async function FirmaDetayPage(
         action={
           <div className="flex items-center gap-2">
             <StatusBadge durum={firma.durum} />
+            {/* Firma dosyası (Faz 18 / R4) — tek belgede her şey. İçerik
+                kullanıcının izinleriyle sınırlıdır. */}
+            <Link
+              href={`/firmalar/${firma.id}/dosya`}
+              className="btn-secondary text-sm"
+            >
+              <FileText className="h-4 w-4" /> Dosya (PDF)
+            </Link>
             {firmaDuzenlaybilir && (
               <Link href={`/firmalar/${firma.id}/duzenle`} className="btn-secondary text-sm">
                 Düzenle
