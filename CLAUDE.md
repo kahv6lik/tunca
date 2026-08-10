@@ -119,7 +119,8 @@ src/
       layout.tsx       # Sidebar + Topbar kabuğu
   components/
     ui/                # button, card, badge, pagination, skeleton, ...
-    layout/            # sidebar, topbar, mobile-nav, theme-toggle, user-menu
+    layout/            # sidebar, topbar, mobile-nav, theme-toggle, user-menu,
+                       # BolumSekmeleri (bölüm sekme çubuğu, v1.22.0)
     charts/            # area, bar, donut, tooltip
     dashboard/         # kpi-card, chart-card, PanoDuzenle (Faz 10)
     admin/             # KiraciForm, KullaniciSatiri, DavetPanel, PlanPanel, ...
@@ -200,6 +201,7 @@ src/
     firma-ozet-saf.ts     # firma özeti cümleleri + model istemi — saf (Faz 21)
     firma-ozet.ts         # özet girdisi — izin süzgeçli (Faz 21)
     sorgu-saf.ts          # doğal dilde sorgu: kural ayrıştırıcı + beyaz liste
+    bolum-tanimlar.ts     # sol menü bölümleri + sekme çubuğu — saf (v1.22.0)
     arama-tanimlar.ts     # arama/eylem kayıt defteri + panel adresi — saf (Faz 20)
     firma-sekme-tanimlar.ts # firma çalışma ekranı sekmeleri — saf (Faz 20)
     zincir-tanimlar.ts    # kayıt zinciri sırası — saf (Faz 20)
@@ -506,6 +508,26 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **KVKK metnine "Anket yanıtları" bölümü eklendi** ve sürüm `2026-08-3`e
   çıkarıldı; anonimlik sözü aydınlatma metninde de verilir.
 
+### Menü ve Bölümler (v1.22.0)
+
+- **SOL MENÜ BÖLÜMLERE İNDİ** (`bolum-tanimlar.ts`): ~25 öğe, günlük işte
+  kullanılan ekranı bulmayı bir tarama işine çeviriyordu. Artık iki bölüm
+  (CRM, Satış Yönetimi) + tek ekranlı dört giriş (Genel Bakış, Takvim,
+  Raporlar, SSS) + Yönetim var.
+- **HİÇBİR ROTA DEĞİŞMEDİ.** `/kisiler`, `/urunler`, `/destek`… hepsi aynı
+  adreste; değişen yalnızca oraya nasıl gidildiğidir. Kayıtlı görünümler,
+  bildirim bağlantıları ve dışa aktarım adresleri kırılmaz — Faz 13'te
+  "Kontaklar" etiketi değişirken rotanın korunması da aynı gerekçeyleydi.
+- **BÖLÜM HEDEFİ SABİT DEĞİL, HESAPLANIR** (`bolumHedefi`): kullanıcının
+  görebildiği İLK sekmeye gidilir. Sabit adres yazılsaydı, o ekrana izni
+  olmayan kullanıcı bölüme tıklayınca `/yetkisiz`e düşerdi.
+- **SEKME ÇUBUĞU KABUĞA TEK YERDE BAĞLI** (`(app)/layout.tsx`): 25 sayfaya
+  ayrı ayrı eklenseydi, yeni ekran eklendiğinde biri unutulurdu. Bulunulan
+  yol bir bölüme ait değilse çubuk HİÇ çizilmez; tek sekme kalmışsa da
+  çizilmez — bilgi vermeyen bir çubuk gürültüdür.
+- **ETKİN SEKME `startsWith` DEĞİL, SINIR DUYARLI**: `/destekler` diye bir
+  ekran açılsa düz `startsWith` onu da "Destek" sanırdı.
+
 ### AI Özellikleri (Faz 21)
 
 - **SKOR DİL MODELİNE SORULMAZ** (`skor-saf.ts`): kiracının kendi kapanmış
@@ -696,7 +718,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**753 kontrol**.
+**780 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -704,10 +726,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (492 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (506 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI, gerçek tarayıcı (sunucu çalışırken, 240)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü, gerçek tarayıcı (sunucu çalışırken, 253)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -949,6 +971,13 @@ etkiliyor.
   dilde sorgu (tanıdık kalıplar model olmadan da çözülür); açma/kapama,
   gönderilen-gönderilmeyen listesi ve kullanım defteriyle `/ai` ayar ekranı.
   KVKK metni `2026-08-4`e çıkarıldı. **Yol haritasının 21 fazı tamamlandı.**
+- **v1.22.0** — **Menü konsolidasyonu.** Sol menüdeki ~25 öğe altı ana
+  girişe indi: Genel Bakış, **CRM**, **Satış Yönetimi**, Takvim, Raporlar,
+  SSS (Bilgi Bankası) + Yönetim. Bir bölüme tıklanınca kullanıcının
+  GÖREBİLDİĞİ ilk ekran açılır ve o bölümün bütün ekranları sayfanın üstünde
+  sekme çubuğu olarak durur. İçe Aktar, Yönetim'e alındı. **Hiçbir rota
+  değişmedi** — kayıtlı görünümler, bildirim bağlantıları ve yer imleri
+  çalışmaya devam eder.
 - **v1.11.2** — Arayüz: sol menü sıkılaştırıldı (13px, dar dikey aralık) ve
   taşarsa kaydırılabilir; kanban sütunları daraltıldı (min 196px) ve sayfa
   dolgusuna taşarak tam genişliğe yayılır — beş sütunlu varsayılan hat 13"

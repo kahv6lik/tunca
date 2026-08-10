@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import YanPanel from "@/components/panel/YanPanel";
+import BolumSekmeleri from "@/components/layout/BolumSekmeleri";
 import { Topbar } from "@/components/layout/topbar";
 import { ImpersonationBandi } from "@/components/layout/impersonation-bandi";
 import { requireSession } from "@/lib/auth";
@@ -65,6 +66,15 @@ export default async function AppLayout({
           platformAdmin={rolNormalize(session.role) === "platform_admin"}
           okunmamisBildirim={okunmamisBildirim}
         />
+        {/*
+          Bölüm sekmeleri (v1.22.0) — kabuğa TEK yerde bağlanır. Bulunulan
+          yol bir bölüme aitse o bölümün ekranları üstte sekme olarak durur;
+          değilse hiç çizilmez.
+        */}
+        <Suspense fallback={null}>
+          <BolumSekmeleri izinler={izinler} />
+        </Suspense>
+
         <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
           {children}
         </main>

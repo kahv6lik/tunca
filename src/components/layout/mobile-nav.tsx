@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV, navAktifMi } from "./sidebar-nav";
+import { NAV, navAktifMi, navHedefi } from "./sidebar-nav";
 import { Brand } from "./brand";
 
 export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
@@ -16,7 +16,9 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
   const izinKumesi = new Set(izinler);
-  const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
+  // Masaüstü menüyle AYNI kural: bölüm öğesi, içinde görebildiği en az bir
+  // ekran varsa görünür ve hedefi o ekrandır.
+  const gorunenler = NAV.filter((i) => navHedefi(i, izinKumesi) !== null);
 
   return (
     <>
@@ -65,7 +67,7 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={navHedefi(item, izinKumesi) ?? item.href}
                         onClick={() => setOpen(false)}
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
@@ -92,7 +94,7 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={navHedefi(item, izinKumesi) ?? item.href}
                         onClick={() => setOpen(false)}
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",

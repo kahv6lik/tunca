@@ -15,9 +15,9 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.21.0` — Faz 21: skorlama, firma özeti, doğal dilde sorgu |
+| **Son çıkan sürüm** | `v1.22.0` — menü konsolidasyonu (CRM / Satış Yönetimi bölümleri) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
-| **Sonrası** | yeni istekler ROADMAP'e madde olarak eklenir, faz açılır |
+| **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
 
 ## Genel Kurallar
@@ -1482,6 +1482,50 @@ kapatılabilir olur.
     `2026-08-4`e çıkarıldı; aktarım bölümü de güncellendi.
 
 ---
+
+---
+
+## Faz Sonrası İstekler
+
+Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
+Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
+major olur.
+
+### v1.22.0 — Menü konsolidasyonu ✅
+
+Bulgu: *"Sol menü çok uzun; herhangi bir ana başlığa tıklayınca alt
+başlıklar sayfa içinde sekme olarak görünsün."*
+
+- [x] Sol menü altı ana girişe indirildi: Genel Bakış, **CRM**,
+      **Satış Yönetimi**, Takvim, Raporlar, SSS (Bilgi Bankası) + Yönetim.
+- [x] **CRM** = Firmalar · Fırsatlar · Kontaklar · Aktiviteler · Projeler ·
+      Destek · Ziyaretler · Anketler · Kampanyalar · Yatırım Destekleri ·
+      Eğitimler · Hizmetler
+- [x] **Satış Yönetimi** = Teklifler · Siparişler · Sevkiyat · Stok · Ürünler
+- [x] İçe Aktar, Yönetim bölümüne alındı.
+- [x] Bölüm ekranlarında sayfanın üstünde sekme çubuğu.
+
+**Kararlar**
+- Firmalar CRM'in İLK sekmesi oldu (istekte "fırsatlar" iki kez yazılmıştı;
+  Firmalar hiçbir grupta geçmiyordu ve iş verisinin merkezi odur). ✅
+- SSS sol menüde ayrı kaldı, etiketi "SSS (Bilgi Bankası)" oldu. ✅
+
+**Uygulama notları**
+1. **HİÇBİR ROTA DEĞİŞMEDİ.** Değişen yalnızca gezinme yolu; kayıtlı
+   görünümler, bildirim bağlantıları, dışa aktarım adresleri ve kullanıcı
+   yer imleri kırılmadı. Regresyon testi her sekmenin gerçek bir sayfaya
+   işaret ettiğini denetler.
+2. **BÖLÜM HEDEFİ HESAPLANIR, SABİT DEĞİLDİR:** kullanıcının görebildiği ilk
+   sekmeye gidilir. Sabit adres, o ekrana izni olmayan kullanıcıyı
+   `/yetkisiz`e düşürürdü.
+3. **SEKME ÇUBUĞU KABUĞA TEK YERDE BAĞLANDI.** Her sayfaya ayrı eklenseydi,
+   yeni bir ekranda unutulurdu.
+4. **Bölüme ait olmayan yolda çubuk çizilmez** (Takvim, Raporlar, Yönetim,
+   firma çalışma ekranı); tek sekme kalmışsa da çizilmez.
+5. **Etkin sekme sınır duyarlıdır:** düz `startsWith`, ileride açılacak
+   `/destekler` gibi bir rotayı yanlışlıkla "Destek" sanardı.
+6. Faz 13 / H3'ün sözü ("Kişiler" değil "Kontaklar") korundu; kontrolü
+   panodan CRM sekme çubuğuna taşındı.
 
 ---
 

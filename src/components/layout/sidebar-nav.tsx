@@ -36,6 +36,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { bolum, bolumHedefi, sekmeAktifMi } from "@/lib/bolum-tanimlar";
 
 export type NavItem = {
   href: string;
@@ -50,6 +51,11 @@ export type NavItem = {
    * işaretli kalmalı, yoksa kullanıcı menüden düşmüş gibi hisseder.
    */
   esRotalar?: string[];
+  /**
+   * Öğe bir BÖLÜM ise (`bolum-tanimlar.ts`), anahtarı. Hedef adres ve
+   * "etkin mi" kararı o defterden, kullanıcının izinlerine göre hesaplanır.
+   */
+  bolumAnahtari?: string;
 };
 
 /**
@@ -59,64 +65,36 @@ export type NavItem = {
  */
 export const NAV: NavItem[] = [
   { href: "/", label: "Genel Bakış", icon: LayoutDashboard },
-  { href: "/firmalar", label: "Firmalar", icon: Building2, izin: "firma.goruntule" },
-  {
-    href: "/firsatlar",
-    label: "Fırsatlar",
-    icon: Target,
-    izin: "firsat.goruntule",
-    esRotalar: ["/adaylar"],
-  },
-  // Adaylar (/adaylar) menüde YOKTUR — satış hattının bir sekmesidir
-  // (Faz 13 / H5). Rota duruyor; oraya "Fırsatlar" içinden geçilir.
-  { href: "/teklifler", label: "Teklifler", icon: FileText, izin: "teklif.goruntule" },
-  // ── Ticari çekirdek (Faz 14) ──
-  // Paketler ürünlerin bir alt görünümüdür; menüyü şişirmemek için kendi
-  // başlığı yoktur, "Ürünler" ekranından açılır (esRotalar ile işaretli).
-  {
-    href: "/urunler",
-    label: "Ürünler",
-    icon: Package,
-    izin: "urun.goruntule",
-    esRotalar: ["/paketler"],
-  },
-  {
-    href: "/siparisler",
-    label: "Siparişler",
-    icon: ShoppingCart,
-    izin: "siparis.goruntule",
-  },
-  { href: "/sevkiyat", label: "Sevkiyat", icon: Truck, izin: "sevkiyat.goruntule" },
-  { href: "/kampanyalar", label: "Kampanyalar", icon: Ticket, izin: "kampanya.goruntule" },
-  { href: "/stok", label: "Stok", icon: Warehouse, izin: "stok.goruntule" },
-  // ── Proje, destek ve bilgi bankası (Faz 16) ──
-  { href: "/projeler", label: "Projeler", icon: FolderKanban, izin: "proje.goruntule" },
-  { href: "/destek", label: "Destek", icon: LifeBuoy, izin: "destek.goruntule" },
-  { href: "/sss", label: "SSS", icon: HelpCircle, izin: "sss.goruntule" },
-  // Faz 17 — saha çalışması
-  { href: "/ziyaretler", label: "Ziyaretler", icon: MapPin, izin: "ziyaret.goruntule" },
-  // Faz 19 — anket
-  { href: "/anketler", label: "Anketler", icon: ClipboardList, izin: "anket.goruntule" },
-  { href: "/aktiviteler", label: "Aktiviteler", icon: CheckSquare, izin: "aktivite.goruntule" },
-  { href: "/yatirim-destekleri", label: "Yatırım Destekleri", icon: Wallet, izin: "yatirim.goruntule" },
-  { href: "/egitimler", label: "Eğitimler", icon: GraduationCap, izin: "egitim.goruntule" },
-  { href: "/hizmetler", label: "Hizmetler", icon: Wrench, izin: "hizmet.goruntule" },
+
+  /*
+    ── BÖLÜMLER (v1.22.0) ──────────────────────────────────────────────
+    Sol menüde 25'e yakın öğe vardı; günlük işte kullanılan beş ekranı
+    bulmak için her seferinde uzun bir listeyi taramak gerekiyordu.
+
+    Artık iki bölüm var ve içerikleri `src/lib/bolum-tanimlar.ts`
+    dosyasındadır. Bölüme tıklanınca kullanıcının GÖREBİLDİĞİ ilk ekran
+    açılır (sabit adres yazılsaydı, o ekrana izni olmayan kullanıcı
+    /yetkisiz'e düşerdi); bölümün diğer ekranları sayfanın üstünde sekme
+    olarak durur.
+
+    `href` burada YALNIZCA bir başlangıç değeridir; gerçek hedef
+    `bolumHedefi()` ile kullanıcının izinlerine göre hesaplanır.
+    `esRotalar` bölümün bütün rotalarını taşır ki kullanıcı bölüm içinde
+    gezerken sol menüde o bölüm işaretli kalsın.
+  */
+  { href: "/firmalar", label: "CRM", icon: Building2, bolumAnahtari: "crm" },
+  { href: "/teklifler", label: "Satış Yönetimi", icon: ShoppingCart, bolumAnahtari: "satis" },
+
   { href: "/takvim", label: "Takvim", icon: CalendarDays, izin: "takvim.goruntule" },
   { href: "/raporlar", label: "Raporlar", icon: BarChart3, izin: "rapor.goruntule" },
-  /**
-   * "Kontaklar" (Faz 13 / H3, H4): ortağın isteği üzerine hem ad değişti hem
-   * de raporların ALTINA alındı — günlük akışta firma/fırsat kadar sık
-   * açılmıyor. URL `/kisiler` olarak KALDI: kayıtlı görünümler, dışa aktarım
-   * ve bildirim bağlantıları o adrese işaret ediyor; değiştirmek eskiyi
-   * kırardı. Etiket ile rota bilinçli olarak ayrışıyor.
-   */
-  { href: "/kisiler", label: "Kontaklar", icon: Contact, izin: "kisi.goruntule" },
-  // İçe aktarım firma OLUŞTURMA yetkisi olanlara görünür; sayfa da izinli
-  // veri kümesi yoksa kendini açmaz.
-  { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur" },
+  // SSS tek ekranlıdır ve bir bölüme ait değildir: destek kaydından da,
+  // menüden de doğrudan açılır.
+  { href: "/sss", label: "SSS (Bilgi Bankası)", icon: HelpCircle, izin: "sss.goruntule" },
 
   // ── Yönetim: kuruluşun yönetimsel işleri tek başlık altında toplanır. ──
   // (Platformlar ÜSTÜ yönetim ayrıdır: /admin, yalnızca platform_admin.)
+  // İçe aktarım da buraya alındı: günlük bir iş değil, kurulum işidir.
+  { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur", bolum: "yonetim" },
   { href: "/kullanicilar", label: "Kullanıcılar", icon: Users, izin: "kullanici.yonet", bolum: "yonetim" },
   { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet", bolum: "yonetim" },
   { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet", bolum: "yonetim" },
@@ -132,23 +110,48 @@ export const NAV: NavItem[] = [
 /** Bir menü öğesi bu yolda etkin mi? Masaüstü ve mobil menü aynı kuralı kullanır. */
 export function navAktifMi(item: NavItem, pathname: string) {
   if (item.href === "/") return pathname === "/";
-  return [item.href, ...(item.esRotalar ?? [])].some((r) => pathname.startsWith(r));
+  // Bölüm öğeleri: bölümün HERHANGİ bir sekmesindeyken işaretli kalır.
+  if (item.bolumAnahtari) {
+    const b = bolum(item.bolumAnahtari);
+    return b ? b.sekmeler.some((sk) => sekmeAktifMi(sk, pathname)) : false;
+  }
+  return [item.href, ...(item.esRotalar ?? [])].some(
+    (r) => pathname === r || pathname.startsWith(`${r}/`)
+  );
+}
+
+/**
+ * Öğenin gerçek hedefi.
+ *
+ * Bölümlerde sabit bir adres yazmak yerine kullanıcının GÖREBİLDİĞİ ilk
+ * sekmeye gidilir; aksi hâlde o ekrana izni olmayan kullanıcı bölüme
+ * tıklayınca `/yetkisiz`e düşerdi.
+ */
+export function navHedefi(item: NavItem, izinler: Set<string>): string | null {
+  if (!item.bolumAnahtari) {
+    return !item.izin || izinler.has(item.izin) ? item.href : null;
+  }
+  const b = bolum(item.bolumAnahtari);
+  return b ? bolumHedefi(b, izinler) : null;
 }
 
 export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
   const pathname = usePathname();
   const izinKumesi = new Set(izinler);
-  const gorunenler = NAV.filter((i) => !i.izin || izinKumesi.has(i.izin));
+  // Bölüm öğesi, İÇİNDE görebildiği en az bir ekran varsa görünür; hiç
+  // sekmesi yoksa boş bir başlık göstermenin anlamı yok.
+  const gorunenler = NAV.filter((i) => navHedefi(i, izinKumesi) !== null);
   const ana = gorunenler.filter((i) => i.bolum !== "yonetim");
   const yonetim = gorunenler.filter((i) => i.bolum === "yonetim");
 
   function oge(item: NavItem) {
     const active = navAktifMi(item, pathname);
     const Icon = item.icon;
+    const hedef = navHedefi(item, izinKumesi) ?? item.href;
     return (
       <Link
         key={item.href}
-        href={item.href}
+        href={hedef}
         className={cn(
           "group relative flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[13px] font-medium transition-colors",
           active

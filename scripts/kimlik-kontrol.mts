@@ -928,7 +928,20 @@ async function main() {
   // küçük harf üzerinden yapılır — tema değişikliklerine dayanıklı olsun.
   const panoGovde = (await sayfaGetir("admin@gezegen.com", "admin123", "/")).govde
     .toLocaleLowerCase("tr");
-  kontrol("Menüde \"Kontaklar\" var (H3)", panoGovde.includes("kontaklar"));
+  /*
+    H3'ün sözü etiketin "Kişiler" değil "Kontaklar" olmasıydı; menü
+    konsolidasyonundan (v1.22.0) sonra bu etiket sol menüde değil CRM sekme
+    çubuğunda duruyor. Kontrol kaldırılmadı, DOĞRU YERE taşındı — söz hâlâ
+    tutuluyor mu, orada sınanıyor.
+  */
+  const crmCubugu = (
+    await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar")
+  ).govde.toLocaleLowerCase("tr");
+  kontrol("CRM çubuğunda \"Kontaklar\" var (H3)", crmCubugu.includes("kontaklar"));
+  kontrol(
+    "Eski \"Kişiler\" etiketi hiçbir yerde kullanılmıyor (H3)",
+    !crmCubugu.includes("kişiler")
+  );
   kontrol(
     "Menüde ayrı \"Adaylar\" başlığı YOK (H5)",
     !panoGovde.includes("adaylar")
@@ -1741,6 +1754,63 @@ async function main() {
   kontrol(
     "Üye kullanım defterini GÖRMÜYOR",
     !uyeAi.govde.includes("Kullanım defteri")
+  );
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Menü konsolidasyonu (v1.22.0)
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Menü konsolidasyonu — bölümler ve sekme çubuğu\n");
+
+  const menuYonetici = await sayfaGetir("admin@gezegen.com", "admin123", "/firmalar");
+  kontrol("Sol menüde CRM bölümü var", menuYonetici.govde.includes("CRM"));
+  kontrol(
+    "Sol menüde Satış Yönetimi bölümü var",
+    menuYonetici.govde.includes("Satış Yönetimi")
+  );
+  kontrol(
+    "SSS sol menüde 'Bilgi Bankası' etiketiyle duruyor",
+    menuYonetici.govde.includes("SSS (Bilgi Bankası)")
+  );
+  // Firmalar ekranındayken CRM sekme çubuğu görünmeli.
+  kontrol(
+    "CRM sekme çubuğu Firmalar ekranında çiziliyor",
+    menuYonetici.govde.includes("Kontaklar") &&
+      menuYonetici.govde.includes("Ziyaretler")
+  );
+
+  const menuSatis = await sayfaGetir("admin@gezegen.com", "admin123", "/teklifler");
+  kontrol(
+    "Satış sekme çubuğu Teklifler ekranında çiziliyor",
+    menuSatis.govde.includes("Sevkiyat") && menuSatis.govde.includes("Stok")
+  );
+
+  // Bölüme ait OLMAYAN ekranda çubuk çizilmez.
+  const menuTakvim = await sayfaGetir("admin@gezegen.com", "admin123", "/takvim");
+  kontrol(
+    "Takvimde bölüm sekme çubuğu YOK",
+    !menuTakvim.govde.includes("Yatırım Destekleri")
+  );
+
+  // İçe aktarım Yönetim altına taşındı.
+  kontrol(
+    "İçe Aktar menüde Yönetim bölümünde",
+    menuYonetici.govde.indexOf("Yönetim") < menuYonetici.govde.indexOf("İçe Aktar")
+  );
+
+  // Rotalar DEĞİŞMEDİ: eski adresler hâlâ açılıyor.
+  for (const yol of ["/kisiler", "/urunler", "/kampanyalar", "/hizmetler"]) {
+    const eski = await sayfaGetir("admin@gezegen.com", "admin123", yol);
+    kontrol(
+      `Eski adres çalışmaya devam ediyor: ${yol}`,
+      !eski.url.includes("/yetkisiz") && !eski.url.includes("/login")
+    );
+  }
+
+  // İzin süzgeci: üye göremediği sekmeyi çubukta da görmez.
+  const uyeMenu2 = await sayfaGetir("kullanici@gezegen.com", "user123", "/firmalar");
+  kontrol(
+    "Üye CRM sekme çubuğunu görüyor",
+    uyeMenu2.govde.includes("Kontaklar")
   );
 
   await browser.close();

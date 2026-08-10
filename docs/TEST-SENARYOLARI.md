@@ -288,6 +288,30 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.22.0 — Menü konsolidasyonu
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Sol menüye bak | Genel Bakış · CRM · Satış Yönetimi · Takvim · Raporlar · SSS (Bilgi Bankası) + Yönetim |
+| 2 | **CRM**'e tıkla | Firmalar açılır; üstte sekme çubuğu: Firmalar · Fırsatlar · Kontaklar · Aktiviteler · Projeler · Destek · Ziyaretler · Anketler · Kampanyalar · Yatırım · Eğitimler · Hizmetler |
+| 3 | Çubuktan **Kontaklar**'a geç | `/kisiler` açılır; sol menüde CRM işaretli kalır |
+| 4 | **Satış Yönetimi**'ne tıkla | Teklifler açılır; çubuk: Teklifler · Siparişler · Sevkiyat · Stok · Ürünler |
+| 5 | Ürünler sekmesinden **Paketler**'e geç | Ürünler sekmesi işaretli kalır (paketler alt görünümdür) |
+| 6 | Fırsatlar → **Adaylar** sekmesi | Fırsatlar sekmesi işaretli kalır |
+| 7 | **Takvim**'i aç | Bölüm sekme çubuğu YOK (tek ekranlı) |
+| 8 | **Raporlar**'ı aç | Çubuk yok; rapor merkezinin kendi kartları duruyor |
+| 9 | Bir firma detayına gir | Çubuk yok; firmanın kendi sekmeleri (Genel/Satış/…) görünür |
+| 10 | **Yönetim** başlığına bak | İçe Aktar artık burada |
+| 11 | Eski yer imini aç (`/kisiler`, `/urunler`, `/kampanyalar`) | Hepsi açılır — rotalar değişmedi |
+| 12 | Kayıtlı bir görünüm bağlantısını aç | Süzgeçleriyle birlikte açılır |
+| 13 | Yalnızca teklif izni olan kullanıcıyla gir | Satış çubuğunda sadece Teklifler; CRM'de sadece izinli ekranlar |
+| 14 | Hiçbir satış izni olmayan kullanıcı | Sol menüde **Satış Yönetimi** başlığı hiç görünmez |
+| 15 | Salt okunur kullanıcı | Bölümler görünür, çubuklar izinli sekmelerle dolu |
+| 16 | Mobil menüyü aç (dar ekran) | Aynı bölümler; bölüme tıklayınca izinli ilk ekran açılır |
+| 17 | Ctrl+K → bir firma ara | Palet çalışmaya devam ediyor |
+
+---
+
 ### v1.21.0 — AI özellikleri (Faz 21)
 
 | # | Adım | Beklenen |
