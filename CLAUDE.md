@@ -831,6 +831,14 @@ commit'ler → annotated tag oluşturur → branch'i ve tag'i push eder.
 
 Geri dönmek için: `git checkout v1.0.1` (veya `git revert` / `git reset --hard v1.0.1`).
 
+### Her sürüm kapanışında İKİ blok birden verilir (ZORUNLU)
+
+Sürüm kapanış mesajında **yalnızca tag komutu vermek yetmez**; hemen ardından
+**sunucu deploy bloğu** da verilir (yedek → tag'e geç → derle → doğrula).
+İkisi tek bir işin iki yarısıdır; tag'i atıp sunucuda ne basacağını aramak
+zorunda kalmak ortağın bildirdiği bir sürtünmedir. Şablon:
+**`docs/DEPLOY.md` → "0. Her sürüm için iki adım (özet kart)"** (A / B / C / D).
+
 ### Tag push yetkisi ve token
 
 Claude Code oturumunun git kimliği yalnızca **branch** ref'lerine push edebilir;
