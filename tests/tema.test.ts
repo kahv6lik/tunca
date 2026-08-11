@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 
 /**
- * Liquid glass tema — v1.24.0 (ön sürüm).
+ * Liquid glass tema — v1.24.0.
  *
  * Bu testler GÖRÜNÜMÜ sınamaz (onu göz yapar); temanın verdiği YAPISAL
  * sözleri sınar:

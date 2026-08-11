@@ -15,8 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.23.0` — kampanya kapsam düzeltmesi, teklifte kampanya, rapor PDF'i |
-| **Denemede** | `v1.24.0-pre.2` — liquid glass tema (ÖN SÜRÜM, onay bekliyor) |
+| **Son çıkan sürüm** | `v1.24.0` — liquid glass tema (ön sürümden onaylanarak prod'a alındı) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1492,15 +1491,17 @@ Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
 
-### v1.24.0-pre.2 — Liquid glass tema (ÖN SÜRÜM) ⏳
+### v1.24.0 — Liquid glass tema ✅
 
 İstek: *"hasib41/liquid-glass-nav repodaki tema ve navigator'u bütün
 uygulamaya uygula; hem dark hem light temada, hem üst hem alt menülerde."*
 
-**ÖN SÜRÜMDÜR:** beğenilmezse `v1.23.0`e dönülür. Bu yüzden sürüm numarası
-`-pre.N` ekiyle çıkarılıyor ve `v1.24.0` boş bırakıldı.
+**ÖN SÜRÜM OLARAK ÇIKTI, ONAYLANDI.** `-pre.1` ve `-pre.2` denemeleri
+ortağın değerlendirmesi için yapıldı; ikinci denemeden sonra *"tamam bu
+artık prod sürüm olabilir"* denerek `v1.24.0` olarak kapatıldı. Ön sürüm
+etiketleri geçmişte durur — beğenilmeseydi `v1.23.0`e dönülecekti.
 
-**pre.2 (ortağın ilk geri bildirimi):** *"Açık temayı genel olarak begendik.
+**pre.2 (ortağın geri bildirimi):** *"Açık temayı genel olarak begendik.
 Koyu tema için mouse takip eden beyaz gölgeli cursor şeysi rahatsız etti.
 Onu kaldıralım."*
 

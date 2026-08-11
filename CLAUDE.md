@@ -151,7 +151,7 @@ src/
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
-    ui/CamKatmanlari   # liquid glass beş katmanı (v1.24.0-pre)
+    ui/CamKatmanlari   # liquid glass beş katmanı (v1.24.0)
     ui/CamFiltre       # SVG kırılma filtresi — kabukta TEK örnek
     ui/CamParlama      # imleci izleyen parlama — tek dinleyici
     ui/SecimKutusu     # aramalı tek seçimli açılır kutu (v1.12.1)
@@ -540,7 +540,7 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   görünen bir KÜNYE eklenir (kuruluş adı, rapor adı, dönem, çıktı tarihi) —
   elden ele dolaşan bir çıktıda bunlar olmadan rakamlar anlamsızdır.
 
-### Liquid Glass Tema (v1.24.0-pre — ÖN SÜRÜM)
+### Liquid Glass Tema (v1.24.0)
 
 Kaynak: `hasib41/liquid-glass-nav`. Bağımsız bir HTML/CSS/JS bileşeniydi;
 bağımlılık olarak eklenemezdi, tekniği bu projenin Tailwind + next-themes
@@ -566,15 +566,15 @@ düzenine TAŞINDI.
   JS'te özellik denetimi YOKTUR.
 - **KOYU TEMA `.dark` SINIFINDA KALDI** (kaynak `data-theme` kullanıyor):
   `next-themes` kurulumunu ve tema düğmesini kırmamak için.
-- **PARLAMA KOYU TEMADA ÇİZİLMEZ** (v1.24.0-pre.2): açık temada buzlu camın
+- **PARLAMA KOYU TEMADA ÇİZİLMEZ** (v1.24.0): açık temada buzlu camın
   içinde kaybolup derinlik veren beyaz parlama, koyu zeminde imleci takip
   eden bir HALE gibi okunuyordu. Katman kaldırılmadı, koyu temada yalnızca
   çizilmiyor — açık temanın görünümü aynen kalır ve karar tek satırda geri
   alınır. Karar CSS'tedir; `CamParlama` yalnızca boşuna iş yapmamak için bakar.
 - **BASKIDA CAM TAMAMEN NÖTR:** katmanlar, arka plan ışıkları ve ızgara
   `@media print` içinde kapatılır; PDF çıktıları bozulmaz.
-- **`.card` CAMLAŞTIRILMADI:** `ModalKatman` dengesi ona göre kurulu, ön
-  sürümde o denge yeniden sınanmadı.
+- **`.card` CAMLAŞTIRILMADI:** `ModalKatman` dengesi ona göre kurulu ve o
+  denge yeniden sınanmadı.
 
 ### Menü ve Bölümler (v1.22.0)
 
@@ -1058,6 +1058,13 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.24.0** — **Liquid glass tema.** Üst çubuk, sol menü, bölüm sekme
+  çubuğu, mobil menü, komut paleti ve yan panel beş katmanlı cam yüzeye
+  çevrildi (buzlu taban, gerçek kırılma, gövde rengi, parlama, ışıklı kenar);
+  arka planda kırılmayı görünür kılan aurora ve ince ızgara; etkin menü
+  öğelerinde kayan kapsül. Ön sürüm olarak çıkarıldı, ortağın geri
+  bildirimiyle koyu temadaki imleç parlaması kaldırıldı ve onaylanarak prod'a
+  alındı. Hiçbir işlev değişmedi; baskıda cam tamamen nötrdür.
 - **v1.22.0** — **Menü konsolidasyonu.** Sol menüdeki ~25 öğe altı ana
   girişe indi: Genel Bakış, **CRM**, **Satış Yönetimi**, Takvim, Raporlar,
   SSS (Bilgi Bankası) + Yönetim. Bir bölüme tıklanınca kullanıcının

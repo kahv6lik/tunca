@@ -288,10 +288,11 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
-### v1.24.0-pre.2 — Liquid glass tema (ÖN SÜRÜM)
+### v1.24.0 — Liquid glass tema
 
-Bu sürüm bir DENEMEDİR. Beğenilmezse `git checkout v1.23.0` ile dönülür.
-Senaryolar görünümü değil, **hiçbir şeyin bozulmadığını** sınar.
+Ön sürüm olarak çıktı (`-pre.1`, `-pre.2`), ortak onayladı ve `v1.24.0`
+olarak kapandı. Senaryolar görünümü değil, **hiçbir şeyin bozulmadığını**
+sınar.
 
 | # | Adım | Beklenen |
 |---|---|---|
