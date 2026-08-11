@@ -781,7 +781,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**805 kontrol**.
+**821 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -789,10 +789,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (521 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (532 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya, gerçek tarayıcı (sunucu çalışırken, 263)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 268)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
