@@ -15,6 +15,10 @@ import { useEffect } from "react";
  * doğrudan CSS değişkeni yazılır — hiçbir yeniden çizim tetiklenmez.
  *
  * `prefers-reduced-motion` açıksa hiç bağlanmaz.
+ *
+ * KOYU TEMADA PARLAMA KAPALIDIR (v1.24.0-pre.2): katman `.dark` altında
+ * çizilmediği için burada da yazma yapılmaz. Karar CSS'te verilir, burası
+ * yalnızca boşuna iş yapmamak için ona bakar.
  */
 export default function CamParlama() {
   useEffect(() => {
@@ -26,6 +30,8 @@ export default function CamParlama() {
     }
 
     function hareket(e: PointerEvent) {
+      // Koyu temada parlama katmanı çizilmiyor; konum güncellemek gereksiz.
+      if (document.documentElement.classList.contains("dark")) return;
       const hedef = (e.target as Element | null)?.closest?.(".cam");
       if (!(hedef instanceof HTMLElement)) return;
       const k = hedef.getBoundingClientRect();

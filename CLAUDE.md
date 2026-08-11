@@ -566,6 +566,11 @@ düzenine TAŞINDI.
   JS'te özellik denetimi YOKTUR.
 - **KOYU TEMA `.dark` SINIFINDA KALDI** (kaynak `data-theme` kullanıyor):
   `next-themes` kurulumunu ve tema düğmesini kırmamak için.
+- **PARLAMA KOYU TEMADA ÇİZİLMEZ** (v1.24.0-pre.2): açık temada buzlu camın
+  içinde kaybolup derinlik veren beyaz parlama, koyu zeminde imleci takip
+  eden bir HALE gibi okunuyordu. Katman kaldırılmadı, koyu temada yalnızca
+  çizilmiyor — açık temanın görünümü aynen kalır ve karar tek satırda geri
+  alınır. Karar CSS'tedir; `CamParlama` yalnızca boşuna iş yapmamak için bakar.
 - **BASKIDA CAM TAMAMEN NÖTR:** katmanlar, arka plan ışıkları ve ızgara
   `@media print` içinde kapatılır; PDF çıktıları bozulmaz.
 - **`.card` CAMLAŞTIRILMADI:** `ModalKatman` dengesi ona göre kurulu, ön
@@ -781,7 +786,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**821 kontrol**.
+**822 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -789,7 +794,7 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (532 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (533 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
 npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 268)

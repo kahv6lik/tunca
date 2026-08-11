@@ -231,6 +231,18 @@
   .cam:focus-within > .cam-parlama {
     opacity: 1;
   }
+  /*
+    KOYU TEMADA PARLAMA YOKTUR (v1.24.0-pre.2).
+
+    Açık temada beyaz parlama buzlu camın üstünde kaybolur ve yalnızca
+    yüzeye hafif bir canlılık katar. Koyu temada ise aynı katman koyu
+    zeminde beyaz bir HALE gibi okunuyor ve imleci takip ettiği için
+    dikkat dağıtıyordu (ortağın bulgusu). Katman kaldırılmadı, koyu
+    temada çizilmiyor — açık temadaki görünüm olduğu gibi korunuyor.
+  */
+  .dark .cam-parlama {
+    display: none;
+  }
   /* Gradient kenarlık: mask-composite ile 1px çerçeve. */
   .cam-kenar {
     padding: 1px;

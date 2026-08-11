@@ -288,7 +288,7 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
-### v1.24.0-pre.1 — Liquid glass tema (ÖN SÜRÜM)
+### v1.24.0-pre.2 — Liquid glass tema (ÖN SÜRÜM)
 
 Bu sürüm bir DENEMEDİR. Beğenilmezse `git checkout v1.23.0` ile dönülür.
 Senaryolar görünümü değil, **hiçbir şeyin bozulmadığını** sınar.
@@ -300,7 +300,8 @@ Senaryolar görünümü değil, **hiçbir şeyin bozulmadığını** sınar.
 | 3 | Koyuda sayfayı yenile | Tema koyu kalır (next-themes bozulmadı) |
 | 4 | Sol menüde bir bölüme tıkla | Etkin öğenin kapsülü kayarak gelir; doğru sayfa açılır |
 | 5 | Sekme çubuğunda sekme değiştir | Kapsül kayar; rota değişir |
-| 6 | İmleci cam yüzeyde gezdir | Parlama imleci izler |
+| 6 | **Açık temada** imleci cam yüzeyde gezdir | Parlama imleci izler |
+| 6b | **Koyu temada** imleci cam yüzeyde gezdir | Parlama YOK — beyaz hale hiç çizilmez (pre.2) |
 | 7 | Sol menüdeki her bağlantıyı tek tek dene | Hepsi eskisi gibi açılıyor |
 | 8 | Üst çubukta kullanıcı menüsünü aç | Açılır menü görünüyor ve tıklanabiliyor (cam onu hapsetmiyor) |
 | 9 | Bildirim ziline tıkla | `/bildirimler` açılır |

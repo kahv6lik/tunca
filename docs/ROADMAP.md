@@ -16,7 +16,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 | | |
 |---|---|
 | **Son çıkan sürüm** | `v1.23.0` — kampanya kapsam düzeltmesi, teklifte kampanya, rapor PDF'i |
-| **Denemede** | `v1.24.0-pre.1` — liquid glass tema (ÖN SÜRÜM, onay bekliyor) |
+| **Denemede** | `v1.24.0-pre.2` — liquid glass tema (ÖN SÜRÜM, onay bekliyor) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1492,13 +1492,20 @@ Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
 
-### v1.24.0-pre.1 — Liquid glass tema (ÖN SÜRÜM) ⏳
+### v1.24.0-pre.2 — Liquid glass tema (ÖN SÜRÜM) ⏳
 
 İstek: *"hasib41/liquid-glass-nav repodaki tema ve navigator'u bütün
 uygulamaya uygula; hem dark hem light temada, hem üst hem alt menülerde."*
 
 **ÖN SÜRÜMDÜR:** beğenilmezse `v1.23.0`e dönülür. Bu yüzden sürüm numarası
-`-pre.1` ekiyle çıkarıldı ve `v1.24.0` boş bırakıldı.
+`-pre.N` ekiyle çıkarılıyor ve `v1.24.0` boş bırakıldı.
+
+**pre.2 (ortağın ilk geri bildirimi):** *"Açık temayı genel olarak begendik.
+Koyu tema için mouse takip eden beyaz gölgeli cursor şeysi rahatsız etti.
+Onu kaldıralım."*
+
+- [x] Koyu temada imleci izleyen parlama katmanı çizilmiyor
+      (`.dark .cam-parlama { display: none }`); açık temada AYNEN duruyor.
 
 - [x] Cam token seti (açık + koyu), mevcut renk değişkenlerinin YANINA.
 - [x] Beş katmanlı cam yüzey: buzlu taban, kırılma, gövde rengi, imleci
@@ -1536,6 +1543,13 @@ uygulamaya uygula; hem dark hem light temada, hem üst hem alt menülerde."*
    `@media print` içinde kapatılır — PDF çıktıları (Faz 9 / E5, v1.23.0)
    bozulmaz.
 9. **`prefers-reduced-motion`** açıkken parlama izleyicisi hiç bağlanmaz.
+10. **PARLAMA KOYU TEMADA ÇİZİLMEZ (pre.2).** Açık temada beyaz parlama buzlu
+    camın içinde kaybolur ve yüzeye derinlik verir; koyu zeminde ise aynı
+    katman imleci takip eden beyaz bir HALE gibi okunuyor ve dikkat
+    dağıtıyordu. Katman KALDIRILMADI — koyu temada yalnızca çizilmiyor
+    (`.dark .cam-parlama { display: none }`), böylece açık temanın beğenilen
+    görünümü aynen kalıyor ve karar tek satırda geri alınabiliyor. Karar
+    CSS'te verilir; `CamParlama` yalnızca boşuna iş yapmamak için ona bakar.
 
 ---
 

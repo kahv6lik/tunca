@@ -79,6 +79,21 @@ describe("Işık ve koyu tema", () => {
     }
   });
 
+  it("KOYU TEMADA imleci izleyen parlama YOKTUR", () => {
+    /*
+      Ortağın bulgusu: koyu zeminde beyaz parlama, imleci takip eden bir
+      hale gibi okunuyor ve dikkat dağıtıyordu. Açık temada aynı katman
+      buzlu camın içinde kaybolduğu için orada kaldı.
+    */
+    const bas = CSS.indexOf(".dark .cam-parlama");
+    expect(bas, "koyu temada parlama kapatılmamış").toBeGreaterThan(-1);
+    expect(CSS.slice(bas, CSS.indexOf("}", bas))).toContain("display: none");
+
+    // Açık temada parlama DURUYOR: beğenilen görünüm bozulmasın.
+    expect(CSS).toContain(".cam-parlama {");
+    expect(CSS).toContain("--cam-sheen");
+  });
+
   it("koyu tema `.dark` sınıfına bağlı (next-themes düzeni korundu)", () => {
     // data-theme'e geçilseydi mevcut tema düğmesi çalışmazdı.
     expect(CSS).toContain(".dark {");
