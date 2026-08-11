@@ -56,6 +56,91 @@ docker run --rm \
 > Volume adı `docker volume ls` çıktısındakiyle aynı olmalıdır; Compose
 > proje adını ön ek olarak ekler (`gezegen-crm_gezegen-dosya`).
 
+## 0. Her sürüm için iki adım (özet kart)
+
+Yeni bir sürüm çıktığında sırayla iki yerde iş yapılır. Aşağıdaki iki blok
+**her sürümde aynıdır**; yalnızca sürüm numarası ve commit sha'sı değişir.
+
+### A — KENDİ MAKİNENDE: tag'i oluştur ve gönder
+
+Claude Code oturumunun git kimliği tag ref'lerine push edemez (`HTTP 403`),
+bu yüzden tag'i sen oluşturursun. Sürüm commit'inin sha'sı Claude'un kapanış
+mesajında verilir.
+
+```bash
+cd <depo-dizinin>            # örn. ~/projeler/tunca
+git fetch origin
+git tag -a vX.Y.Z <sha> -m "<kısa açıklama>"
+git push origin vX.Y.Z
+```
+
+Doğrulama: `git ls-remote --tags origin | grep vX.Y.Z` bir satır dönmeli.
+
+### B — SUNUCUDA: sürümü al ve yayına ver
+
+```bash
+cd /root/gezegen-crm
+
+# 1) YEDEK — atlama. Migration içeren sürümlerde hayat kurtarır.
+docker compose --env-file deploy.env -f docker-compose.server.yml exec -T db \
+  pg_dump -U gezegen gezegen | gzip > ~/yedek-$(date +%F-%H%M).sql.gz
+ls -lh ~/yedek-*.sql.gz | tail -1
+
+# 2) Sürümü getir
+git fetch origin --tags --force
+git checkout vX.Y.Z
+git log --oneline -1            # beklenen commit mi?
+
+# 3) Derle ve başlat (migration otomatik uygulanır)
+docker compose --env-file deploy.env -f docker-compose.server.yml up -d --build
+
+# 4) Başlangıç günlüğü — Ctrl+C ile çık
+docker logs -f gezegen-crm-app
+```
+
+**`--env-file deploy.env` her komutta şart.** Compose dosyasındaki `${...}`
+ifadeleri `env_file:` satırından okunmaz; bayrak olmadan parola boş kalır.
+
+### C — SUNUCUDA: yayın sonrası doğrulama
+
+```bash
+cd /root/gezegen-crm
+K="docker compose --env-file deploy.env -f docker-compose.server.yml"
+
+# Migration'lar uygulandı mı?
+$K exec -T db psql -U gezegen -d gezegen -c \
+  'SELECT count(*) AS uygulanan FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'
+
+# Dosya volume'ü bağlı mı? (Faz 17'den beri zorunlu)
+$K exec app sh -c 'ls -la /veri/dosya' | head -3
+
+# Konteynerler ayakta mı?
+$K ps
+```
+
+Migration sayısı depodaki `prisma/migrations` klasöründeki dizin sayısına
+eşit olmalı. Ardından tarayıcıdan gir: sol altta yeni sürüm numarası yazmalı.
+
+### D — Geri dönüş
+
+```bash
+cd /root/gezegen-crm
+git checkout vESKI.SURUM
+docker compose --env-file deploy.env -f docker-compose.server.yml up -d --build
+```
+
+Veritabanı şeması geri ALINMAZ — yeni tablolar ve varsayılanı olan yeni
+sütunlar yerinde kalır, eski kod onları görmez ve zarar vermez. Veriyi geri
+almak gerekirse 1. adımdaki yedek kullanılır:
+
+```bash
+zcat ~/yedek-<tarih>.sql.gz | \
+  docker compose --env-file deploy.env -f docker-compose.server.yml \
+  exec -T db psql -U gezegen -d gezegen
+```
+
+---
+
 ## 2. Sürümü getir ve geç
 
 ```bash
