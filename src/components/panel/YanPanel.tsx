@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X, ExternalLink } from "lucide-react";
 import ModalKatman from "@/components/ui/ModalKatman";
+import CamKatmanlari from "@/components/ui/CamKatmanlari";
 import { StatusBadge } from "@/components/ui/badge";
 import {
   PANEL_ANAHTARI,
@@ -105,8 +106,9 @@ export default function YanPanel() {
       <aside
         onClick={(e) => e.stopPropagation()}
         aria-label="Kayıt özeti"
-        className="h-full w-full max-w-md overflow-y-auto border-l border-border/60 bg-card p-5 shadow-2xl"
+        className="cam h-full w-full max-w-md overflow-y-auto border-l border-border/40 p-5"
       >
+        <CamKatmanlari />
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">

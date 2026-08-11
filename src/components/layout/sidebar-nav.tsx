@@ -160,9 +160,12 @@ export function SidebarNav({ izinler = [] }: { izinler?: string[] }) {
         )}
       >
         {active && (
+          /* Etkin öğenin kapsülü (v1.24.0): cam yüzeyin üstünde kayan
+             bir damla. Hareket saf transformdur (layoutId), yani düzen
+             yeniden hesaplanmaz. */
           <motion.span
             layoutId="sidebar-active"
-            className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10"
+            className="cam-kapsul absolute inset-0 rounded-lg"
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
           />
         )}

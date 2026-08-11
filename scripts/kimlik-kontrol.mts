@@ -1877,6 +1877,83 @@ async function main() {
     destekRaporCikti.govde.includes("Yazdır")
   );
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Liquid glass tema (v1.24.0-pre) — hiçbir şeyin bozulmadığı
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Liquid glass tema — işlev kaybı var mı\n");
+
+  {
+    const ctxTema = await browser.newContext();
+    const sayfa = await ctxTema.newPage();
+    await sayfa.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await sayfa.fill("#email", "admin@gezegen.com");
+    await sayfa.fill("#password", "admin123");
+    await sayfa.click("button[type=submit]");
+    await girisiBekle(sayfa);
+    await sayfa.goto(`${BASE}/firmalar`, { waitUntil: "domcontentloaded" });
+    await durulmasiniBekle(sayfa);
+
+    // Cam katmanları çiziliyor mu?
+    const katmanSayisi = await sayfa.locator(".cam-katman").count();
+    kontrol(
+      "Cam katmanları sayfada çiziliyor",
+      katmanSayisi >= 5,
+      `${katmanSayisi} katman`
+    );
+
+    // Kırılma filtresi tanımlı mı?
+    kontrol(
+      "SVG kırılma filtresi kabukta tanımlı",
+      (await sayfa.locator("#cam-warp").count()) === 1
+    );
+
+    /*
+      ASIL SORU: cam tıklamayı engelliyor mu? Katmanların hepsi
+      `pointer-events: none` taşımalı — biri kaçarsa altındaki menü
+      tıklanamaz hâle gelir ve bunu gözle fark etmek zordur.
+    */
+    const tiklanabilir = await sayfa.evaluate(() =>
+      Array.from(document.querySelectorAll(".cam-katman")).every(
+        (el) => getComputedStyle(el).pointerEvents === "none"
+      )
+    );
+    kontrol("Cam katmanları TIKLAMAYI ENGELLEMİYOR", tiklanabilir);
+
+    // Menü gerçekten çalışıyor mu? Sekmeye tıkla, rota değişsin.
+    const kontakSekmesi = sayfa.locator('a[href="/kisiler"]').first();
+    if ((await kontakSekmesi.count()) > 0) {
+      await kontakSekmesi.click();
+      await durulmasiniBekle(sayfa);
+      kontrol(
+        "Cam sekme çubuğundan gezinme çalışıyor",
+        sayfa.url().includes("/kisiler"),
+        sayfa.url()
+      );
+    }
+
+    // Koyu tema: cam token'ları değişiyor mu?
+    const koyuTint = await sayfa.evaluate(() => {
+      document.documentElement.classList.add("dark");
+      const koyu = getComputedStyle(document.documentElement)
+        .getPropertyValue("--cam-tint")
+        .trim();
+      document.documentElement.classList.remove("dark");
+      const acik = getComputedStyle(document.documentElement)
+        .getPropertyValue("--cam-tint")
+        .trim();
+      return { koyu, acik };
+    });
+    kontrol(
+      "Cam token'ları koyu ve açık temada FARKLI",
+      Boolean(koyuTint.koyu) &&
+        Boolean(koyuTint.acik) &&
+        koyuTint.koyu !== koyuTint.acik,
+      `${koyuTint.acik} / ${koyuTint.koyu}`
+    );
+
+    await ctxTema.close();
+  }
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);

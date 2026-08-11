@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ShieldCheck, Bell } from "lucide-react";
 import KomutPaleti from "@/components/palet/KomutPaleti";
+import CamKatmanlari from "@/components/ui/CamKatmanlari";
 import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
@@ -30,7 +31,8 @@ export function Topbar({
   okunmamisBildirim?: number;
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl md:px-6">
+    <header className="cam sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/40 px-4 md:px-6">
+      <CamKatmanlari />
       <MobileNav izinler={izinler} />
 
       {/*

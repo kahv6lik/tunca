@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV, navAktifMi, navHedefi } from "./sidebar-nav";
 import { Brand } from "./brand";
+import CamKatmanlari from "@/components/ui/CamKatmanlari";
 
 export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
   const [open, setOpen] = useState(false);
@@ -25,8 +26,9 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
       <button
         aria-label="Menü"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-secondary/40 text-muted-foreground lg:hidden"
+        className="cam flex h-9 w-9 items-center justify-center rounded-xl border border-border/50 text-muted-foreground lg:hidden"
       >
+        <CamKatmanlari />
         <Menu className="h-5 w-5" />
       </button>
 
@@ -47,8 +49,9 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 34 }}
-              className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-border/70 bg-card/95 backdrop-blur-xl"
+              className="cam absolute left-0 top-0 flex h-full w-72 flex-col border-r border-border/40"
             >
+              <CamKatmanlari />
               <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
                 <Brand />
                 <button
@@ -72,7 +75,7 @@ export function MobileNav({ izinler = [] }: { izinler?: string[] }) {
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                           active
-                            ? "border border-primary/30 bg-primary/10 text-foreground"
+                            ? "cam-kapsul text-foreground"
                             : "text-muted-foreground hover:bg-accent hover:text-foreground"
                         )}
                       >

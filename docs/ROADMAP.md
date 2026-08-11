@@ -16,6 +16,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 | | |
 |---|---|
 | **Son çıkan sürüm** | `v1.23.0` — kampanya kapsam düzeltmesi, teklifte kampanya, rapor PDF'i |
+| **Denemede** | `v1.24.0-pre.1` — liquid glass tema (ÖN SÜRÜM, onay bekliyor) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1491,53 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.24.0-pre.1 — Liquid glass tema (ÖN SÜRÜM) ⏳
+
+İstek: *"hasib41/liquid-glass-nav repodaki tema ve navigator'u bütün
+uygulamaya uygula; hem dark hem light temada, hem üst hem alt menülerde."*
+
+**ÖN SÜRÜMDÜR:** beğenilmezse `v1.23.0`e dönülür. Bu yüzden sürüm numarası
+`-pre.1` ekiyle çıkarıldı ve `v1.24.0` boş bırakıldı.
+
+- [x] Cam token seti (açık + koyu), mevcut renk değişkenlerinin YANINA.
+- [x] Beş katmanlı cam yüzey: buzlu taban, kırılma, gövde rengi, imleci
+      izleyen parlama, 1px ışıklı kenar.
+- [x] SVG kırılma filtresi (SDF → normal harita → `feDisplacementMap`),
+      kabukta TEK örnek.
+- [x] Arka planda aurora + ince ızgara — kırılmayı görünür kılan şey.
+- [x] Uygulandığı yüzeyler: üst çubuk, sol menü, bölüm sekme çubuğu, mobil
+      menü, komut paleti, yan panel.
+- [x] Etkin menü öğeleri kayan kapsül (framer-motion `layoutId`).
+
+**Kararlar**
+1. **KAYNAK VANİLYAYDI, TAŞINDI.** Repo bağımsız bir HTML/CSS/JS bileşenidir;
+   bağımlılık olarak eklenemezdi. Katman sistemi ve kırılma tekniği bu
+   projenin Tailwind + next-themes düzenine taşındı.
+2. **KOYU TEMA `.dark` SINIFINDA KALDI.** Kaynak `data-theme` kullanıyor;
+   ona geçmek mevcut tema düğmesini ve `next-themes` kurulumunu kırardı.
+3. **FİLTRE KAPSAYICIYA DEĞİL, KATMAN ÇOCUKLARINA UYGULANIR.**
+   `backdrop-filter` taşıyan öğe `position: fixed` torunları için kapsayıcı
+   blok oluşturur — v1.11.1'de `.card` yüzünden bir kez yaşandı ve çözüm
+   `ModalKatman` portalıydı. Katmanlar mutlak konumlu çocuklar olduğu için
+   kapsayıcı temiz kalır; içindeki açılır menüler ve modallar bozulmaz.
+4. **KATMANLAR TIKLAMAYI ENGELLEMEZ:** `pointer-events: none` + `z-index: -1`.
+   Bir yüzeyi camlaştırmak davranışını değiştirmez.
+5. **KART CAMLAŞTIRILMADI.** `.card` zaten `backdrop-blur` taşıyor ve
+   `ModalKatman` dengesi ona göre kurulu; kartı beş katmana çevirmek o
+   dengeyi yeniden sınamayı gerektirirdi. Ön sürümde risk alınmadı.
+6. **KIRILMA DESTEKLENMİYORSA SORUN DEĞİL:** `url()` içeren backdrop-filter'ı
+   çözemeyen tarayıcı o katmanı çizmez, altındaki sade buzlu cam görünür.
+   Kaynak bileşenin kendi tasarım kararı; JS'te özellik denetimi yok.
+7. **HARİTA BİR KEZ ÜRETİLİR.** Kaynak her yüzey için `ResizeObserver` ile
+   yeniden çiziyordu; onlarca yüzeyde bu onlarca canvas işi demekti. Tek bir
+   yumuşak kenar profili bütün yüzeylere yetiyor.
+8. **BASKIDA CAM TAMAMEN NÖTR:** katmanlar, arka plan ışıkları ve ızgara
+   `@media print` içinde kapatılır — PDF çıktıları (Faz 9 / E5, v1.23.0)
+   bozulmaz.
+9. **`prefers-reduced-motion`** açıkken parlama izleyicisi hiç bağlanmaz.
+
+---
 
 ### v1.23.0 — Kampanya kapsamı ve rapor PDF'i ✅
 

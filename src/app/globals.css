@@ -23,6 +23,34 @@
     --warning: 32 95% 44%;
     --danger: 0 72% 51%;
     --radius: 0.9rem;
+
+    /* ── Liquid glass (v1.24.0) ─────────────────────────────────────────
+       Cam yüzeyler beş katmandan oluşur: buzlu taban, kırılma, gövde
+       rengi, imleci izleyen parlama ve 1px ışıklı kenar. Token'lar AYRI
+       tutulur; mevcut renk değişkenlerine (--card, --border…) dokunulmaz,
+       böylece cam yalnızca yüzeyin görünümünü değiştirir, uygulamanın
+       renk sistemini değil. */
+    --cam-tint: rgba(255, 255, 255, 0.34);
+    --cam-sat: 180%;
+    --cam-blur: 10px;
+    --cam-rim-hi: rgba(255, 255, 255, 0.95);
+    --cam-rim-lo: rgba(255, 255, 255, 0.16);
+    --cam-rim-shade: rgba(24, 28, 44, 0.1);
+    --cam-sheen: rgba(255, 255, 255, 0.55);
+    --cam-cast:
+      0 1px 1px rgba(24, 28, 44, 0.04),
+      0 6px 14px -6px rgba(24, 28, 44, 0.16),
+      0 26px 46px -18px rgba(24, 28, 44, 0.28);
+    /* Etkin öğenin altındaki kayan kapsül */
+    --cam-pill-a: rgba(255, 255, 255, 0.92);
+    --cam-pill-b: rgba(255, 255, 255, 0.62);
+    --cam-pill-sh:
+      0 1px 2px rgba(24, 28, 44, 0.1),
+      0 6px 14px -8px rgba(24, 28, 44, 0.3);
+    --cam-pill-inset: rgba(255, 255, 255, 0.85);
+    --cam-grid: rgba(23, 26, 33, 0.05);
+    --cam-gecis: 0.55s;
+    --cam-ease: cubic-bezier(0.22, 0.61, 0.28, 1);
   }
 
   .dark {
@@ -45,6 +73,27 @@
     --warning: 38 92% 58%;
     --danger: 0 84% 63%;
     --radius: 0.9rem;
+
+    /* Koyu temada cam: tint maviye kayar, kenar ışığı zayıflar, gölge
+       derinleşir. Aynı katman sistemi, farklı değerler. */
+    --cam-tint: rgba(146, 168, 214, 0.11);
+    --cam-sat: 150%;
+    --cam-blur: 12px;
+    --cam-rim-hi: rgba(255, 255, 255, 0.5);
+    --cam-rim-lo: rgba(255, 255, 255, 0.05);
+    --cam-rim-shade: rgba(0, 0, 0, 0.34);
+    --cam-sheen: rgba(190, 214, 255, 0.3);
+    --cam-cast:
+      0 1px 1px rgba(0, 0, 0, 0.3),
+      0 8px 18px -8px rgba(0, 0, 0, 0.55),
+      0 30px 60px -22px rgba(0, 0, 0, 0.62);
+    --cam-pill-a: rgba(226, 236, 255, 0.2);
+    --cam-pill-b: rgba(226, 236, 255, 0.09);
+    --cam-pill-sh:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 8px 18px -10px rgba(0, 0, 0, 0.7);
+    --cam-pill-inset: rgba(255, 255, 255, 0.2);
+    --cam-grid: rgba(210, 224, 255, 0.045);
   }
 
   * {
@@ -61,17 +110,38 @@
     min-height: 100vh;
   }
 
-  /* Premium arka plan: yumuşak aurora ışıkları + ince grid */
+  /* ── Arka plan (v1.24.0) ────────────────────────────────────────────
+     İKİ KATMAN:
+       1. Yumuşak aurora ışıkları — cam yüzeyin altında kırılacak renk.
+       2. İnce bir çizgi ızgarası — kırılmayı GÖRÜNÜR kılan şey budur.
+          Düz çizgiler cam kenarından geçerken bükülür; ızgara olmasa
+          "kırılma" ile sıradan bulanıklık ayırt edilemezdi.
+     İkisi de `pointer-events: none` ve z-index -1: hiçbir tıklamayı
+     engellemez. */
   body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(600px circle at 12% 8%, hsl(var(--primary) / 0.16), transparent 45%),
+      radial-gradient(700px circle at 92% 0%, hsl(280 90% 60% / 0.14), transparent 42%),
+      radial-gradient(600px circle at 78% 92%, hsl(190 90% 55% / 0.1), transparent 45%);
+  }
+
+  body::after {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background:
-      radial-gradient(600px circle at 12% 8%, hsl(var(--primary) / 0.14), transparent 45%),
-      radial-gradient(700px circle at 92% 0%, hsl(280 90% 60% / 0.12), transparent 42%),
-      radial-gradient(600px circle at 78% 92%, hsl(190 90% 55% / 0.08), transparent 45%);
+    background-image:
+      linear-gradient(var(--cam-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--cam-grid) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 30%, transparent 80%);
+    mask-image: radial-gradient(120% 90% at 50% 30%, #000 30%, transparent 80%);
   }
 
   ::selection {
@@ -96,9 +166,103 @@
 }
 
 @layer components {
+  /* ══ Liquid glass yüzey (v1.24.0) ══════════════════════════════════════
+     Kaynak: hasib41/liquid-glass-nav — vanilya CSS/JS bir bileşendi,
+     buradaki Tailwind + next-themes düzenine taşındı.
+
+     BEŞ KATMAN, alttan üste:
+       1 .cam-taban  → buzlu cam (backdrop blur + saturate). HERKESTE çalışan
+                       taban; kırılmayı desteklemeyen tarayıcı burada kalır.
+       2 .cam-kirilma→ backdrop-filter: url(#cam-warp). Arka planı kenarda
+                       BÜKER. Kardeş backdrop katmanları zincirlenemediği
+                       için bulanıklığı kendi içinde yapar ve tabanın
+                       üstüne boyar. Filtre yoksa hiçbir şey çizmez.
+       3 .cam-renk   → gövde rengi (bir tık beyaz/mavi).
+       4 .cam-parlama→ imleci izleyen spektral parlama.
+       5 .cam-kenar  → 1px ışıklı kenar; sol üstte parlak, sağ altta sönük.
+
+     KATMANLAR İÇERİĞİN ALTINDADIR ve `pointer-events: none` taşır: hiçbir
+     tıklamayı, hiçbir odaklanmayı engellemezler.
+
+     ÖNEMLİ: `backdrop-filter` taşıyan bir öğe, `position: fixed` torunları
+     için kapsayıcı blok oluşturur (v1.11.1'de `.card` yüzünden bir kez
+     yaşandı). Bu yüzden filtre KAPSAYICIYA DEĞİL, mutlak konumlu katman
+     çocuklarına uygulanır — kapsayıcı temiz kalır ve içindeki açılır
+     menüler, modallar eskisi gibi çalışır. */
+  .cam {
+    position: relative;
+    isolation: isolate;
+    box-shadow: var(--cam-cast);
+    transition: box-shadow var(--cam-gecis) var(--cam-ease);
+  }
+  .cam > .cam-katman {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .cam-taban {
+    backdrop-filter: blur(var(--cam-blur)) saturate(var(--cam-sat)) brightness(1.02);
+    -webkit-backdrop-filter: blur(var(--cam-blur)) saturate(var(--cam-sat)) brightness(1.02);
+  }
+  .cam-kirilma {
+    backdrop-filter: url(#cam-warp);
+    -webkit-backdrop-filter: url(#cam-warp);
+  }
+  .cam-renk {
+    background: linear-gradient(
+      160deg,
+      var(--cam-tint),
+      color-mix(in srgb, var(--cam-tint) 55%, transparent)
+    );
+    transition: background var(--cam-gecis) var(--cam-ease);
+  }
+  .cam-parlama {
+    background: radial-gradient(
+      180px 120px at var(--cam-mx, 50%) var(--cam-my, 0%),
+      var(--cam-sheen),
+      transparent 68%
+    );
+    opacity: 0;
+    transition: opacity 0.5s var(--cam-ease);
+  }
+  .cam:hover > .cam-parlama,
+  .cam:focus-within > .cam-parlama {
+    opacity: 1;
+  }
+  /* Gradient kenarlık: mask-composite ile 1px çerçeve. */
+  .cam-kenar {
+    padding: 1px;
+    background: linear-gradient(
+      150deg,
+      var(--cam-rim-hi) 0%,
+      var(--cam-rim-lo) 34%,
+      var(--cam-rim-shade) 62%,
+      var(--cam-rim-hi) 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    transition: background var(--cam-gecis) var(--cam-ease);
+  }
+
+  /* Etkin menü öğesinin altındaki kapsül. Menülerde `motion.span` ile
+     taşınır (framer-motion layoutId), yani hareket saf transformdur. */
+  .cam-kapsul {
+    background: linear-gradient(180deg, var(--cam-pill-a), var(--cam-pill-b));
+    box-shadow: var(--cam-pill-sh), inset 0 1px 0 var(--cam-pill-inset);
+  }
+
   /* ---- Yüzeyler ---- */
+  /* Kart yüzeyi. `backdrop-blur` KAPSAYICIDA DURMAYA DEVAM EDER: v1.11.1'de
+     bunun `position: fixed` torunları hapsettiği görülmüş ve çözüm modalları
+     portala taşımak olmuştu (`ModalKatman`). O çözüm yerinde; kartın
+     görünümünü değiştirip bu dengeyi bozmamak için kart camlaştırılmadı,
+     yalnızca kenarı cam kenarıyla uyumlu hâle getirildi. */
   .card {
-    @apply rounded-2xl border border-border/70 bg-card/70 shadow-soft backdrop-blur-xl;
+    @apply rounded-2xl border border-border/60 bg-card/60 shadow-soft backdrop-blur-xl;
   }
   .glass {
     @apply border border-white/10 bg-white/5 backdrop-blur-xl dark:bg-white/[0.03];
@@ -192,6 +356,22 @@
    headless tarayıcı eklemeden Türkçe karakterleri kusursuz bir çıktı alınır.
    ------------------------------------------------------------------------ */
 @media print {
+  /* Cam katmanları baskıda HİÇ çizilmez: backdrop-filter kâğıtta bir şey
+     ifade etmez, gri bir bulanıklık bırakır ve toneri boşa harcar. Arka
+     plan ışıkları ve ızgara da aynı sebeple kapatılır (v1.24.0). */
+  .cam-katman,
+  body::before,
+  body::after {
+    display: none !important;
+  }
+  .cam {
+    box-shadow: none !important;
+  }
+  .cam-kapsul {
+    background: none !important;
+    box-shadow: none !important;
+  }
+
   /* Kabuk ve etkileşimli öğeler baskıda yok */
   aside,
   header,

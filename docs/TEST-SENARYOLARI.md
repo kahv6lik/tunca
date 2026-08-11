@@ -288,6 +288,36 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.24.0-pre.1 — Liquid glass tema (ÖN SÜRÜM)
+
+Bu sürüm bir DENEMEDİR. Beğenilmezse `git checkout v1.23.0` ile dönülür.
+Senaryolar görünümü değil, **hiçbir şeyin bozulmadığını** sınar.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Açık temada giriş yap | Üst çubuk, sol menü ve sekme çubuğu buzlu cam; kenarlarında ince ışık |
+| 2 | Tema düğmesiyle koyuya geç | Cam koyu tona geçer, kenar ışığı zayıflar; geçiş yumuşak |
+| 3 | Koyuda sayfayı yenile | Tema koyu kalır (next-themes bozulmadı) |
+| 4 | Sol menüde bir bölüme tıkla | Etkin öğenin kapsülü kayarak gelir; doğru sayfa açılır |
+| 5 | Sekme çubuğunda sekme değiştir | Kapsül kayar; rota değişir |
+| 6 | İmleci cam yüzeyde gezdir | Parlama imleci izler |
+| 7 | Sol menüdeki her bağlantıyı tek tek dene | Hepsi eskisi gibi açılıyor |
+| 8 | Üst çubukta kullanıcı menüsünü aç | Açılır menü görünüyor ve tıklanabiliyor (cam onu hapsetmiyor) |
+| 9 | Bildirim ziline tıkla | `/bildirimler` açılır |
+| 10 | Ctrl+K → palet | Cam palet açılır, arama çalışır, ↑↓ ↵ Esc çalışır |
+| 11 | Listede özet düğmesi → yan panel | Cam panel açılır, "Tam sayfada aç" çalışır |
+| 12 | Dar ekranda mobil menüyü aç | Cam çekmece açılır, öğeler tıklanabilir, seçili öğe kapsüllü |
+| 13 | Bir formu doldur ve kaydet (ör. yeni firma) | Kayıt oluşur — cam hiçbir alanı engellemiyor |
+| 14 | Bir modal aç (ör. kalem düzenle) | Modal ekranın ortasında; kart içinde sıkışmıyor |
+| 15 | Kanban'da kart sürükle | Sürükle-bırak çalışıyor |
+| 16 | `/raporlar/mali` → Yazdır | Önizlemede cam, ışık ve ızgara YOK; künye ve tablolar temiz |
+| 17 | Teklif çıktısını yazdır | Belge eskisi gibi; cam iz bırakmıyor |
+| 18 | İşletim sisteminde "hareketi azalt"ı aç | Parlama imleci izlemez; diğer her şey çalışır |
+| 19 | Safari / Firefox ile gir | Kırılma yok ama sade buzlu cam var; hiçbir işlev kaybı yok |
+| 20 | Sayfayı uzun süre kaydır | Takılma yok |
+
+---
+
 ### v1.23.0 — Kampanya kapsamı ve rapor PDF'i
 
 | # | Adım | Beklenen |

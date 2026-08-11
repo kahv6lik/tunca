@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import CamKatmanlari from "@/components/ui/CamKatmanlari";
 import {
   gorunurSekmeler,
   sekmeAktifMi,
@@ -37,8 +39,9 @@ export default function BolumSekmeleri({ izinler }: { izinler: string[] }) {
   return (
     <nav
       aria-label={`${b.etiket} bölümü`}
-      className="sticky top-16 z-20 border-b border-border/60 bg-background/70 backdrop-blur-xl"
+      className="cam sticky top-16 z-20 border-b border-border/40"
     >
+      <CamKatmanlari />
       <div className="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-4 md:px-6 lg:px-8">
         {sekmeler.map((s) => {
           const aktif = sekmeAktifMi(s, pathname);
@@ -48,13 +51,21 @@ export default function BolumSekmeleri({ izinler }: { izinler: string[] }) {
               href={s.href}
               aria-current={aktif ? "page" : undefined}
               className={cn(
-                "-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] transition-colors",
+                "relative my-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] transition-colors",
                 aktif
-                  ? "border-primary font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {s.label}
+              {/* Etkin sekmenin altındaki kayan kapsül (v1.24.0). */}
+              {aktif && (
+                <motion.span
+                  layoutId="bolum-sekme-aktif"
+                  className="cam-kapsul absolute inset-0 rounded-full"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">{s.label}</span>
             </Link>
           );
         })}

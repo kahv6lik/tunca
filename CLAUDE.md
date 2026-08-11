@@ -151,6 +151,9 @@ src/
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
     ui/ModalKatman     # modalları portala taşır (v1.11.1)
+    ui/CamKatmanlari   # liquid glass beş katmanı (v1.24.0-pre)
+    ui/CamFiltre       # SVG kırılma filtresi — kabukta TEK örnek
+    ui/CamParlama      # imleci izleyen parlama — tek dinleyici
     ui/SecimKutusu     # aramalı tek seçimli açılır kutu (v1.12.1)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
     GorunumBar,         # kayıtlı görünümler (Faz 10)
@@ -536,6 +539,37 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   kararı). Baskıda kabuk ve süzgeç formu gizlenir; bu yüzden yalnızca baskıda
   görünen bir KÜNYE eklenir (kuruluş adı, rapor adı, dönem, çıktı tarihi) —
   elden ele dolaşan bir çıktıda bunlar olmadan rakamlar anlamsızdır.
+
+### Liquid Glass Tema (v1.24.0-pre — ÖN SÜRÜM)
+
+Kaynak: `hasib41/liquid-glass-nav`. Bağımsız bir HTML/CSS/JS bileşeniydi;
+bağımlılık olarak eklenemezdi, tekniği bu projenin Tailwind + next-themes
+düzenine TAŞINDI.
+
+- **BEŞ KATMAN:** buzlu taban → kırılma → gövde rengi → imleci izleyen
+  parlama → 1px ışıklı kenar. Katmanlar `pointer-events: none` ve
+  `z-index: -1` taşır: bir yüzeyi camlaştırmak DAVRANIŞINI DEĞİŞTİRMEZ.
+- **FİLTRE KAPSAYICIYA DEĞİL, KATMAN ÇOCUKLARINA UYGULANIR.**
+  `backdrop-filter` taşıyan öğe `position: fixed` torunları için kapsayıcı
+  blok oluşturur — v1.11.1'de `.card` yüzünden yaşandı ve çözümü
+  `ModalKatman` portalıydı. Katmanlar mutlak konumlu çocuklar olduğu için
+  kapsayıcı temiz kalır.
+- **KIRILMA GERÇEKTİR:** yuvarlatılmış dikdörtgenin işaretli mesafe alanı
+  (SDF) bir normal haritaya çevrilir, `feDisplacementMap` arka planı kenar
+  bandında iter. Arka plandaki ince ızgara bu yüzden vardır — düz çizgi
+  bükülmezse kırılma ile bulanıklık ayırt edilemez.
+- **HARİTA BİR KEZ ÜRETİLİR** ve bütün yüzeyler tek filtreye bakar; kaynak
+  bileşendeki yüzey başına `ResizeObserver` yaklaşımı onlarca canvas işi
+  demekti.
+- **DESTEKLEMEYEN TARAYICIDA KENDİLİĞİNDEN DÜŞER:** `url()` içeren
+  backdrop-filter çözülemezse o katman çizilmez, sade buzlu cam görünür.
+  JS'te özellik denetimi YOKTUR.
+- **KOYU TEMA `.dark` SINIFINDA KALDI** (kaynak `data-theme` kullanıyor):
+  `next-themes` kurulumunu ve tema düğmesini kırmamak için.
+- **BASKIDA CAM TAMAMEN NÖTR:** katmanlar, arka plan ışıkları ve ızgara
+  `@media print` içinde kapatılır; PDF çıktıları bozulmaz.
+- **`.card` CAMLAŞTIRILMADI:** `ModalKatman` dengesi ona göre kurulu, ön
+  sürümde o denge yeniden sınanmadı.
 
 ### Menü ve Bölümler (v1.22.0)
 

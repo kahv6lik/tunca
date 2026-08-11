@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ModalKatman from "@/components/ui/ModalKatman";
+import CamKatmanlari from "@/components/ui/CamKatmanlari";
 import { dogalDildeSorgu } from "@/app/(app)/ai-actions";
 import {
   Building2,
@@ -242,8 +243,9 @@ export default function KomutPaleti({
         type="button"
         onClick={() => setAcik(true)}
         aria-label="Ara"
-        className="relative hidden h-9 w-full max-w-xs flex-1 items-center gap-2 rounded-xl border border-border/70 bg-secondary/40 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary/60 md:flex"
+        className="cam relative hidden h-9 w-full max-w-xs flex-1 items-center gap-2 rounded-xl border border-border/50 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 md:flex"
       >
+        <CamKatmanlari />
         <Search className="h-4 w-4 shrink-0" />
         <span className="truncate">Ara…</span>
         <kbd className="ml-auto shrink-0 rounded border border-border/70 px-1 text-[10px] leading-4">
@@ -257,9 +259,10 @@ export default function KomutPaleti({
           onClick={() => setAcik(false)}
         >
           <div
-            className="card w-full max-w-xl overflow-hidden p-0"
+            className="cam w-full max-w-xl overflow-hidden rounded-2xl border border-border/40 p-0"
             onClick={(e) => e.stopPropagation()}
           >
+            <CamKatmanlari />
             <div className="flex items-center gap-2 border-b border-border/60 px-4">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
