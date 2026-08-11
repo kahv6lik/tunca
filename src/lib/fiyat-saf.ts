@@ -310,3 +310,47 @@ export function kampanyaGecerliMi(
 
   return true;
 }
+
+/**
+ * Bir satır için uygun kampanyaları süzer — İSTEMCİDE kullanılır.
+ *
+ * Katalog kapsamıyla birlikte gelir; hangi kampanyanın hangi firmaya/ürüne
+ * açık olduğu kararı `kampanyaGecerliMi` ile verilir. Böylece formdaki
+ * süzgeç ile sunucudaki doğrulama AYNI kuralı çalıştırır: ikisi ayrı
+ * yazılsaydı, formda görünüp kaydederken düşen (ya da tersi) kampanyalar
+ * çıkardı.
+ */
+export type KapsamliKampanya = FiyatKampanyasi & {
+  baslangic: string | Date;
+  bitis: string | Date;
+  /** Kotası dolmuş kampanya listede görünmez. */
+  tukendi: boolean;
+  urunIdler: string[];
+  paketIdler: string[];
+  firmaIdler: string[];
+};
+
+export function satirinKampanyalari(
+  katalog: KapsamliKampanya[],
+  baglam: { firmaId?: string | null; urunId?: string | null; an?: Date }
+): KapsamliKampanya[] {
+  const an = baglam.an ?? new Date();
+  return katalog.filter((k) =>
+    !k.tukendi &&
+    kampanyaGecerliMi(
+      {
+        durum: "aktif",
+        baslangic: new Date(k.baslangic),
+        bitis: new Date(k.bitis),
+        // Kota kararı katalogda `tukendi` ile verildi (yukarıdaki koşul);
+        // burada yeniden sorulmaz.
+        kota: 0,
+        kullanilan: 0,
+        urunIdler: k.urunIdler,
+        paketIdler: k.paketIdler,
+        firmaIdler: k.firmaIdler,
+      },
+      { an, firmaId: baglam.firmaId, urunId: baglam.urunId }
+    )
+  );
+}

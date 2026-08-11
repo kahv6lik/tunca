@@ -10,7 +10,11 @@ import {
 } from "@/app/(app)/siparisler/actions";
 import { PARA_BIRIMI, URUN_BIRIMLERI } from "@/lib/constants";
 import { formatPara } from "@/lib/format";
-import { satirFiyatiHesapla, type FiyatKampanyasi } from "@/lib/fiyat-saf";
+import {
+  satirFiyatiHesapla,
+  satirinKampanyalari,
+  type KapsamliKampanya,
+} from "@/lib/fiyat-saf";
 
 type UrunSecenek = {
   id: string;
@@ -78,7 +82,7 @@ export default function SiparisForm({
 }: {
   firmalar: { id: string; ad: string }[];
   urunler: UrunSecenek[];
-  kampanyalar: FiyatKampanyasi[];
+  kampanyalar: KapsamliKampanya[];
   kisiler?: { id: string; ad: string }[];
   mevcut?: SiparisDegerleri;
   varsayilanFirmaId?: string;
@@ -97,6 +101,14 @@ export default function SiparisForm({
 }) {
   const action = mevcut ? siparisGuncelle.bind(null, mevcut.id) : siparisOlustur;
   const [state, formAction] = useFormState<FormState, FormData>(action, {});
+
+  /*
+    Firma DENETİMLİ bir alandır çünkü kampanya kapsamı ona bağlıdır: firma
+    değişince satırlardaki uygun kampanya listesi de değişmelidir.
+  */
+  const [firmaId, setFirmaId] = useState(
+    mevcut?.firmaId ?? varsayilanFirmaId ?? ""
+  );
 
   const [kalemler, setKalemler] = useState<SiparisKalemDegeri[]>(
     mevcut?.kalemler.length
@@ -123,20 +135,56 @@ export default function SiparisForm({
               birim: u ? u.birim : k.birim,
               birimFiyat: u ? u.listeFiyat : k.birimFiyat,
               kdvOrani: u ? u.kdvOrani : k.kdvOrani,
+              // Ürün değişince eski kampanya artık geçerli olmayabilir;
+              // seçili bırakmak "indirim var" yanılgısı verirdi.
+              kampanyaId: gecerliMi(k.kampanyaId, firmaId, urunId) ? k.kampanyaId : "",
             }
           : k
       )
     );
   }
 
+  /** Seçili kampanya, verilen bağlamda hâlâ geçerli mi? */
+  function gecerliMi(
+    kampanyaId: string,
+    firma: string,
+    urunId: string | null
+  ): boolean {
+    if (!kampanyaId) return false;
+    return satirinKampanyalari(kampanyalar, { firmaId: firma, urunId }).some(
+      (x) => x.kampanyaId === kampanyaId
+    );
+  }
+
+  /** Firma değişince geçersiz kalan kampanya seçimleri temizlenir. */
+  function firmaSec(yeni: string) {
+    setFirmaId(yeni);
+    setKalemler((ks) =>
+      ks.map((k) =>
+        gecerliMi(k.kampanyaId, yeni, k.urunId || null)
+          ? k
+          : { ...k, kampanyaId: "" }
+      )
+    );
+  }
+
+  /*
+    Satırın uygun kampanyaları — SEÇİLİ FİRMA ve SATIRIN ÜRÜNÜ ile süzülür.
+    Süzgeç sunucudakiyle AYNI saf fonksiyondur (`satirinKampanyalari`);
+    ayrı yazılsaydı formda görünüp kaydederken düşen kampanyalar çıkardı.
+  */
+  const satirKampanyalari = kalemler.map((k) =>
+    satirinKampanyalari(kampanyalar, { firmaId, urunId: k.urunId || null })
+  );
+
   // Önizleme — sunucudaki hesabın aynısı.
-  const satirlar = kalemler.map((k) =>
+  const satirlar = kalemler.map((k, i) =>
     satirFiyatiHesapla(
       { urunId: k.urunId, listeFiyat: k.birimFiyat, kdvOrani: k.kdvOrani },
       k.miktar,
       {
         kampanyalar: k.kampanyaId
-          ? kampanyalar.filter((x) => x.kampanyaId === k.kampanyaId)
+          ? satirKampanyalari[i].filter((x) => x.kampanyaId === k.kampanyaId)
           : [],
         secilenKampanyaId: k.kampanyaId || null,
         elIskontoOrani: k.iskontoOrani,
@@ -171,7 +219,8 @@ export default function SiparisForm({
             id="firmaId"
             name="firmaId"
             required
-            defaultValue={mevcut?.firmaId ?? varsayilanFirmaId ?? ""}
+            value={firmaId}
+            onChange={(e) => firmaSec(e.target.value)}
             className="input"
           >
             <option value="">Seçin…</option>
@@ -382,11 +431,17 @@ export default function SiparisForm({
                   </button>
                 </div>
 
-                {kampanyalar.length > 0 && (
-                  <div className="sm:col-span-12">
-                    <label className="label text-xs" htmlFor={`kalem-${i}-kampanyaId`}>
-                      Kampanya
-                    </label>
+                {/*
+                  Kampanya alanı HER ZAMAN çizilir. Eskiden liste boşsa alan
+                  hiç görünmüyordu ve kullanıcı "kampanya diye bir şey yok"
+                  sanıyordu; oysa çoğu zaman kampanya vardı ama kapsamı
+                  yüzünden süzülmüştü. Artık sebebi yazıyor.
+                */}
+                <div className="sm:col-span-12">
+                  <label className="label text-xs" htmlFor={`kalem-${i}-kampanyaId`}>
+                    Kampanya
+                  </label>
+                  {satirKampanyalari[i].length > 0 ? (
                     <select
                       id={`kalem-${i}-kampanyaId`}
                       name={`kalem-${i}-kampanyaId`}
@@ -395,20 +450,30 @@ export default function SiparisForm({
                       className="input"
                     >
                       <option value="">Kampanya yok</option>
-                      {kampanyalar.map((kmp) => (
+                      {satirKampanyalari[i].map((kmp) => (
                         <option key={kmp.kampanyaId} value={kmp.kampanyaId}>
                           {kmp.kod} — {kmp.ad}
                           {kmp.kalanKota > 0 ? ` (${kmp.kalanKota} hak)` : ""}
                         </option>
                       ))}
                     </select>
-                    {satirlar[i]?.kampanya && (
-                      <p className="mt-1 text-xs text-emerald-500">
-                        İndirim: {formatPara(satirlar[i].indirimTutari)}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {kampanyalar.length === 0
+                        ? "Tanımlı aktif kampanya yok."
+                        : !firmaId
+                          ? "Önce firma seçin — kampanyaların bir kısmı firmaya özeldir."
+                          : !k.urunId
+                            ? "Ürün seçin — kampanyaların bir kısmı belirli ürünlere tanımlıdır."
+                            : "Bu firma ve ürün için geçerli kampanya yok."}
+                    </p>
+                  )}
+                  {satirlar[i]?.kampanya && (
+                    <p className="mt-1 text-xs text-emerald-500">
+                      İndirim: {formatPara(satirlar[i].indirimTutari)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           ))}

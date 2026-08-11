@@ -3,7 +3,6 @@ import { ArrowLeft } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
@@ -12,6 +11,7 @@ import { tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
 import { hatOzeti, kirilim, oran, oranMetni } from "@/lib/rapor-saf";
 import { raporBul } from "@/lib/rapor-tanimlar";
 import RaporSuzgeci from "@/components/raporlar/RaporSuzgeci";
+import RaporBasligi from "@/components/raporlar/RaporBasligi";
 
 export const dynamic = "force-dynamic";
 
@@ -130,10 +130,7 @@ export default async function SatisRaporPage(props: {
         <ArrowLeft className="h-4 w-4" /> Rapor Merkezi
       </Link>
 
-      <PageHeader
-        title="Satış Hattı"
-        subtitle={araliktanEtiket(aralik) ?? "Tüm zamanlar"}
-      />
+      <RaporBasligi baslik="Satış Hattı" donem={araliktanEtiket(aralik)} />
 
       <RaporSuzgeci
         rapor={raporBul("satis")!}

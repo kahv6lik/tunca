@@ -16,6 +16,8 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { TEKLIF_DURUM } from "@/lib/constants";
+import { satirFiyatiHesapla } from "@/lib/fiyat-saf";
+import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
 import { bildirimGonder } from "@/lib/bildirim";
 
 /**
@@ -37,6 +39,10 @@ const kalemSchema = z.object({
   miktar: z.coerce.number().min(0),
   birim: z.string().trim().default("adet"),
   birimFiyat: z.coerce.number().min(0),
+  // Katalog bağı OPSİYONELDİR: danışmanlık, montaj gibi katalogda olmayan
+  // satırlar serbest metin olarak yazılmaya devam eder.
+  urunId: z.string().trim().nullable().default(null),
+  kampanyaId: z.string().trim().nullable().default(null),
 });
 
 const schema = z.object({
@@ -75,27 +81,92 @@ function kalemleriOku(formData: FormData) {
       miktar: formData.get(`kalem-${i}-miktar`) ?? 0,
       birim: String(formData.get(`kalem-${i}-birim`) ?? "adet"),
       birimFiyat: formData.get(`kalem-${i}-birimFiyat`) ?? 0,
+      urunId: String(formData.get(`kalem-${i}-urunId`) ?? "").trim() || null,
+      kampanyaId: String(formData.get(`kalem-${i}-kampanyaId`) ?? "").trim() || null,
     });
     if (parsed.success) kalemler.push(parsed.data);
   }
   return kalemler;
 }
 
-/** Tutarları hesaplar. Tek kaynak burasıdır; arayüz yalnızca gösterir. */
-function tutarlariHesapla(
-  kalemler: { miktar: number; birimFiyat: number }[],
+/**
+ * Tutarları hesaplar. Tek kaynak burasıdır; arayüz yalnızca gösterir.
+ *
+ * SIRA: kalem kampanyası → belge iskontosu → KDV.
+ *
+ * Kampanya önce gelir çünkü kampanya ürüne/firmaya tanımlı bir HAKTIR;
+ * belgenin üzerine elle yazılan iskonto ise onun üstüne yapılan ayrı bir
+ * jesttir. Aynı sıra sipariş tarafında da geçerlidir (`fiyat-saf.ts`), yani
+ * kabul edilen teklif siparişe döndüğünde rakam değişmez.
+ *
+ * KDV indirimli tutar üzerinden hesaplanır (Faz 14 kuralı).
+ */
+async function tutarlariHesapla(
+  db: TenantClient,
+  firmaId: string,
+  kalemler: z.infer<typeof kalemSchema>[],
   indirimOrani: number,
   kdvOrani: number
 ) {
-  const araToplam = kalemler.reduce((s, k) => s + k.miktar * k.birimFiyat, 0);
-  const indirimTutari = (araToplam * indirimOrani) / 100;
-  const matrah = araToplam - indirimTutari;
-  const kdvTutari = (matrah * kdvOrani) / 100;
+  const satirlar: {
+    kampanyaId: string | null;
+    indirimTutari: number;
+    tutar: number;
+  }[] = [];
+
+  let araToplam = 0;
+  let kampanyaIndirimi = 0;
+
+  for (const k of kalemler) {
+    const brut = k.miktar * k.birimFiyat;
+    araToplam += brut;
+
+    /*
+      Kampanya GEÇERLİLİĞİ sunucuda doğrulanır: tarihi geçmiş, kotası dolmuş
+      ya da başka bir firmaya/ürüne tanımlı bir kampanyanın id'si istemciden
+      gelirse indirim uygulanmaz. İstemcideki süzgeç bir kolaylıktır.
+    */
+    let indirim = 0;
+    let uygulanan: string | null = null;
+    if (k.kampanyaId) {
+      const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
+        firmaId,
+        urunId: k.urunId,
+      });
+      const sonuc = satirFiyatiHesapla(
+        { urunId: k.urunId ?? "", listeFiyat: k.birimFiyat, kdvOrani },
+        k.miktar,
+        {
+          kampanyalar: adaylar.filter((a) => a.kampanyaId === k.kampanyaId),
+          secilenKampanyaId: k.kampanyaId,
+        }
+      );
+      indirim = sonuc.indirimTutari;
+      uygulanan = sonuc.kampanya?.kampanyaId ?? null;
+    }
+
+    kampanyaIndirimi += indirim;
+    satirlar.push({
+      kampanyaId: uygulanan,
+      indirimTutari: indirim,
+      tutar: brut - indirim,
+    });
+  }
+
+  const yuvarla = (n: number) => Math.round(n * 100) / 100;
+
+  // Belge iskontosu kampanyadan SONRA, kalan tutar üzerinden.
+  const belgeIskontosu = ((araToplam - kampanyaIndirimi) * indirimOrani) / 100;
+  const indirimTutari = yuvarla(kampanyaIndirimi + belgeIskontosu);
+  const matrah = yuvarla(araToplam - indirimTutari);
+  const kdvTutari = yuvarla((matrah * kdvOrani) / 100);
+
   return {
-    araToplam,
+    satirlar,
+    araToplam: yuvarla(araToplam),
     indirimTutari,
     kdvTutari,
-    toplam: matrah + kdvTutari,
+    toplam: yuvarla(matrah + kdvTutari),
   };
 }
 
@@ -125,18 +196,23 @@ async function bagliKayitlariDogrula(
 async function kalemleriYaz(
   db: TenantClient,
   teklifId: string,
-  kalemler: z.infer<typeof kalemSchema>[]
+  kalemler: z.infer<typeof kalemSchema>[],
+  satirlar: { kampanyaId: string | null; indirimTutari: number; tutar: number }[]
 ) {
   await db.teklifKalemi.deleteMany({ where: { teklifId } });
   for (const [i, k] of kalemler.entries()) {
     await tenantOlustur(db, "teklifKalemi", {
       teklifId,
       sira: i,
+      urunId: k.urunId,
       aciklama: k.aciklama,
       miktar: k.miktar,
       birim: k.birim,
       birimFiyat: k.birimFiyat,
-      tutar: k.miktar * k.birimFiyat,
+      // Kampanya uygulanmadıysa satırda da işaretlenmez.
+      kampanyaId: satirlar[i]?.kampanyaId ?? null,
+      indirimTutari: satirlar[i]?.indirimTutari ?? 0,
+      tutar: satirlar[i]?.tutar ?? k.miktar * k.birimFiyat,
     });
   }
 }
@@ -160,7 +236,9 @@ export async function teklifOlustur(
   const kalemler = kalemleriOku(formData);
   if (kalemler.length === 0) return { error: "En az bir kalem girin." };
 
-  const tutarlar = tutarlariHesapla(
+  const tutarlar = await tutarlariHesapla(
+    db,
+    parsed.data.firmaId,
     kalemler,
     parsed.data.indirimOrani,
     parsed.data.kdvOrani
@@ -186,7 +264,7 @@ export async function teklifOlustur(
     olusturanEmail: session.email,
   });
 
-  await kalemleriYaz(db, teklif.id, kalemler);
+  await kalemleriYaz(db, teklif.id, kalemler, tutarlar.satirlar);
 
   await denetimYaz({
     islem: "olustur",
@@ -232,7 +310,9 @@ export async function teklifGuncelle(
   const kalemler = kalemleriOku(formData);
   if (kalemler.length === 0) return { error: "En az bir kalem girin." };
 
-  const tutarlar = tutarlariHesapla(
+  const tutarlar = await tutarlariHesapla(
+    db,
+    parsed.data.firmaId,
     kalemler,
     parsed.data.indirimOrani,
     parsed.data.kdvOrani
@@ -261,7 +341,7 @@ export async function teklifGuncelle(
     sartlar: parsed.data.sartlar || null,
   });
 
-  await kalemleriYaz(db, id, kalemler);
+  await kalemleriYaz(db, id, kalemler, tutarlar.satirlar);
 
   await denetimYaz({
     islem: "guncelle",

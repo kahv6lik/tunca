@@ -288,6 +288,39 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.23.0 — Kampanya kapsamı ve rapor PDF'i
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Kampanyalar → kapsamsız bir kampanya oluştur (aktif, tarih geçerli) | Kaydedilir |
+| 2 | Yeni sipariş aç, firma seç | Kampanya alanı görünür, kampanya listede |
+| 3 | Yeni kampanya oluştur, kapsamına **bir ürün** ekle | Kaydedilir |
+| 4 | Yeni siparişte ürün seçmeden bak | "Ürün seçin — kampanyaların bir kısmı belirli ürünlere tanımlıdır" |
+| 5 | Aynı satırda o ürünü seç | Kampanya listede belirir |
+| 6 | Başka bir ürün seç | Kampanya listeden düşer, seçiliyse temizlenir |
+| 7 | Kapsamına **bir firma** eklenmiş kampanya | Yalnızca o firma seçiliyken görünür |
+| 8 | Firmayı değiştir | Geçersiz kalan kampanya seçimi otomatik temizlenir |
+| 9 | Kotası dolmuş kampanya | Listede hiç görünmez |
+| 10 | Tarihi geçmiş kampanya | Listede hiç görünmez |
+| 11 | Hiç kampanya tanımlı değilken | "Tanımlı aktif kampanya yok" (alan yine görünür) |
+| 12 | Yeni teklif aç | **Ürün (katalogdan)** seçici ve kampanya alanı var |
+| 13 | Teklifte ürün + kampanya seç | Satırda "Kampanya indirimi: …" görünür |
+| 14 | Teklifi kaydet, detayına bak | Kalem tablosunda kampanya kodu ve indirim; toplamlarda **Kampanya indirimi** ve **İskonto** ayrı satır |
+| 15 | Teklif çıktısını al (Yazdır) | Kalemin altında kampanya adı, toplamlarda iki ayrı indirim satırı |
+| 16 | Teklifi kabul et → **Siparişe Dönüştür** | Ürün ve kampanya sipariş formuna taşınmış gelir |
+| 17 | Siparişi kaydet, detayına bak | Kampanya kodu kalemde görünür, indirim uygulanmış |
+| 18 | Tarayıcı konsolundan geçersiz bir kampanya id'si göndermeyi dene | Sunucu indirimi UYGULAMAZ (kapsam doğrulanır) |
+| 19 | Serbest metin kalem yaz (ürün seçmeden) | Kaydedilir — katalog bağı opsiyoneldir |
+| 20 | Eski (v1.22 öncesi) bir teklifi aç | Rakamları değişmemiş, düzenlenebilir |
+| 21 | `/raporlar/mali` → **Yazdır / PDF Kaydet** | Yazdırma önizlemesi açılır |
+| 22 | Önizlemeye bak | Sol menü, üst çubuk, sekme çubuğu ve süzgeç formu YOK |
+| 23 | Önizlemenin başına bak | Kuruluş adı, rapor adı, dönem ve çıktı tarihi yazıyor |
+| 24 | PDF olarak kaydet, Türkçe karakterlere bak | Ş, İ, Ğ, Ü kusursuz |
+| 25 | Tarih aralığı seçip tekrar yazdır | Künyedeki dönem seçilen aralığı gösterir |
+| 26 | Satış, Ürün, Aktivite, Genel ve Destek raporlarında tekrarla | Hepsinde PDF düğmesi ve künye var |
+
+---
+
 ### v1.22.0 — Menü konsolidasyonu
 
 | # | Adım | Beklenen |

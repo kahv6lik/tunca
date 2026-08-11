@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
+import RaporBasligi from "@/components/raporlar/RaporBasligi";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -88,9 +88,9 @@ export default async function DestekRaporPage(props: {
         <ArrowLeft className="h-4 w-4" /> Destek Kayıtları
       </Link>
 
-      <PageHeader
-        title="Destek Raporu"
-        subtitle={[firmaAdi, aralikEtiketi].filter(Boolean).join(" · ") || undefined}
+      <RaporBasligi
+        baslik="Destek Raporu"
+        donem={[firmaAdi, aralikEtiketi].filter(Boolean).join(" · ") || null}
       />
 
       <form method="get" className="card mb-4 flex flex-wrap items-end gap-3 p-4">

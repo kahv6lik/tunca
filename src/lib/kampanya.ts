@@ -243,3 +243,80 @@ export async function sureniDolduranlariKapat(
       AND "bitis" < ${an}
   `);
 }
+
+/**
+ * Kampanya KATALOĞU — kapsam bilgisiyle birlikte.
+ *
+ * `gecerliKampanyalar` bir BAĞLAM (firma + ürün) ister ve süzülmüş bir liste
+ * döner; sunucu doğrulaması için doğru olan budur. Ama formda bağlam
+ * KULLANICI YAZDIKÇA DEĞİŞİR: firma seçilir, satıra ürün konur, satır
+ * eklenir. Sunucuda bir kez süzülmüş liste bu yüzden yanlıştır — ilk
+ * çizimde firma da ürün de boştur, dolayısıyla firma ya da ürün kapsamlı
+ * HİÇBİR kampanya listeye giremez. Ortağın "kampanya sipariş aşamasında
+ * gözükmüyor" bulgusunun sebebi tam olarak buydu.
+ *
+ * Çözüm: kapsamı da taşıyan katalog istemciye verilir, süzme orada satır
+ * satır yapılır (aynı saf kural: `kampanyaGecerliMi`). Sunucu, kaydederken
+ * aynı kuralı yeniden uygular — istemcinin süzgeci bir KOLAYLIKTIR, koruma
+ * değildir.
+ */
+export type KampanyaKatalogKaydi = FiyatKampanyasi & {
+  baslangic: string;
+  bitis: string;
+  /**
+   * Kotası dolmuş mu? `kalanKota` bunu tek başına söyleyemez: 0 değeri hem
+   * "sınırsız" hem "bitti" anlamına gelir. Karar burada, kota ve kullanılan
+   * elde iken verilir.
+   */
+  tukendi: boolean;
+  urunIdler: string[];
+  paketIdler: string[];
+  firmaIdler: string[];
+};
+
+export async function kampanyaKatalogu(
+  db: KampanyaIstemcisi
+): Promise<KampanyaKatalogKaydi[]> {
+  const kayitlar = (await db.kampanya.findMany({
+    where: { durum: "aktif" },
+    include: {
+      urunler: { select: { urunId: true } },
+      paketler: { select: { paketId: true } },
+      firmalar: { select: { firmaId: true } },
+    },
+    take: 200,
+  })) as unknown as {
+    id: string;
+    kod: string;
+    ad: string;
+    tip: string;
+    deger: number;
+    alN: number;
+    odeM: number;
+    kota: number;
+    kullanilan: number;
+    baslangic: Date;
+    bitis: Date;
+    urunler: { urunId: string }[];
+    paketler: { paketId: string }[];
+    firmalar: { firmaId: string }[];
+  }[];
+
+  return kayitlar.map((k) => ({
+    kampanyaId: k.id,
+    kod: k.kod,
+    ad: k.ad,
+    tip: k.tip as KampanyaTipi,
+    deger: k.deger,
+    alN: k.alN,
+    odeM: k.odeM,
+    kalanKota: k.kota === 0 ? 0 : Math.max(k.kota - k.kullanilan, 0),
+    tukendi: k.kota > 0 && k.kullanilan >= k.kota,
+    // Tarihler istemciye JSON olarak geçtiği için metin taşınır.
+    baslangic: k.baslangic.toISOString(),
+    bitis: k.bitis.toISOString(),
+    urunIdler: k.urunler.map((u) => u.urunId),
+    paketIdler: k.paketler.map((p) => p.paketId),
+    firmaIdler: k.firmalar.map((f) => f.firmaId),
+  }));
+}

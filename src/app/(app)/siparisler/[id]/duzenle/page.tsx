@@ -5,7 +5,7 @@ import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import SiparisForm from "@/components/siparisler/SiparisForm";
-import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
+import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +77,13 @@ export default async function SiparisDuzenlePage(props: {
     }),
   ]);
 
-  const kampanyalar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
-    firmaId: siparis.firmaId,
-  });
+  /*
+    Kampanya KATALOĞU (kapsamıyla birlikte) istemciye verilir; süzme orada
+    satır satır yapılır. Sunucuda bir kez süzülmüş liste yanlıştı: ilk
+    çizimde firma ve ürün henüz boş olduğu için firma ya da ürün kapsamlı
+    hiçbir kampanya listeye giremiyordu.
+  */
+  const kampanyalar = await kampanyaKatalogu(kampanyaIstemcisi(db));
 
   return (
     <div>

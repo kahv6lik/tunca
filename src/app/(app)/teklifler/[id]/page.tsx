@@ -11,6 +11,7 @@ import TeklifForm from "@/components/teklifler/TeklifForm";
 import TeklifIslemleri from "@/components/teklifler/TeklifIslemleri";
 import { formatPara, formatTarih, toDateInput } from "@/lib/format";
 import EkPaneli from "@/components/ekler/EkPaneli";
+import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,10 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
     include: {
       firma: { select: { id: true, ad: true } },
       firsat: { select: { id: true, baslik: true } },
-      kalemler: { orderBy: { sira: "asc" } },
+      kalemler: {
+        orderBy: { sira: "asc" },
+        include: { kampanya: { select: { kod: true, ad: true } } },
+      },
       ustTeklif: { select: { id: true, no: true, revizyonNo: true } },
       revizyonlar: { select: { id: true, no: true, revizyonNo: true, durum: true } },
       // Müşterinin imzalayıp geri gönderdiği teklif belgesi (Faz 17 / A1).
@@ -54,6 +58,18 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
   });
 
   if (!teklif) notFound();
+
+  /*
+    İndirim tutarı ARTIK İKİ PARÇADIR (v1.23.0): kalemlere uygulanan
+    kampanya indirimi + belgeye elle yazılan iskonto. Tek satırda
+    "İndirim (%10)" yazmak, kampanyadan gelen tutarı da yüzdeyle
+    açıklanmış gibi gösterirdi.
+  */
+  const kampanyaIndirimi = teklif.kalemler.reduce(
+    (s, k) => s + (k.indirimTutari ?? 0),
+    0
+  );
+  const belgeIskontosu = Math.max(teklif.indirimTutari - kampanyaIndirimi, 0);
 
   // İlişkili kayıt zinciri (Faz 20 / U4) — izni olmayan halka sorgulanmaz.
   const zincir = await zinciriKur(db, { tur: "teklif", id: teklif.id }, await etkinIzinler());
@@ -74,6 +90,28 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
 
   const dondurulmus = teklif.durum === "revizyon";
   const duzenlenebilir = duzenleyebilir && !dondurulmus;
+
+
+  /*
+    Ürün kataloğu ve kampanya kataloğu (v1.23.0).
+
+    Kampanyalar KAPSAMIYLA gönderilir; süzme formda satır satır yapılır —
+    sunucuda bir kez süzmek yanlış olurdu, çünkü ilk çizimde firma ve ürün
+    henüz seçilmemiştir. İzni olmayan modül HİÇ sorgulanmaz.
+  */
+  const [urunler, kampanyalar] = await Promise.all([
+    (await yetkiVarMi(IZIN.urunGoruntule))
+      ? db.urun.findMany({
+          where: { durum: "aktif" },
+          orderBy: { ad: "asc" },
+          take: 500,
+          select: { id: true, kod: true, ad: true, birim: true, listeFiyat: true, kdvOrani: true },
+        })
+      : Promise.resolve([]),
+    (await yetkiVarMi(IZIN.kampanyaGoruntule))
+      ? kampanyaKatalogu(kampanyaIstemcisi(db))
+      : Promise.resolve([]),
+  ]);
 
   return (
     <div>
@@ -148,6 +186,8 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
           firmalar={firmalar}
           firsatlar={firsatlar.map((f) => ({ id: f.id, ad: f.baslik }))}
           kisiler={kisiler}
+          urunler={urunler}
+          kampanyalar={kampanyalar}
           mevcut={{
             id: teklif.id,
             firmaId: teklif.firmaId,
@@ -169,6 +209,8 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               miktar: k.miktar,
               birim: k.birim,
               birimFiyat: k.birimFiyat,
+              urunId: k.urunId ?? "",
+              kampanyaId: k.kampanyaId ?? "",
             })),
           }}
         />
@@ -181,6 +223,7 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
                   <th className="th">Açıklama</th>
                   <th className="th">Miktar</th>
                   <th className="th">Birim Fiyat</th>
+                  <th className="th">Kampanya</th>
                   <th className="th">Tutar</th>
                 </tr>
               </thead>
@@ -192,6 +235,18 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
                       {k.miktar} {k.birim}
                     </td>
                     <td className="td">{formatPara(k.birimFiyat, teklif.paraBirimi)}</td>
+                    <td className="td">
+                      {k.kampanya ? (
+                        <span className="text-emerald-500">
+                          {k.kampanya.kod}
+                          <span className="ml-1 text-xs">
+                            (-{formatPara(k.indirimTutari, teklif.paraBirimi)})
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="td font-medium">{formatPara(k.tutar, teklif.paraBirimi)}</td>
                   </tr>
                 ))}
@@ -201,10 +256,18 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
 
           <div className="card ml-auto max-w-sm space-y-2 p-5 text-sm">
             <Satir etiket="Ara toplam" deger={formatPara(teklif.araToplam, teklif.paraBirimi)} />
-            <Satir
-              etiket={`İndirim (%${teklif.indirimOrani})`}
-              deger={`- ${formatPara(teklif.indirimTutari, teklif.paraBirimi)}`}
-            />
+            {kampanyaIndirimi > 0 && (
+              <Satir
+                etiket="Kampanya indirimi"
+                deger={`- ${formatPara(kampanyaIndirimi, teklif.paraBirimi)}`}
+              />
+            )}
+            {belgeIskontosu > 0 && (
+              <Satir
+                etiket={`İskonto (%${teklif.indirimOrani})`}
+                deger={`- ${formatPara(belgeIskontosu, teklif.paraBirimi)}`}
+              />
+            )}
             <Satir
               etiket={`KDV (%${teklif.kdvOrani})`}
               deger={formatPara(teklif.kdvTutari, teklif.paraBirimi)}

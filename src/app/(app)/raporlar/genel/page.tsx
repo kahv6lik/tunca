@@ -1,6 +1,5 @@
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -11,6 +10,7 @@ import { tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import RaporSuzgeci from "@/components/raporlar/RaporSuzgeci";
+import RaporBasligi from "@/components/raporlar/RaporBasligi";
 import { raporBul } from "@/lib/rapor-tanimlar";
 
 export const dynamic = "force-dynamic";
@@ -137,9 +137,9 @@ export default async function GenelRaporPage(props: {
         >
           <ArrowLeft className="h-4 w-4" /> Rapor Merkezi
         </Link>
-        <PageHeader
-          title="Genel Durum"
-          subtitle={
+        <RaporBasligi
+          baslik="Genel Durum"
+          donem={
             aralikEtiketi
               ? `Firma, yatırım, eğitim ve hizmet istatistikleri · ${aralikEtiketi}`
               : "Firma, yatırım, eğitim ve hizmet istatistikleri · tüm zamanlar"

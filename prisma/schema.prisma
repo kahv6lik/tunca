@@ -625,12 +625,23 @@ model TeklifKalemi {
   teklifId String
   teklif   Teklif @relation(fields: [teklifId], references: [id], onDelete: Cascade)
 
+  // Ticari çekirdek bağı (Faz 14). Teklif Faz 7'de yazıldı ve katalog
+  // gelene kadar serbest metin kalemlerden ibaretti; ürün ve kampanya bağı
+  // olmadan kampanyalar teklif aşamasında hiç görünmüyordu.
+  urunId String?
+  urun   Urun?   @relation(fields: [urunId], references: [id], onDelete: SetNull)
+
   sira       Int    @default(0)
   aciklama   String
   miktar     Float  @default(1)
   birim      String @default("adet")
   birimFiyat Float  @default(0)
-  tutar      Float  @default(0) // miktar × birimFiyat (hesaplanır, saklanır)
+
+  kampanyaId    String?
+  kampanya      Kampanya? @relation(fields: [kampanyaId], references: [id], onDelete: SetNull)
+  indirimTutari Float     @default(0)
+
+  tutar Float @default(0) // kampanya sonrası net (hesaplanır, saklanır)
 
   @@index([tenantId, teklifId])
 }
@@ -1057,6 +1068,7 @@ model Urun {
   kampanyaKapsam  KampanyaUrun[]
   stokHareketleri StokHareketi[]
   SiparisKalemi   SiparisKalemi[]
+  TeklifKalemi    TeklifKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum, ad])
@@ -1151,6 +1163,7 @@ model Kampanya {
   firmalar      KampanyaFirma[]
   kullanimlar   KampanyaKullanim[]
   SiparisKalemi SiparisKalemi[]
+  TeklifKalemi  TeklifKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum, baslangic])

@@ -24,6 +24,7 @@ import {
   siradakiBelgeNo,
 } from "@/lib/siparis";
 import { satirFiyatiHesapla, type FiyatKampanyasi } from "@/lib/fiyat-saf";
+import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
 
 /**
  * Sipariş işlemleri — Faz 15 / S1, S2, S3.
@@ -106,7 +107,9 @@ function kalemleriOku(formData: FormData): Kalem[] {
  */
 async function tutarlariHesapla(
   db: TenantClient,
-  kalemler: Kalem[]
+  kalemler: Kalem[],
+  // Kampanya kapsamı firmaya bağlıdır; doğrulama için gerekir.
+  firmaId: string
 ): Promise<{
   satirlar: (Kalem & { tutar: number; indirimTutari: number; kdvTutari: number })[];
   araToplam: number;
@@ -125,24 +128,19 @@ async function tutarlariHesapla(
     // açmak olurdu.
     let kampanyalar: FiyatKampanyasi[] = [];
     if (k.kampanyaId) {
-      const kampanya = await db.kampanya.findFirst({
-        where: { id: k.kampanyaId, durum: "aktif" },
+      /*
+        Doğrulama TAM kapsamla yapılır: yalnızca "durum = aktif" bakmak
+        yetmez. Tarihi geçmiş, kotası dolmuş, başka bir firmaya ya da başka
+        bir ürüne tanımlı bir kampanyanın id'si istemciden gelirse indirim
+        UYGULANMAMALIDIR — aksi hâlde indirim yetkisi fiilen herkese açılır.
+        Aday listesi `gecerliKampanyalar` ile üretilir; seçilen id o listede
+        yoksa kampanya yok sayılır (Faz 14 kuralı).
+      */
+      const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
+        firmaId,
+        urunId: k.urunId ?? null,
       });
-      if (kampanya) {
-        kampanyalar = [
-          {
-            kampanyaId: kampanya.id,
-            kod: kampanya.kod,
-            ad: kampanya.ad,
-            tip: kampanya.tip as never,
-            deger: kampanya.deger,
-            alN: kampanya.alN,
-            odeM: kampanya.odeM,
-            kalanKota:
-              kampanya.kota === 0 ? 0 : Math.max(kampanya.kota - kampanya.kullanilan, 0),
-          },
-        ];
-      }
+      kampanyalar = adaylar.filter((a) => a.kampanyaId === k.kampanyaId);
     }
 
     const sonuc = satirFiyatiHesapla(
@@ -250,7 +248,7 @@ export async function siparisOlustur(
   if (parsed.data.teklifId) await sahiplikDogrula(db, "teklif", parsed.data.teklifId);
   if (parsed.data.projeId) await sahiplikDogrula(db, "proje", parsed.data.projeId);
 
-  const hesap = await tutarlariHesapla(db, kalemler);
+  const hesap = await tutarlariHesapla(db, kalemler, parsed.data.firmaId);
   const no = await siradakiBelgeNo(siparisIstemcisi(db), tenantId, "siparis");
 
   /**
@@ -326,7 +324,7 @@ export async function siparisGuncelle(
   if (kalemler.length === 0) return { error: "Siparişe en az bir kalem ekleyin." };
 
   await firmaSahipligiDogrula(db, parsed.data.firmaId);
-  const hesap = await tutarlariHesapla(db, kalemler);
+  const hesap = await tutarlariHesapla(db, kalemler, parsed.data.firmaId);
 
   await tenantGuncelle(db, "siparis", id, {
     firmaId: parsed.data.firmaId,

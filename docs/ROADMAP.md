@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.22.0` — menü konsolidasyonu (CRM / Satış Yönetimi bölümleri) |
+| **Son çıkan sürüm** | `v1.23.0` — kampanya kapsam düzeltmesi, teklifte kampanya, rapor PDF'i |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,48 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.23.0 — Kampanya kapsamı ve rapor PDF'i ✅
+
+Bulgu: *"Kampanyalar ekranından oluşturulan kampanya sipariş veya teklif
+aşamasında aktif olmuyor, kampanya kısmı hiç gözükmüyor."* ve *"Raporların
+PDF olarak alınması gerekiyor."*
+
+- [x] **HATA:** `/siparisler/yeni` kampanyaları sunucuda BİR KEZ süzüyordu ve
+      bağlama `urunId` HİÇ vermiyordu; `kampanyaGecerliMi` ürün kapsamı dolu
+      kampanyaları bağlamda ürün yoksa reddettiği için, belirli ürünlere
+      tanımlı her kampanya listeden düşüyordu. Firma seçilmeden firma
+      kapsamlılar da düşüyordu ve liste istemcide hiç tazelenmiyordu.
+- [x] Katalog kapsamıyla forma verilir, süzme satır satır yapılır
+      (`kampanyaKatalogu` + `satirinKampanyalari`).
+- [x] Kampanya alanı boşken de çizilir ve SEBEBİNİ yazar.
+- [x] Sunucu doğrulaması tarih + kota + firma + ürün kapsamının tamamını
+      denetler (eskiden yalnızca `durum = aktif` bakıyordu).
+- [x] **Teklif kalemleri ilk kez kataloğa bağlandı:** `urunId`, `kampanyaId`,
+      `indirimTutari` (migration `20260810140000_teklif_kampanya`).
+- [x] Teklif belgesinde ve çıktısında kampanya indirimi AYRI satır.
+- [x] Tekliften siparişe geçişte ürün ve kampanya taşınır.
+- [x] Rapor ekranlarına "Yazdır / PDF Kaydet" + baskıya özel künye.
+
+**Uygulama notları**
+1. **Süzgeç istemcide, KURAL ortak.** Form ve sunucu aynı saf fonksiyonu
+   çalıştırır; ayrı yazılsaydı formda görünüp kaydederken düşen (ya da tersi)
+   kampanyalar çıkardı. İstemcideki süzgeç bir KOLAYLIKTIR, koruma değildir.
+2. **`kalanKota = 0` belirsizdi** (hem "sınırsız" hem "bitti"); katalog artık
+   ayrı bir `tukendi` bayrağı taşır.
+3. **Teklifte indirim iki parçadır:** kampanya → belge iskontosu → KDV.
+   Sipariş tarafındaki sırayla aynıdır, böylece kabul edilen teklif siparişe
+   döndüğünde rakam değişmez.
+4. **Katalog bağı OPSİYONELDİR:** serbest metin kalem (danışmanlık, montaj)
+   yazmak hâlâ mümkündür ve eski teklifler olduğu gibi geçerli kalır.
+   `tutar` alanının anlamı genişledi (kampanya sonrası net); kampanyasız
+   satırlarda eski değerle aynıdır.
+5. **Rapor PDF'i tarayıcının yazdırma motoruyla** üretilir (Faz 9 / E5).
+   Baskıda kabuk ve süzgeç formu gizlendiği için yalnızca baskıda görünen
+   bir künye eklendi — kuruluş adı, dönem ve çıktı tarihi olmadan elden ele
+   dolaşan bir çıktı anlamsızdır.
+
+---
 
 ### v1.22.0 — Menü konsolidasyonu ✅
 

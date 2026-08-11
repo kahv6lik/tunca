@@ -508,6 +508,35 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **KVKK metnine "Anket yanıtları" bölümü eklendi** ve sürüm `2026-08-3`e
   çıkarıldı; anonimlik sözü aydınlatma metninde de verilir.
 
+### Kampanya Kapsamı ve Rapor Çıktısı (v1.23.0)
+
+- **KAMPANYA SÜZGECİ İSTEMCİDE, KURAL SUNUCUDAKİYLE AYNI.** Kampanya
+  kataloğu KAPSAMIYLA birlikte forma verilir (`kampanyaKatalogu`), süzme
+  satır satır `satirinKampanyalari` ile yapılır. Sunucuda bir kez süzmek
+  yanlıştı: bağlam (firma + ürün) kullanıcı yazdıkça değişir, ilk çizimde
+  ikisi de boştur ve kapsamlı hiçbir kampanya listeye giremez.
+- **KAMPANYA ALANI BOŞKEN DE ÇİZİLİR ve SEBEBİNİ YAZAR** ("önce firma
+  seçin", "ürün seçin", "bu firma ve ürün için geçerli kampanya yok").
+  Alanı gizlemek kullanıcıya "kampanya diye bir şey yok" dedirtiyordu.
+- **SUNUCU TAM KAPSAMLA DOĞRULAR:** yalnızca `durum = aktif` bakmak yetmez;
+  tarihi geçmiş, kotası dolmuş ya da başka firmaya/ürüne tanımlı bir
+  kampanyanın id'si istemciden gelirse indirim UYGULANMAZ — aksi hâlde
+  indirim yetkisi fiilen herkese açılır.
+- **TEKLİF KALEMLERİ KATALOĞA BAĞLANDI** (v1.23.0): teklif Faz 7'de yazıldı,
+  ticari çekirdek (Faz 14) sonra geldi ve teklif hiç bağlanmamıştı. Artık
+  kalem ürüne ve kampanyaya bağlanır; üçü de NULL olabilir, yani serbest
+  metin kalem (danışmanlık, montaj) yazmak hâlâ mümkündür ve eski teklifler
+  olduğu gibi geçerli kalır.
+- **TEKLİFTE İNDİRİM İKİ PARÇADIR:** kalem kampanyası + belge iskontosu.
+  Sıra kampanya → iskonto → KDV'dir (siparişteki sırayla aynı), böylece
+  kabul edilen teklif siparişe döndüğünde rakam değişmez. Belgede iki satır
+  ayrı yazılır; tek satırda "İndirim (%10)" demek kampanyadan gelen tutarı da
+  yüzdeyle açıklanmış gibi gösterirdi.
+- **RAPOR PDF'İ TARAYICININ YAZDIRMA MOTORUYLA** üretilir (Faz 9 / E5
+  kararı). Baskıda kabuk ve süzgeç formu gizlenir; bu yüzden yalnızca baskıda
+  görünen bir KÜNYE eklenir (kuruluş adı, rapor adı, dönem, çıktı tarihi) —
+  elden ele dolaşan bir çıktıda bunlar olmadan rakamlar anlamsızdır.
+
 ### Menü ve Bölümler (v1.22.0)
 
 - **SOL MENÜ BÖLÜMLERE İNDİ** (`bolum-tanimlar.ts`): ~25 öğe, günlük işte
@@ -718,7 +747,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**780 kontrol**.
+**805 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -726,10 +755,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (506 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (521 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü, gerçek tarayıcı (sunucu çalışırken, 253)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya, gerçek tarayıcı (sunucu çalışırken, 263)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -971,6 +1000,17 @@ etkiliyor.
   dilde sorgu (tanıdık kalıplar model olmadan da çözülür); açma/kapama,
   gönderilen-gönderilmeyen listesi ve kullanım defteriyle `/ai` ayar ekranı.
   KVKK metni `2026-08-4`e çıkarıldı. **Yol haritasının 21 fazı tamamlandı.**
+- **v1.23.0** — **Kampanya zinciri ve rapor PDF'i.** Kampanya seçimi artık
+  seçili firmaya ve satırın ürününe göre CANLI süzülüyor: sunucuda bir kez
+  süzülmüş liste, ilk çizimde firma ve ürün boş olduğu için kapsamlı her
+  kampanyayı eliyordu (ortağın "kampanya hiç gözükmüyor" bulgusunun sebebi).
+  Kampanya alanı artık boşken de çiziliyor ve SEBEBİNİ yazıyor. Teklif
+  kalemleri ilk kez ürün kataloğuna ve fiyat motoruna bağlandı (`urunId`,
+  `kampanyaId`, `indirimTutari`); kampanya indirimi teklif belgesinde ve
+  çıktısında ayrı satır olarak görünüyor, tekliften siparişe geçerken ürün ve
+  kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
+  ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
+  Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
 - **v1.22.0** — **Menü konsolidasyonu.** Sol menüdeki ~25 öğe altı ana
   girişe indi: Genel Bakış, **CRM**, **Satış Yönetimi**, Takvim, Raporlar,
   SSS (Bilgi Bankası) + Yönetim. Bir bölüme tıklanınca kullanıcının

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { formatPara } from "@/lib/format";
@@ -10,6 +9,7 @@ import { tarihAraligi, araliktanEtiket } from "@/lib/tarih-araligi";
 import { kirilim } from "@/lib/rapor-saf";
 import { raporBul } from "@/lib/rapor-tanimlar";
 import RaporSuzgeci from "@/components/raporlar/RaporSuzgeci";
+import RaporBasligi from "@/components/raporlar/RaporBasligi";
 
 export const dynamic = "force-dynamic";
 
@@ -89,10 +89,7 @@ export default async function UrunRaporPage(props: {
         <ArrowLeft className="h-4 w-4" /> Rapor Merkezi
       </Link>
 
-      <PageHeader
-        title="Ürün Satışı"
-        subtitle={araliktanEtiket(aralik) ?? "Tüm zamanlar"}
-      />
+      <RaporBasligi baslik="Ürün Satışı" donem={araliktanEtiket(aralik)} />
 
       <RaporSuzgeci
         rapor={raporBul("urun")!}

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
-import { IZIN, yetkiGerektir } from "@/lib/yetki";
+import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import TeklifForm from "@/components/teklifler/TeklifForm";
+import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,28 @@ export default async function YeniTeklifPage(
       })
     : [];
 
+
+  /*
+    Ürün kataloğu ve kampanya kataloğu (v1.23.0).
+
+    Kampanyalar KAPSAMIYLA gönderilir; süzme formda satır satır yapılır —
+    sunucuda bir kez süzmek yanlış olurdu, çünkü ilk çizimde firma ve ürün
+    henüz seçilmemiştir. İzni olmayan modül HİÇ sorgulanmaz.
+  */
+  const [urunler, kampanyalar] = await Promise.all([
+    (await yetkiVarMi(IZIN.urunGoruntule))
+      ? db.urun.findMany({
+          where: { durum: "aktif" },
+          orderBy: { ad: "asc" },
+          take: 500,
+          select: { id: true, kod: true, ad: true, birim: true, listeFiyat: true, kdvOrani: true },
+        })
+      : Promise.resolve([]),
+    (await yetkiVarMi(IZIN.kampanyaGoruntule))
+      ? kampanyaKatalogu(kampanyaIstemcisi(db))
+      : Promise.resolve([]),
+  ]);
+
   return (
     <div>
       <Link
@@ -83,6 +106,8 @@ export default async function YeniTeklifPage(
           ad: `${f.baslik} — ${f.firma.ad}`,
         }))}
         kisiler={kisiler.length ? kisiler : undefined}
+        urunler={urunler}
+        kampanyalar={kampanyalar}
         varsayilanNo={varsayilanNo}
         varsayilanFirmaId={secilenFirmaId}
         varsayilanFirsatId={kaynakFirsat?.id}

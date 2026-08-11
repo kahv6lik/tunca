@@ -3,7 +3,6 @@ import { ArrowLeft, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
-import { PageHeader } from "@/components/layout/page-header";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { formatPara } from "@/lib/format";
@@ -18,6 +17,7 @@ import {
 } from "@/lib/rapor-saf";
 import { raporBul } from "@/lib/rapor-tanimlar";
 import RaporSuzgeci from "@/components/raporlar/RaporSuzgeci";
+import RaporBasligi from "@/components/raporlar/RaporBasligi";
 
 export const dynamic = "force-dynamic";
 
@@ -156,10 +156,7 @@ export default async function MaliRaporPage(props: {
         <ArrowLeft className="h-4 w-4" /> Rapor Merkezi
       </Link>
 
-      <PageHeader
-        title="Mali Rapor"
-        subtitle={araliktanEtiket(aralik) ?? "Tüm zamanlar"}
-      />
+      <RaporBasligi baslik="Mali Rapor" donem={araliktanEtiket(aralik)} />
 
       <RaporSuzgeci
         rapor={raporBul("mali")!}

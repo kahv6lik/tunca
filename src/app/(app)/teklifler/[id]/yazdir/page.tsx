@@ -34,11 +34,26 @@ export default async function TeklifYazdirPage(props: { params: Promise<{ id: st
     where: { id: params.id },
     include: {
       firma: true,
-      kalemler: { orderBy: { sira: "asc" } },
+      kalemler: {
+        orderBy: { sira: "asc" },
+        include: { kampanya: { select: { kod: true, ad: true } } },
+      },
     },
   });
 
   if (!teklif) notFound();
+
+  /*
+    İndirim tutarı ARTIK İKİ PARÇADIR (v1.23.0): kalemlere uygulanan
+    kampanya indirimi + belgeye elle yazılan iskonto. Tek satırda
+    "İndirim (%10)" yazmak, kampanyadan gelen tutarı da yüzdeyle
+    açıklanmış gibi gösterirdi.
+  */
+  const kampanyaIndirimi = teklif.kalemler.reduce(
+    (s, k) => s + (k.indirimTutari ?? 0),
+    0
+  );
+  const belgeIskontosu = Math.max(teklif.indirimTutari - kampanyaIndirimi, 0);
 
   // `Teklif.kisiId` bilinçli olarak ilişki değil düz alandır (muhatap
   // silinse bile teklif belgesi ayakta kalmalı); bu yüzden ayrı okunur.
@@ -161,7 +176,16 @@ export default async function TeklifYazdirPage(props: { params: Promise<{ id: st
           <tbody>
             {teklif.kalemler.map((k) => (
               <tr key={k.id} className="break-inside-avoid">
-                <td className="border-b border-slate-100 px-3 py-2.5">{k.aciklama}</td>
+                <td className="border-b border-slate-100 px-3 py-2.5">
+                  {k.aciklama}
+                  {/* Uygulanan kampanya müşteriye giden belgede de yazar:
+                      indirimin sebebi görünmeden verilen fiyat savunulamaz. */}
+                  {k.kampanya && (
+                    <span className="block text-xs text-slate-500">
+                      {k.kampanya.ad} ({k.kampanya.kod})
+                    </span>
+                  )}
+                </td>
                 <td className="border-b border-slate-100 px-3 py-2.5 text-right">
                   {k.miktar} {k.birim}
                 </td>
@@ -180,9 +204,15 @@ export default async function TeklifYazdirPage(props: { params: Promise<{ id: st
         <div className="mb-8 flex justify-end">
           <dl className="w-full max-w-xs space-y-1.5 text-sm">
             <Satir etiket="Ara toplam" deger={formatPara(teklif.araToplam, teklif.paraBirimi)} />
-            {teklif.indirimTutari > 0 && (
+            {kampanyaIndirimi > 0 && (
               <Satir
-                etiket={`İndirim (%${teklif.indirimOrani})`}
+                etiket="Kampanya indirimi"
+                deger={`- ${formatPara(kampanyaIndirimi, teklif.paraBirimi)}`}
+              />
+            )}
+            {belgeIskontosu > 0 && (
+              <Satir
+                etiket={`İskonto (%${teklif.indirimOrani})`}
                 deger={`- ${formatPara(teklif.indirimTutari, teklif.paraBirimi)}`}
               />
             )}

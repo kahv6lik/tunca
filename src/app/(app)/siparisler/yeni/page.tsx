@@ -4,7 +4,7 @@ import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import SiparisForm from "@/components/siparisler/SiparisForm";
-import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
+import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
 
 export const dynamic = "force-dynamic";
 
@@ -67,19 +67,28 @@ export default async function YeniSiparisPage(props: {
   ]);
 
   // Firma için geçerli kampanyalar — kapsam ve tarih süzgeci saf katmanda.
-  const kampanyalar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
-    firmaId: firmaId ?? null,
-  });
+  /*
+    Kampanya KATALOĞU (kapsamıyla birlikte) istemciye verilir; süzme orada
+    satır satır yapılır. Sunucuda bir kez süzülmüş liste yanlıştı: ilk
+    çizimde firma ve ürün henüz boş olduğu için firma ya da ürün kapsamlı
+    hiçbir kampanya listeye giremiyordu.
+  */
+  const kampanyalar = await kampanyaKatalogu(kampanyaIstemcisi(db));
 
+  /*
+    Tekliften siparişe geçişte ÜRÜN ve KAMPANYA da taşınır (v1.23.0).
+    Eskiden boş geçiliyordu: müşteriye kampanyalı bir teklif verilip sipariş
+    aşamasında indirim kayboluyordu — zincirin (Faz 20 / U4) anlamı buydu.
+  */
   const teklifKalemleri = (teklif?.kalemler ?? []).map((k) => ({
-    urunId: "",
+    urunId: k.urunId ?? "",
     aciklama: k.aciklama,
     miktar: k.miktar,
     birim: k.birim,
     birimFiyat: k.birimFiyat,
     iskontoOrani: 0,
     kdvOrani: teklif?.kdvOrani ?? 20,
-    kampanyaId: "",
+    kampanyaId: k.kampanyaId ?? "",
   }));
 
   return (

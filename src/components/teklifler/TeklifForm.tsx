@@ -6,6 +6,20 @@ import { Plus, Trash2 } from "lucide-react";
 import { teklifOlustur, teklifGuncelle, type FormState } from "@/app/(app)/teklifler/actions";
 import { TEKLIF_DURUM, TEKLIF_BIRIMLERI, PARA_BIRIMI, durumBadge } from "@/lib/constants";
 import { formatPara } from "@/lib/format";
+import {
+  satirFiyatiHesapla,
+  satirinKampanyalari,
+  type KapsamliKampanya,
+} from "@/lib/fiyat-saf";
+
+type UrunSecenek = {
+  id: string;
+  kod: string;
+  ad: string;
+  birim: string;
+  listeFiyat: number;
+  kdvOrani: number;
+};
 
 type Secenek = { id: string; ad: string };
 
@@ -14,6 +28,9 @@ export type Kalem = {
   miktar: number;
   birim: string;
   birimFiyat: number;
+  /** Katalog bağı — serbest metin kalemlerde boştur. */
+  urunId: string;
+  kampanyaId: string;
 };
 
 export type TeklifDegerleri = {
@@ -33,7 +50,14 @@ export type TeklifDegerleri = {
   kalemler: Kalem[];
 };
 
-const BOS_KALEM: Kalem = { aciklama: "", miktar: 1, birim: "adet", birimFiyat: 0 };
+const BOS_KALEM: Kalem = {
+  aciklama: "",
+  miktar: 1,
+  birim: "adet",
+  birimFiyat: 0,
+  urunId: "",
+  kampanyaId: "",
+};
 
 /**
  * Teklif formu (Faz 7 / C7).
@@ -45,6 +69,8 @@ export default function TeklifForm({
   firmalar,
   firsatlar,
   kisiler,
+  urunler = [],
+  kampanyalar = [],
   mevcut,
   varsayilanNo,
   sabitFirmaId,
@@ -55,6 +81,14 @@ export default function TeklifForm({
   firmalar: Secenek[];
   firsatlar?: Secenek[];
   kisiler?: Secenek[];
+  /** Ürün kataloğu — kalem satırında fiyat ve KDV buradan gelir. */
+  urunler?: UrunSecenek[];
+  /**
+   * Kampanya KATALOĞU kapsamıyla birlikte gelir; süzme satır satır burada
+   * yapılır (siparişteki desen). Sunucuda bir kez süzülmüş liste yanlış
+   * olurdu: ilk çizimde firma ve ürün henüz boştur.
+   */
+  kampanyalar?: KapsamliKampanya[];
   mevcut?: TeklifDegerleri;
   varsayilanNo?: string;
   sabitFirmaId?: string;
@@ -74,18 +108,86 @@ export default function TeklifForm({
   const [kalemler, setKalemler] = useState<Kalem[]>(
     mevcut?.kalemler.length ? mevcut.kalemler : [{ ...BOS_KALEM }]
   );
+  /*
+    Firma DENETİMLİ alandır: kampanya kapsamı ona bağlıdır ve firma
+    değişince satırların uygun kampanya listesi de değişmelidir.
+  */
+  const [firmaId, setFirmaId] = useState(
+    sabitFirmaId ?? mevcut?.firmaId ?? varsayilanFirmaId ?? ""
+  );
   const [indirim, setIndirim] = useState(mevcut?.indirimOrani ?? 0);
   const [kdv, setKdv] = useState(mevcut?.kdvOrani ?? 20);
   const [paraBirimi, setParaBirimi] = useState(mevcut?.paraBirimi ?? "TRY");
 
+  /*
+    Satırın uygun kampanyaları — seçili firma ve satırın ürünüyle süzülür.
+    Süzgeç sunucudakiyle AYNI saf fonksiyondur; ayrı yazılsaydı formda
+    görünüp kaydederken düşen kampanyalar çıkardı.
+  */
+  const satirKampanyalari = kalemler.map((k) =>
+    satirinKampanyalari(kampanyalar, { firmaId, urunId: k.urunId || null })
+  );
+
+  // Önizleme — sunucudaki hesabın aynısı: kampanya → belge iskontosu → KDV.
+  const kampanyaIndirimleri = kalemler.map((k, i) => {
+    if (!k.kampanyaId) return 0;
+    const aday = satirKampanyalari[i].filter((x) => x.kampanyaId === k.kampanyaId);
+    if (aday.length === 0) return 0;
+    return satirFiyatiHesapla(
+      { urunId: k.urunId, listeFiyat: k.birimFiyat || 0, kdvOrani: kdv },
+      k.miktar || 0,
+      { kampanyalar: aday, secilenKampanyaId: k.kampanyaId }
+    ).indirimTutari;
+  });
+
   const araToplam = kalemler.reduce((s, k) => s + (k.miktar || 0) * (k.birimFiyat || 0), 0);
-  const indirimTutari = (araToplam * indirim) / 100;
+  const kampanyaIndirimi = kampanyaIndirimleri.reduce((s, x) => s + x, 0);
+  const indirimTutari =
+    kampanyaIndirimi + ((araToplam - kampanyaIndirimi) * indirim) / 100;
   const matrah = araToplam - indirimTutari;
   const kdvTutari = (matrah * kdv) / 100;
   const toplam = matrah + kdvTutari;
 
   function kalemGuncelle(i: number, alan: keyof Kalem, deger: string | number) {
     setKalemler((k) => k.map((x, j) => (j === i ? { ...x, [alan]: deger } : x)));
+  }
+
+  /** Seçili kampanya bu bağlamda hâlâ geçerli mi? */
+  function gecerliMi(kampanyaId: string, firma: string, urunId: string | null) {
+    if (!kampanyaId) return false;
+    return satirinKampanyalari(kampanyalar, { firmaId: firma, urunId }).some(
+      (x) => x.kampanyaId === kampanyaId
+    );
+  }
+
+  /** Ürün seçilince açıklama, birim, fiyat katalogdan gelir. */
+  function urunSec(i: number, urunId: string) {
+    const u = urunler.find((x) => x.id === urunId);
+    setKalemler((ks) =>
+      ks.map((k, j) =>
+        j === i
+          ? {
+              ...k,
+              urunId,
+              aciklama: u ? u.ad : k.aciklama,
+              birim: u ? u.birim : k.birim,
+              birimFiyat: u ? u.listeFiyat : k.birimFiyat,
+              // Ürün değişince eski kampanya geçersiz kalabilir.
+              kampanyaId: gecerliMi(k.kampanyaId, firmaId, urunId) ? k.kampanyaId : "",
+            }
+          : k
+      )
+    );
+  }
+
+  /** Firma değişince geçersiz kalan kampanya seçimleri temizlenir. */
+  function firmaSec(yeni: string) {
+    setFirmaId(yeni);
+    setKalemler((ks) =>
+      ks.map((k) =>
+        gecerliMi(k.kampanyaId, yeni, k.urunId || null) ? k : { ...k, kampanyaId: "" }
+      )
+    );
   }
 
   return (
@@ -131,7 +233,8 @@ export default function TeklifForm({
                 id="firmaId"
                 name="firmaId"
                 required
-                defaultValue={mevcut?.firmaId ?? varsayilanFirmaId ?? ""}
+                value={firmaId}
+                onChange={(e) => firmaSec(e.target.value)}
                 className="input"
               >
                 <option value="">Seçin…</option>
@@ -254,6 +357,26 @@ export default function TeklifForm({
         <div className="space-y-3">
           {kalemler.map((k, i) => (
             <div key={i} className="grid gap-2 sm:grid-cols-12">
+              {/* Katalog bağı (v1.23.0): ürün seçilince fiyat ve birim gelir,
+                  ürüne tanımlı kampanyalar da böylece görünür hâle gelir. */}
+              {urunler.length > 0 && (
+                <div className="sm:col-span-12">
+                  {i === 0 && <label className="label">Ürün (katalogdan)</label>}
+                  <select
+                    name={`kalem-${i}-urunId`}
+                    value={k.urunId}
+                    onChange={(e) => urunSec(i, e.target.value)}
+                    className="input"
+                  >
+                    <option value="">Katalog dışı — serbest metin</option>
+                    {urunler.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.kod} — {u.ad}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="sm:col-span-5">
                 {i === 0 && <label className="label">Açıklama</label>}
                 <input
@@ -313,6 +436,46 @@ export default function TeklifForm({
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
+              </div>
+
+              {/*
+                Kampanya alanı HER ZAMAN çizilir; liste boşsa SEBEBİ yazar.
+                Alanı gizlemek, kullanıcıya "kampanya diye bir şey yok"
+                dedirtiyordu — oysa çoğu zaman kampanya vardı ama kapsamı
+                yüzünden süzülmüştü.
+              */}
+              <div className="sm:col-span-12">
+                {satirKampanyalari[i].length > 0 ? (
+                  <select
+                    name={`kalem-${i}-kampanyaId`}
+                    value={k.kampanyaId}
+                    onChange={(e) => kalemGuncelle(i, "kampanyaId", e.target.value)}
+                    className="input"
+                  >
+                    <option value="">Kampanya yok</option>
+                    {satirKampanyalari[i].map((kmp) => (
+                      <option key={kmp.kampanyaId} value={kmp.kampanyaId}>
+                        {kmp.kod} — {kmp.ad}
+                        {kmp.kalanKota > 0 ? ` (${kmp.kalanKota} hak)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {kampanyalar.length === 0
+                      ? "Tanımlı aktif kampanya yok."
+                      : !firmaId
+                        ? "Önce firma seçin — kampanyaların bir kısmı firmaya özeldir."
+                        : !k.urunId
+                          ? "Ürün seçin — kampanyaların bir kısmı belirli ürünlere tanımlıdır."
+                          : "Bu firma ve ürün için geçerli kampanya yok."}
+                  </p>
+                )}
+                {kampanyaIndirimleri[i] > 0 && (
+                  <p className="mt-1 text-xs text-emerald-500">
+                    Kampanya indirimi: {formatPara(kampanyaIndirimleri[i], paraBirimi)}
+                  </p>
+                )}
               </div>
             </div>
           ))}

@@ -1813,6 +1813,70 @@ async function main() {
     uyeMenu2.govde.includes("Kontaklar")
   );
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Kampanya kapsamı ve rapor PDF çıktısı (v1.23.0)
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Kampanya kapsamı ve rapor çıktısı\n");
+
+  // Kampanya alanı ARTIK HER ZAMAN çizilir; boşsa sebebini yazar.
+  const yeniSiparis = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/siparisler/yeni"
+  );
+  kontrol(
+    "Sipariş formunda kampanya alanı görünüyor",
+    yeniSiparis.govde.toLocaleLowerCase("tr").includes("kampanya")
+  );
+  kontrol(
+    "Kampanya yoksa SEBEBİ yazıyor (sessizce gizlenmiyor)",
+    yeniSiparis.govde.includes("Önce firma seçin") ||
+      yeniSiparis.govde.includes("Ürün seçin") ||
+      yeniSiparis.govde.includes("Kampanya yok") ||
+      yeniSiparis.govde.includes("geçerli kampanya yok") ||
+      yeniSiparis.govde.includes("Tanımlı aktif kampanya yok")
+  );
+
+  // Teklif formu artık ürün ve kampanya taşıyor.
+  const yeniTeklif = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/teklifler/yeni"
+  );
+  kontrol(
+    "Teklif formunda ürün seçici var (katalog bağı)",
+    yeniTeklif.govde.includes("Ürün (katalogdan)")
+  );
+  kontrol(
+    "Teklif formunda kampanya alanı var",
+    yeniTeklif.govde.toLocaleLowerCase("tr").includes("kampanya")
+  );
+
+  // Raporlarda PDF düğmesi.
+  for (const yol of [
+    "/raporlar/mali",
+    "/raporlar/satis",
+    "/raporlar/urun",
+    "/raporlar/aktivite",
+    "/raporlar/genel",
+  ]) {
+    const rapor = await sayfaGetir("admin@gezegen.com", "admin123", yol);
+    kontrol(
+      `Raporda PDF düğmesi var: ${yol}`,
+      rapor.govde.includes("Yazdır") && !rapor.url.includes("/yetkisiz")
+    );
+  }
+
+  const destekRaporCikti = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/destek/rapor"
+  );
+  kontrol(
+    "Destek raporunda da PDF düğmesi var",
+    destekRaporCikti.govde.includes("Yazdır")
+  );
+
   await browser.close();
 
   console.log(`\n${"─".repeat(50)}`);
