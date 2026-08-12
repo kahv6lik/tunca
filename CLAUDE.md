@@ -155,6 +155,7 @@ src/
     ui/CamFiltre       # SVG kırılma filtresi — kabukta TEK örnek
     ui/CamParlama      # imleci izleyen parlama — tek dinleyici
     ui/SecimKutusu     # aramalı tek seçimli açılır kutu (v1.12.1)
+    ui/CokluSecim      # onay kutulu çoklu seçim + sayaç + tümünü seç (v1.25.1)
     FirmaForm, RecordForm, AddPanel, edit-record-dialog, DeleteButton,
     GorunumBar,         # kayıtlı görünümler (Faz 10)
     OzelAlanGirdileri   # özel alan form girdileri (Faz 11)
@@ -811,7 +812,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**845 kontrol**.
+**857 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -819,10 +820,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (550 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (556 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 274)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 280)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -1083,6 +1084,12 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.25.1** — Kampanya kapsamındaki ürün/paket/firma seçimi `<select
+  multiple>` olmaktan çıktı: seçim artık RENK değil onay kutusu İŞARETİ,
+  üstte "3 / 114 seçili" sayacı ve "Tümünü seç / Temizle" düğmesi var, 8'den
+  uzun listelerde Türkçe duyarsız arama çıkıyor. Ctrl basılı tutmadan
+  tıklayınca önceki seçimlerin sessizce silinmesi sorunu ortadan kalktı.
+  Sunucu tarafı değişmedi (`formData.getAll` aynı biçimde okur).
 - **v1.25.0** — **Paket satışa bağlandı.** Ürün paketi Faz 14'ten beri
   tanımlanabiliyor ama hiçbir siparişe ya da teklife bağlanamıyordu; artık
   "Paketten kalem ekle" ile paket KALEMLERİNE açılıyor (her ürün kendi

@@ -1927,6 +1927,72 @@ async function main() {
     !anadoluPaketSiparis.govde.includes("Başlangıç Paketi")
   );
 
+  /*
+    Kampanya kapsamında onay kutulu çoklu seçim (v1.25.1).
+
+    Kapsam alanları bir MODAL içindedir; sayfayı düz çekmek yetmez, düğmeye
+    gerçekten tıklamak gerekir. Bu yüzden burada kendi bağlamını açan bir
+    kontrol yazıldı.
+  */
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.fill("#email", "admin@gezegen.com");
+    await page.fill("#password", "admin123");
+    await page.click("button[type=submit]");
+    await girisiBekle(page);
+    await page.goto(`${BASE}/kampanyalar`, { waitUntil: "domcontentloaded" });
+    await durulmasiniBekle(page);
+
+    await page.getByRole("button", { name: "Düzenle" }).first().click();
+    await page.getByRole("group", { name: "Ürünler" }).waitFor();
+
+    const kapsam = page.getByRole("group", { name: "Ürünler" });
+    kontrol(
+      "Kampanya kapsamında satırların SOLUNDA onay kutusu var",
+      (await kapsam.locator('input[type="checkbox"]').count()) > 0
+    );
+    kontrol(
+      "Kapsam artık `select multiple` DEĞİL",
+      (await page.locator("select[multiple]").count()) === 0
+    );
+
+    const govde = await page.locator("body").innerText();
+    kontrol(
+      "Kapsamın üstünde 'kaç tane seçili' bilgisi yazıyor",
+      govde.includes("seçili")
+    );
+    kontrol(
+      "Kapsamda 'Tümünü seç' düğmesi var",
+      (await page.getByRole("button", { name: /Tümünü seç|Temizle/ }).count()) >
+        0
+    );
+
+    // Tümünü seç → sayaç güncellenir (seçim gerçekten uygulanıyor).
+    const oncekiIsaretli = await kapsam
+      .locator('input[type="checkbox"]:checked')
+      .count();
+    const toplamKutu = await kapsam.locator('input[type="checkbox"]').count();
+    await page
+      .getByRole("button", { name: /Tümünü seç|Temizle/ })
+      .first()
+      .click();
+    const sonrakiIsaretli = await kapsam
+      .locator('input[type="checkbox"]:checked')
+      .count();
+    kontrol(
+      "'Tümünü seç' gerçekten hepsini işaretliyor",
+      sonrakiIsaretli === toplamKutu || sonrakiIsaretli === 0
+    );
+    kontrol(
+      "Seçim durumu değişti (düğme etkisiz değil)",
+      sonrakiIsaretli !== oncekiIsaretli || toplamKutu === 0
+    );
+
+    await ctx.close();
+  }
+
   // ──────────────────────────────────────────────────────────────────────
   // Liquid glass tema (v1.24.0-pre) — hiçbir şeyin bozulmadığı
   // ──────────────────────────────────────────────────────────────────────

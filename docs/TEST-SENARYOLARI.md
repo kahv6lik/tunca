@@ -288,6 +288,29 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.25.1 — Kampanya kapsamında çoklu seçim
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/kampanyalar` → bir kampanyada **Düzenle** | Modal açılır |
+| 2 | Ürünler / Paketler / Firmalar alanlarına bak | Her satırın SOLUNDA onay kutusu var |
+| 3 | Hiçbiri seçili değilken üst yazıyı oku | "Hiçbiri seçili değil" |
+| 4 | Üç ürün işaretle | Üstte "3 / N seçili" yazar |
+| 5 | Ctrl BASMADAN başka bir satıra tıkla | Önceki seçimler DURUYOR (eski hata) |
+| 6 | **Tümünü seç**'e bas | Hepsi işaretlenir, sayaç N / N olur |
+| 7 | Aynı düğmeye tekrar bas (artık "Temizle") | Hepsi kalkar |
+| 8 | Firmalar alanında arama kutusuna "anadolu" yaz | Yalnızca eşleşenler kalır |
+| 9 | "ANADOLU" (büyük harfle) yaz | Aynı sonuçlar (Türkçe duyarsız) |
+| 10 | Arama açıkken **Tümünü seç** | Yalnızca görünenler seçilir |
+| 11 | Aramayı temizle | Arama dışındaki eski seçimler DURUYOR |
+| 12 | Ürünler alanı (8'den az kayıt) | Arama kutusu YOK (yer kaplamaz) |
+| 13 | Seçimleri yapıp **Kaydet** | Kapsam doğru kaydedilir |
+| 14 | Aynı kampanyayı tekrar aç | Kaydedilen seçimler işaretli gelir |
+| 15 | Kapsamı tamamen boşalt ve kaydet | "Boş = hepsi" davranışı korunur |
+| 16 | Koyu temada aç | Onay kutuları ve sayaç okunur |
+
+---
+
 ### v1.25.0 — Paket satışa bağlandı
 
 | # | Adım | Beklenen |

@@ -233,3 +233,60 @@ describe("Bağın gerçekten kurulduğu", () => {
     );
   });
 });
+
+describe("Kampanya kapsamında çoklu seçim (v1.25.1)", () => {
+  /*
+    ORTAĞIN BULGUSU: "ürünler / paketler / firmalar kısmında çoklu seçme
+    yaparken karışıklık oluyor." Sebebi `<select multiple>` idi: seçim
+    yalnızca arka plan rengiyle görünüyor, Ctrl basılı tutulmadan tıklamak
+    önceki seçimleri sessizce siliyor ve sayı hiçbir yerde yazmıyordu.
+  */
+  const SECIM = readFileSync("src/components/ui/CokluSecim.tsx", "utf8");
+  const PANEL = readFileSync(
+    "src/components/urunler/KampanyaPanel.tsx",
+    "utf8"
+  );
+
+  it("kampanya paneli artık `select multiple` KULLANMIYOR", () => {
+    expect(PANEL).not.toContain("multiple");
+    expect(PANEL).toContain("CokluSecim");
+  });
+
+  it("üç kapsam alanının hepsi yeni bileşene bağlı", () => {
+    expect(PANEL.match(/<CokluSecim/g) ?? []).toHaveLength(3);
+    for (const alan of ["urunIdler", "paketIdler", "firmaIdler"]) {
+      expect(PANEL, `${alan} bağlanmamış`).toContain(alan);
+    }
+  });
+
+  it("seçim RENK değil İŞARETTİR: onay kutusu çiziliyor", () => {
+    expect(SECIM).toContain('type="checkbox"');
+    expect(SECIM).toContain("Check");
+  });
+
+  it("sayaç ve 'Tümünü seç' var", () => {
+    expect(SECIM).toContain("seçili");
+    expect(SECIM).toContain("Tümünü seç");
+    expect(SECIM).toContain("Temizle");
+  });
+
+  it("form alanı ADI korundu — sunucu tarafı değişmedi", () => {
+    /*
+      `<select multiple>` de onay kutuları da aynı ada birden çok değer
+      gönderir; action `formData.getAll(alan)` ile okur. Alan adı bileşene
+      `ad` olarak geçer ve doğrudan `name` olur.
+    */
+    expect(SECIM).toContain("name={ad}");
+    const action = readFileSync(
+      "src/app/(app)/kampanyalar/actions.ts",
+      "utf8"
+    );
+    expect(action).toContain("formData.getAll");
+  });
+
+  it("uzun listede arama alanı çıkar", () => {
+    // Yüzlerce firma arasında aranan kaydı bulmak kaydırma işine dönerdi.
+    expect(SECIM).toContain("ARAMA_ESIGI");
+    expect(SECIM).toContain('toLocaleLowerCase("tr")');
+  });
+});

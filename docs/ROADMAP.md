@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.25.0` — paket satışa bağlandı (sipariş + teklif) |
+| **Son çıkan sürüm** | `v1.25.1` — kampanya kapsamında onay kutulu çoklu seçim |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,42 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.25.1 — Kampanya kapsamında çoklu seçim ✅
+
+Bulgu (ortak): *"Kampanya düzenleme ekranındaki ürünler - paketler -
+firmalar kısmında çoklu seçme yaparken karışıklık oluyor. Seçilecek şeyin
+solunda bir tik işareti olmalı, yukarısında kaç tane seçtiğimin bilgisi
+olmalı ve ayrıca tümünü seç butonu olmalı."*
+
+- [x] `CokluSecim` bileşeni: onay kutulu liste, sayaç, "Tümünü seç/Temizle".
+- [x] Kampanya panelindeki üç kapsam alanı (`urunIdler`, `paketIdler`,
+      `firmaIdler`) yeni bileşene bağlandı.
+- [x] 8'den uzun listelerde Türkçe duyarsız arama alanı.
+- [x] 6 birim test + 6 gerçek tarayıcı kontrolü (modal açılıp tıklanarak).
+
+**Kararlar**
+
+1. **`<select multiple>` SORUNUN KENDİSİYDİ.** Seçim yalnızca arka plan
+   RENGİYLE gösteriliyor, Ctrl/Cmd basılı tutulmadan tıklamak önceki bütün
+   seçimleri SESSİZCE siliyor ve kaç öğe seçildiği hiçbir yerde yazmıyordu.
+   Yüzlerce firmalık listede seçili olanlar görüş alanının dışında kalıp
+   tamamen görünmez oluyordu.
+2. **SEÇİM RENK DEĞİL, İŞARETTİR:** her satırın solunda onay kutusu. Sayaç
+   ("3 / 114 seçili") "kaç tane seçtim?" sorusunu listeye bakmadan yanıtlar.
+3. **SUNUCU TARAFI HİÇ DEĞİŞMEDİ.** `<select multiple>` de onay kutuları da
+   aynı ada birden çok değer gönderir; action zaten `formData.getAll` ile
+   okuyordu. Kapsam kaydetme mantığına dokunulmadı.
+4. **"TÜMÜNÜ SEÇ" GÖRÜNEN LİSTEYİ seçer, bütün katalogu değil.** Kullanıcı
+   arama yaptıysa niyeti "şu aramaya uyanların hepsi"dir; aramanın dışında
+   kalan seçimlere DOKUNULMAZ — süzgeç bir görünüm işidir, seçimi silmemeli.
+5. **ARAMA 8'DEN UZUN LİSTEDE ÇIKAR:** kısa listede kutucuk yer kaplar, uzun
+   listede aranan kaydı bulmak kaydırma işine döner.
+6. **BİLEŞEN `ui/` ALTINDA, GENELDİR.** Şu an tek kullanıcısı kampanya
+   kapsamı ama karar kampanyaya özel değil; başka bir çoklu seçim
+   gerektiğinde ikinci bir desen doğmasın.
+
+---
 
 ### v1.25.0 — Paket satışa bağlandı ✅
 

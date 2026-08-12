@@ -1,6 +1,7 @@
 "use client";
 
 import ModalKatman from "@/components/ui/ModalKatman";
+import CokluSecim from "@/components/ui/CokluSecim";
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil, X } from "lucide-react";
@@ -235,19 +236,19 @@ export default function KampanyaPanel({
 
               {/* ── Kapsam ── */}
               <div className="sm:col-span-2 grid gap-4 sm:grid-cols-3">
-                <Kapsam
+                <CokluSecim
                   ad="urunIdler"
                   baslik="Ürünler"
                   secenekler={urunler}
                   secili={mevcut?.urunIdler ?? []}
                 />
-                <Kapsam
+                <CokluSecim
                   ad="paketIdler"
                   baslik="Paketler"
                   secenekler={paketler}
                   secili={mevcut?.paketIdler ?? []}
                 />
-                <Kapsam
+                <CokluSecim
                   ad="firmaIdler"
                   baslik="Firmalar"
                   secenekler={firmalar}
@@ -283,38 +284,6 @@ export default function KampanyaPanel({
         </ModalKatman>
       )}
     </>
-  );
-}
-
-/** Çoklu seçim kutusu — boş bırakmak "hepsi" demektir. */
-function Kapsam({
-  ad,
-  baslik,
-  secenekler,
-  secili,
-}: {
-  ad: string;
-  baslik: string;
-  secenekler: Secenek[];
-  secili: string[];
-}) {
-  return (
-    <div>
-      <label className="label" htmlFor={ad}>{baslik}</label>
-      <select
-        id={ad}
-        name={ad}
-        multiple
-        defaultValue={secili}
-        size={5}
-        className="input h-auto"
-      >
-        {secenekler.map((s) => (
-          <option key={s.id} value={s.id}>{s.ad}</option>
-        ))}
-      </select>
-      <p className="mt-1 text-xs text-muted-foreground">Boş = hepsi</p>
-    </div>
   );
 }
 
