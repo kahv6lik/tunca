@@ -288,6 +288,44 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.26.0 — Modal davranışı ve Ayarlar bölümü
+
+**Açılır pencereler** (herhangi bir modal: kampanya, ürün, aktivite, aday…)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/kampanyalar` → Düzenle | Pencere ekranın ORTASINDA açılır |
+| 2 | Kapsam listesinde bir onay kutusuna tıkla | Pencere ZIPLAMAZ, olduğu yerde kalır |
+| 3 | Uzun bir formu aç, aşağı kaydır | Sayfa değil, PENCERENİN İÇİ kaydırılır |
+| 4 | Pencerenin sonuna gelip kaydırmayı sürdür | Arkadaki sayfa kaymaz |
+| 5 | Bir metin alanında tıklayıp imleci pencere dışına sürükleyip bırak | Pencere KAPANMAZ, veri durur |
+| 6 | Kapsam listesinde tıklayıp dışarı sürükleyip bırak | Pencere KAPANMAZ |
+| 7 | Pencerenin dışına KASITLI tıkla | Pencere kapanır |
+| 8 | Esc'e bas | Kapanan modallarda eskisi gibi kapanır |
+| 9 | Kart içinden açılan bir modal (ör. kalem düzenle) | Ekranın ortasında, kartta sıkışmıyor |
+| 10 | Yan paneli aç (`?panel=`) | Hâlâ sağa yaslı ve tam yükseklik |
+| 11 | Ctrl+K komut paleti | Hâlâ üstten (12vh) açılıyor |
+| 12 | Dar ekranda uzun bir modal aç | Kaydırılabiliyor, düğmelere erişilebiliyor |
+
+**Ayarlar bölümü**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 13 | Sol menüye bak | Yönetim altında **Ayarlar**, Denetim Günlüğü, KVKK var |
+| 14 | Eski satırları ara (Gruplar, Yedekler, AI…) | Sol menüde YOK — Ayarlar'ın sekmesi oldular |
+| 15 | **Ayarlar**'a tıkla | Görebildiğin ilk ayar ekranı açılır |
+| 16 | Üstteki sekme çubuğuna bak | Kullanıcılar, Gruplar, Özel Alanlar, Satış Aşamaları, Otomasyon, E-posta, AI Özellikleri, Yedekler, İçe Aktar |
+| 17 | **E-posta** sekmesine geç | `/otomasyon/eposta` açılır, sekme işaretli |
+| 18 | **Otomasyon** sekmesine geç | Otomasyon işaretli, E-posta değil |
+| 19 | Otomasyon ekranında "E-posta Ayarları" düğmesini ara | YOK (artık kardeş sekme) |
+| 20 | **Satış Aşamaları** sekmesi | `/firsatlar/asamalar` açılır, çubuk AYARLAR'ın |
+| 21 | `/firsatlar`'a git | Çubuk CRM'in, "Fırsatlar" işaretli |
+| 22 | Eski yer imleriyle gir: `/yedekler`, `/ai`, `/gruplar` | Hepsi çalışıyor (rota değişmedi) |
+| 23 | `kullanici@gezegen.com` ile gir | Ayarlar ya hiç görünmez ya da yalnızca izinli sekmeleri |
+| 24 | Salt okunur kullanıcıyla gir | Ayarlar bölümü görünmez |
+
+---
+
 ### v1.25.1 — Kampanya kapsamında çoklu seçim
 
 | # | Adım | Beklenen |

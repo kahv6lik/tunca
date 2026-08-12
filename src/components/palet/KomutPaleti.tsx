@@ -255,6 +255,8 @@ export default function KomutPaleti({
 
       {acik && (
         <ModalKatman
+          // Palet üstten aşağı açılır (12vh); ortalamak alışkanlığı bozardı.
+          duzen="ozel"
           className="fixed inset-0 z-[60] flex items-start justify-center bg-background/80 p-4 pt-[12vh] backdrop-blur-sm"
           onClick={() => setAcik(false)}
         >

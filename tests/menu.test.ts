@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   BOLUMLER,
@@ -6,6 +6,7 @@ import {
   bolumHedefi,
   gorunurSekmeler,
   sekmeAktifMi,
+  etkinSekme,
   yolunBolumu,
 } from "../src/lib/bolum-tanimlar";
 import { IZIN_ETIKET } from "../src/lib/yetki-tanimlar";
@@ -29,7 +30,7 @@ function sayfaVarMi(rota: string): boolean {
 
 describe("Bölüm kayıt defteri", () => {
   it("beklenen bölümler tanımlı", () => {
-    expect(BOLUMLER.map((b) => b.anahtar)).toEqual(["crm", "satis"]);
+    expect(BOLUMLER.map((b) => b.anahtar)).toEqual(["crm", "ayarlar", "satis"]);
     expect(bolum("crm")?.etiket).toBe("CRM");
     expect(bolum("satis")?.etiket).toBe("Satış Yönetimi");
     expect(bolum("yok")).toBeUndefined();
@@ -120,6 +121,23 @@ describe("Etkin sekme kuralı", () => {
     expect(sekmeAktifMi(firsat, "/firsatlar/asamalar")).toBe(true);
   });
 
+  it("EN ÖZEL eşleşme kazanır (v1.26.0)", () => {
+    /*
+      İç içe rotalar aynı anda iki sekmeye uyar. Kural olmadan ikisi birden
+      etkin görünür ya da yanlış bölümün çubuğu çizilirdi.
+    */
+    const ayarlar = bolum("ayarlar")!;
+    // `/otomasyon/eposta` hem Otomasyon'a hem E-posta'ya uyar.
+    expect(etkinSekme(ayarlar, "/otomasyon/eposta")?.href).toBe(
+      "/otomasyon/eposta"
+    );
+    expect(etkinSekme(ayarlar, "/otomasyon")?.href).toBe("/otomasyon");
+    // `/firsatlar/asamalar` hem CRM'in Fırsatlar'ına hem Ayarlar'ın Satış
+    // Aşamaları'na uyar; kazanan daha DAR olandır.
+    expect(yolunBolumu("/firsatlar/asamalar")?.anahtar).toBe("ayarlar");
+    expect(yolunBolumu("/firsatlar")?.anahtar).toBe("crm");
+  });
+
   it("es rota etkin sayılır (adaylar → fırsatlar, paketler → ürünler)", () => {
     expect(sekmeAktifMi(firsat, "/adaylar")).toBe(true);
     expect(sekmeAktifMi(urun, "/paketler")).toBe(true);
@@ -142,8 +160,73 @@ describe("Yolun bölümü", () => {
   });
 
   it("bölüme ait OLMAYAN yollarda sekme çubuğu çizilmez", () => {
-    for (const yol of ["/", "/takvim", "/raporlar", "/sss", "/kvkk", "/ai", "/yedekler"]) {
+    // `/ai` ve `/yedekler` v1.26.0'da Ayarlar bölümünün sekmesi OLDU.
+    for (const yol of ["/", "/takvim", "/raporlar", "/sss", "/kvkk", "/denetim"]) {
       expect(yolunBolumu(yol), `${yol} bir bölüme bağlanmış`).toBeUndefined();
     }
+  });
+});
+
+describe("Ayarlar bölümü (v1.26.0)", () => {
+  /*
+    ORTAĞIN İSTEĞİ: "YÖNETİM başlığının altına Ayarlar adında bir ana sekme
+    eklememiz lazım; içe aktar, kullanıcılar, gruplar, otomasyon, AI
+    özellikleri, yedekler bunun altına alt sekme olarak taşınmalı."
+  */
+  const ayarlar = bolum("ayarlar")!;
+  const rotalar = ayarlar.sekmeler.map((s) => s.href);
+
+  it("istenen ekranların hepsi sekme oldu", () => {
+    for (const r of [
+      "/ice-aktar",
+      "/kullanicilar",
+      "/gruplar",
+      "/otomasyon",
+      "/ai",
+      "/yedekler",
+    ]) {
+      expect(rotalar, `${r} Ayarlar'a taşınmamış`).toContain(r);
+    }
+  });
+
+  it("e-posta ayarı Otomasyon'dan ÇIKARILIP kendi sekmesi oldu", () => {
+    expect(rotalar).toContain("/otomasyon/eposta");
+    const sayfa = readFileSync("src/app/(app)/otomasyon/page.tsx", "utf8");
+    expect(sayfa, "Otomasyon ekranı hâlâ e-posta bağlantısı taşıyor").not.toContain(
+      "/otomasyon/eposta"
+    );
+  });
+
+  it("sistem ayarı olan diğer ekranlar da alındı", () => {
+    // İstekte adı geçmiyordu ama yerleri burasıydı.
+    expect(rotalar).toContain("/ozel-alanlar");
+    expect(rotalar).toContain("/firsatlar/asamalar");
+  });
+
+  it("HİÇBİR ROTA DEĞİŞMEDİ — sayfalar yerli yerinde", () => {
+    for (const r of rotalar) {
+      const yol = `src/app/(app)${r}/page.tsx`;
+      expect(existsSync(yol), `${r} için sayfa yok: ${yol}`).toBe(true);
+    }
+  });
+
+  it("her sekme GERÇEK bir izin anahtarına bağlı", () => {
+    // Uydurma bir izin, sekmeyi sessizce herkesten gizlerdi.
+    for (const s of ayarlar.sekmeler) {
+      expect(s.izin, `${s.href} izinsiz`).toBeTruthy();
+      expect(IZIN_ETIKET, `${s.izin} tanımsız izin`).toHaveProperty(s.izin!);
+    }
+  });
+
+  it("izni olmayan kullanıcı için bölüm hiç açılmaz", () => {
+    expect(bolumHedefi(ayarlar, new Set())).toBeNull();
+    // Yalnızca yedek izni olan kullanıcı doğrudan Yedekler'e düşer.
+    expect(bolumHedefi(ayarlar, new Set(["yedek.yonet"]))).toBe("/yedekler");
+  });
+
+  it("Denetim Günlüğü ve KVKK bilinçli olarak DIŞARIDA", () => {
+    // Denetim bir ayar değil kayıttır; KVKK kişisel bir haktır.
+    expect(rotalar).not.toContain("/denetim");
+    expect(rotalar).not.toContain("/kvkk");
   });
 });

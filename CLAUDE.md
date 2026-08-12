@@ -150,7 +150,8 @@ src/
     ai/                # SkorRozet, FirmaOzetPaneli, AiAyarPanel (Faz 21)
     guvenlik/          # GuvenlikPanelleri: şifre, 2FA, oturum (Faz 12)
     kvkk/              # KvkkPanelleri: rıza formu, veri indirme (Faz 12)
-    ui/ModalKatman     # modalları portala taşır (v1.11.1)
+    ui/ModalKatman     # modalları portala taşır (v1.11.1); merkez düzen ve
+                       # sürükleme-kapatma koruması (v1.26.0)
     ui/CamKatmanlari   # liquid glass beş katmanı (v1.24.0)
     ui/CamFiltre       # SVG kırılma filtresi — kabukta TEK örnek
     ui/CamParlama      # imleci izleyen parlama — tek dinleyici
@@ -602,6 +603,24 @@ düzenine TAŞINDI.
 - **`.card` CAMLAŞTIRILMADI:** `ModalKatman` dengesi ona göre kurulu ve o
   denge yeniden sınanmadı.
 
+### Modal Davranışı (v1.26.0)
+
+- **KAPATMA KARARI TEK YERDE:** `ModalKatman`. Otuzdan fazla modal var;
+  kural her birine ayrı yazılsaydı biri er ya da geç unutulurdu.
+- **İÇERİDEN BAŞLAYAN SÜRÜKLEME MODALI KAPATMAZ.** Tarayıcının `click`
+  olayı, basma ve bırakma FARKLI öğelerdeyse ikisinin ORTAK ATASINDA
+  tetiklenir; metin seçerken imleç formun dışına taştığında ortak ata
+  kaplama olur ve girilen bütün veri kaybolurdu. Kapatma artık yalnızca
+  basma DA bırakma DA kaplamada olduğunda çalışır.
+- **KAPLAMA KAYDIRILMAZ, MODAL ORTADA SABİT DURUR.** Taşan içerik pencerenin
+  İÇİNDE kaydırılır (`.modal-kaplama > *`). `items-start`/`overflow-y-auto`
+  merkez düzende ayıklanır. Yan panel ve komut paleti `duzen="ozel"` ile
+  dışarıdadır: ikisi de bir "pencere" değildir.
+- **`sr-only` ONAY KUTUSU KULLANILMAZ.** 1px'e sıkıştırılıp akıştan koptuğu
+  için, odaklanan öğeyi görünür kılmak isteyen tarayıcı listeyi ve modalı
+  zıplatıyordu (ortağın "saçma sapan kaymalar" bulgusu). Girdi görsel
+  kutunun tam üstünde, kendi yerinde durur.
+
 ### Menü ve Bölümler (v1.22.0)
 
 - **SOL MENÜ BÖLÜMLERE İNDİ** (`bolum-tanimlar.ts`): ~25 öğe, günlük işte
@@ -619,6 +638,17 @@ düzenine TAŞINDI.
   ayrı ayrı eklenseydi, yeni ekran eklendiğinde biri unutulurdu. Bulunulan
   yol bir bölüme ait değilse çubuk HİÇ çizilmez; tek sekme kalmışsa da
   çizilmez — bilgi vermeyen bir çubuk gürültüdür.
+- **AYARLAR BÖLÜMÜ (v1.26.0):** Yönetim başlığındaki dokuz satır tek bir
+  "Ayarlar" girişine indi (Kullanıcılar, Gruplar, Özel Alanlar, Satış
+  Aşamaları, Otomasyon, E-posta, AI, Yedekler, İçe Aktar). Denetim Günlüğü
+  ve KVKK DIŞARIDA: ilki bir ayar değil KAYITTIR, ikincisi kişisel bir
+  haktır ve herkese açıktır. E-posta ayarı Otomasyon ekranının içinden
+  çıkarıldı — SMTP kurulumu kuralların alt ayrıntısı değil, kendi başına bir
+  sistem ayarıdır.
+- **EN ÖZEL EŞLEŞME KAZANIR** (`sekmeSkoru`, v1.26.0): `/otomasyon/eposta`
+  hem Otomasyon'a hem E-posta'ya, `/firsatlar/asamalar` hem CRM'in
+  Fırsatlar'ına hem Ayarlar'ın Satış Aşamaları'na uyar. Kural olmadan ikisi
+  birden etkin görünür ya da yanlış bölümün çubuğu çizilirdi.
 - **ETKİN SEKME `startsWith` DEĞİL, SINIR DUYARLI**: `/destekler` diye bir
   ekran açılsa düz `startsWith` onu da "Destek" sanırdı.
 
@@ -812,7 +842,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**857 kontrol**.
+**886 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -820,10 +850,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (556 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (569 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 280)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 296)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -1084,6 +1114,15 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.26.0** — **Modal davranışı ve Ayarlar bölümü.** Açılır pencereler
+  artık ortada sabit duruyor (taşan içerik pencerenin içinde kaydırılıyor)
+  ve içeriden başlayıp dışarıda biten bir sürükleme onları KAPATMIYOR —
+  veri girerken metin seçmek artık formu kapatmıyor; kural `ModalKatman`'da
+  tek yerde. Yönetim başlığındaki dokuz satır tek bir **Ayarlar** bölümüne
+  indi (Kullanıcılar, Gruplar, Özel Alanlar, Satış Aşamaları, Otomasyon,
+  E-posta, AI, Yedekler, İçe Aktar); e-posta ayarı Otomasyon ekranından
+  çıkarılıp kardeş sekme oldu. Denetim Günlüğü ve KVKK bilinçli olarak
+  dışarıda kaldı. Hiçbir rota değişmedi.
 - **v1.25.1** — Kampanya kapsamındaki ürün/paket/firma seçimi `<select
   multiple>` olmaktan çıktı: seçim artık RENK değil onay kutusu İŞARETİ,
   üstte "3 / 114 seçili" sayacı ve "Tümünü seç / Temizle" düğmesi var, 8'den

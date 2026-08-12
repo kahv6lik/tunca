@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,13 +20,12 @@ export default async function EpostaAyarPage() {
 
   return (
     <div>
-      <Link
-        href="/otomasyon"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Otomasyon
-      </Link>
-
+      {/*
+        "← Otomasyon" geri bağlantısı KALDIRILDI (v1.26.0): e-posta artık
+        Otomasyon'un alt ekranı değil, Ayarlar bölümünün kardeş sekmesi.
+        Sayfanın üstündeki sekme çubuğu gezinmeyi zaten sağlıyor; geri
+        bağlantısı artık olmayan bir hiyerarşiyi ima ederdi.
+      */}
       <PageHeader
         title="E-posta Ayarları"
         subtitle="Bildirimler kuruluşunuzun kendi posta sunucusundan gönderilir"

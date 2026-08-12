@@ -119,7 +119,7 @@ export default function CokluSecim({
       <div
         role="group"
         aria-label={baslik}
-        className="max-h-44 overflow-y-auto rounded-xl border border-border/60 p-1"
+        className="max-h-44 overflow-y-auto overscroll-contain rounded-xl border border-border/60 p-1"
       >
         {gorunen.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">
@@ -135,24 +135,32 @@ export default function CokluSecim({
                   isaretli ? "text-foreground" : "text-muted-foreground"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  name={ad}
-                  value={s.id}
-                  checked={isaretli}
-                  onChange={() => degistir(s.id)}
-                  className="sr-only"
-                />
-                {/* Görsel kutu: seçim RENK değil, İŞARETTİR. */}
+                {/*
+                  Görsel kutu: seçim RENK değil, İŞARETTİR.
+
+                  Gerçek `<input>` bu kutunun TAM ÜSTÜNDE, saydam olarak
+                  durur — `sr-only` DEĞİL. Sebebi v1.26.0'ın bulgusudur:
+                  `sr-only` öğe 1px'e sıkıştırılıp akıştan koptuğu için,
+                  tıklayınca odaklanan kutuyu "görünür kılmak" isteyen
+                  tarayıcı listeyi ve modalı zıplatıyordu. Girdi kendi
+                  yerinde durursa kaydıracak bir şey kalmaz.
+                */}
                 <span
-                  aria-hidden
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                  className={`relative flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
                     isaretli
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border"
                   }`}
                 >
-                  {isaretli && <Check className="h-3 w-3" />}
+                  <input
+                    type="checkbox"
+                    name={ad}
+                    value={s.id}
+                    checked={isaretli}
+                    onChange={() => degistir(s.id)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  {isaretli && <Check aria-hidden className="h-3 w-3" />}
                 </span>
                 <span className="min-w-0 break-words">{s.ad}</span>
               </label>

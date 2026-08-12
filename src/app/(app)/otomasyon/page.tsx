@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Mail, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { getTenantDb } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,10 +21,7 @@ type Eylem = { tur: string; baslik?: string; mesaj?: string; gun?: number };
  */
 export default async function OtomasyonPage() {
   await yetkiGerektir(IZIN.otomasyonGoruntule);
-  const [yonetir, epostaYonetir] = await Promise.all([
-    yetkiVarMi(IZIN.otomasyonYonet),
-    yetkiVarMi(IZIN.epostaAyarYonet),
-  ]);
+  const yonetir = await yetkiVarMi(IZIN.otomasyonYonet);
 
   const db = await getTenantDb();
 
@@ -50,16 +46,10 @@ export default async function OtomasyonPage() {
       <PageHeader
         title="Otomasyon"
         subtitle={`${kurallar.filter((k) => k.aktif).length} açık kural`}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            {epostaYonetir && (
-              <Link href="/otomasyon/eposta" className="btn-secondary">
-                <Mail className="h-4 w-4" /> E-posta Ayarları
-              </Link>
-            )}
-            {yonetir && <KuralPanel />}
-          </div>
-        }
+        // E-posta ayarı buradan ÇIKARILDI (v1.26.0): SMTP/IMAP kurulumu iş
+        // akışı kurallarının alt ayrıntısı değil, kendi başına bir sistem
+        // ayarıdır. Artık Ayarlar bölümünün kendi sekmesi.
+        action={yonetir ? <KuralPanel /> : undefined}
       />
 
       <div className="card mb-6 p-5">

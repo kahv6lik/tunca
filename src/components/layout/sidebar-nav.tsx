@@ -6,33 +6,14 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Building2,
-  Wallet,
-  GraduationCap,
-  Wrench,
-  Contact,
-  Target,
-  CheckSquare,
-  FileText,
   CalendarDays,
-  Zap,
-  Upload,
-  DatabaseBackup,
-  ListPlus,
   BarChart3,
   Users,
   ScrollText,
-  Sparkles,
-  Package,
-  Ticket,
-  Warehouse,
   ShoppingCart,
-  Truck,
   FileLock2,
-  FolderKanban,
-  LifeBuoy,
   HelpCircle,
-  MapPin,
-  ClipboardList,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -91,20 +72,22 @@ export const NAV: NavItem[] = [
   // menüden de doğrudan açılır.
   { href: "/sss", label: "SSS (Bilgi Bankası)", icon: HelpCircle, izin: "sss.goruntule" },
 
-  // ── Yönetim: kuruluşun yönetimsel işleri tek başlık altında toplanır. ──
-  // (Platformlar ÜSTÜ yönetim ayrıdır: /admin, yalnızca platform_admin.)
-  // İçe aktarım da buraya alındı: günlük bir iş değil, kurulum işidir.
-  { href: "/ice-aktar", label: "İçe Aktar", icon: Upload, izin: "firma.olustur", bolum: "yonetim" },
-  { href: "/kullanicilar", label: "Kullanıcılar", icon: Users, izin: "kullanici.yonet", bolum: "yonetim" },
-  { href: "/gruplar", label: "Gruplar", icon: Users, izin: "grup.yonet", bolum: "yonetim" },
-  { href: "/ozel-alanlar", label: "Özel Alanlar", icon: ListPlus, izin: "ozelalan.yonet", bolum: "yonetim" },
-  { href: "/otomasyon", label: "Otomasyon", icon: Zap, izin: "otomasyon.goruntule", bolum: "yonetim" },
+  /*
+    ── YÖNETİM ─────────────────────────────────────────────────────────
+    (Platformlar ÜSTÜ yönetim ayrıdır: /admin, yalnızca platform_admin.)
+
+    v1.26.0'a kadar burada DOKUZ ayrı satır vardı ve neredeyse hepsi
+    "kurulum" işiydi. Ortağın isteğiyle hepsi tek bir AYARLAR bölümüne
+    indirildi; sekmeleri `bolum-tanimlar.ts` içindedir ve bölüme tıklayınca
+    kullanıcının GÖREBİLDİĞİ ilk ayar ekranı açılır.
+
+    Yönetim'de yalnızca iki satır kaldı, ikisi de bilinçli:
+      • Denetim Günlüğü bir AYAR DEĞİL, bir kayıttır.
+      • KVKK kişisel bir haktır ve herkese açıktır (izin alanı yok).
+  */
+  { href: "/kullanicilar", label: "Ayarlar", icon: Settings, bolumAnahtari: "ayarlar", bolum: "yonetim" },
   { href: "/denetim", label: "Denetim Günlüğü", icon: ScrollText, izin: "denetim.goruntule", bolum: "yonetim" },
-  // AI ayarı yönetim işidir: veriyi dışarı açma kararı ve kullanım defteri.
-  { href: "/ai", label: "AI Özellikleri", icon: Sparkles, izin: "ai.kullan", bolum: "yonetim" },
-  // KVKK herkese açıktır: aydınlatma metni ve kendi rızası kişisel bir haktır.
   { href: "/kvkk", label: "KVKK", icon: FileLock2, bolum: "yonetim" },
-  { href: "/yedekler", label: "Yedekler", icon: DatabaseBackup, izin: "yedek.yonet", bolum: "yonetim" },
 ];
 
 /** Bir menü öğesi bu yolda etkin mi? Masaüstü ve mobil menü aynı kuralı kullanır. */

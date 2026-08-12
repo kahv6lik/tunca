@@ -147,3 +147,61 @@ describe("Bozulmaması gerekenler", () => {
     expect(parlama).toContain("prefers-reduced-motion");
   });
 });
+
+describe("Modal davranışı (v1.26.0)", () => {
+  /*
+    ORTAĞIN İKİ BULGUSU:
+      1. "Açılır pencere saçma sapan yukarı aşağı kayabiliyor; özellikle bir
+         firma seçtiğimde." → kaplama kaydırılabilirdi; içeride odaklanan
+         onay kutusunu görünür kılmak isteyen tarayıcı pencereyi zıplatıyordu.
+      2. "Pencerenin içinde tıklayıp bırakmadan imleci dışarı taşıyarak
+         bıraktığımda pencere kapanıyor." → `click` olayı, basma ve bırakma
+         farklı öğelerdeyse ORTAK ATADA tetiklenir; metin seçerken imleç
+         dışarı taşınca ortak ata kaplama olur ve girilen veri kaybolur.
+  */
+  const KATMAN = readFileSync("src/components/ui/ModalKatman.tsx", "utf8");
+
+  it("kapatma kararı TEK YERDE verilir", () => {
+    // Otuzdan fazla modal var; kural her birine ayrı yazılsaydı biri
+    // er ya da geç unutulurdu.
+    expect(KATMAN).toContain("onPointerDown");
+    expect(KATMAN).toContain("e.target === e.currentTarget");
+  });
+
+  it("içeriden başlayan sürükleme modalı KAPATMAZ", () => {
+    expect(KATMAN).toContain("kaplamadaBasladi");
+    // Basma kaplamada başlamadıysa kapatma çağrılmaz.
+    expect(KATMAN).toContain("if (!kaplamadaBasladi.current) return;");
+  });
+
+  it("kaplama kaydırılmaz, taşan içerik modalın İÇİNDE kaydırılır", () => {
+    expect(KATMAN).toContain("modal-kaplama");
+    expect(KATMAN).toContain("items-center");
+    const bas = CSS.indexOf(".modal-kaplama > *");
+    expect(bas, "modal-kaplama kuralı yok").toBeGreaterThan(-1);
+    const kural = CSS.slice(bas, CSS.indexOf("}", bas));
+    expect(kural).toContain("max-height: 100%");
+    expect(kural).toContain("overflow-y: auto");
+    expect(kural).toContain("overscroll-behavior: contain");
+  });
+
+  it("yan panel ve komut paleti kendi düzenlerini korur", () => {
+    // İkisi de bir "pencere" değil: biri sağa yaslı tam yükseklik, öteki
+    // üstten aşağı açılır. Ortalamak ikisini de bozardı.
+    for (const yol of [
+      "src/components/panel/YanPanel.tsx",
+      "src/components/palet/KomutPaleti.tsx",
+    ]) {
+      expect(readFileSync(yol, "utf8"), `${yol} merkez düzene zorlanmış`).toContain(
+        'duzen="ozel"'
+      );
+    }
+  });
+
+  it("onay kutusu `sr-only` DEĞİL — kaydırma sıçramasının kaynağıydı", () => {
+    const secim = readFileSync("src/components/ui/CokluSecim.tsx", "utf8");
+    expect(secim).not.toContain("sr-only\"");
+    // Girdi görsel kutunun tam üstünde, kendi yerinde durur.
+    expect(secim).toContain("absolute inset-0 h-full w-full");
+  });
+});

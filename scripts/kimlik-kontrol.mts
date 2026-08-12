@@ -165,7 +165,10 @@ async function main() {
 
   // Kuruluş yöneticisi: yönetim ekranlarını görür
   const yoneticiMenu = await sayfaGetir("admin@gezegen.com", "admin123", "/");
-  kontrol("Yönetici menüde 'Gruplar' görüyor", yoneticiMenu.govde.includes("Gruplar"));
+  // "Gruplar" v1.26.0'da sol menüden Ayarlar bölümünün SEKMESİNE taşındı;
+  // sol menüde artık tek bir "Ayarlar" girişi var (v1.22.0'daki "Kontaklar"
+  // taşınmasıyla aynı durum).
+  kontrol("Yönetici menüde 'Ayarlar' görüyor", yoneticiMenu.govde.includes("Ayarlar"));
   kontrol("Yönetici menüde 'Denetim Günlüğü' görüyor", yoneticiMenu.govde.includes("Denetim"));
   kontrol("Yönetici rolü üst çubukta yazıyor", yoneticiMenu.govde.includes("Kuruluş Yöneticisi"));
 
@@ -1791,10 +1794,11 @@ async function main() {
     !menuTakvim.govde.includes("Yatırım Destekleri")
   );
 
-  // İçe aktarım Yönetim altına taşındı.
+  // İçe aktarım Yönetim altına, v1.26.0'da da Ayarlar bölümünün sekmesine
+  // taşındı: sol menüde artık "Yönetim > Ayarlar" var, "İçe Aktar" sekme.
   kontrol(
-    "İçe Aktar menüde Yönetim bölümünde",
-    menuYonetici.govde.indexOf("Yönetim") < menuYonetici.govde.indexOf("İçe Aktar")
+    "Ayarlar menüde Yönetim bölümünde",
+    menuYonetici.govde.indexOf("Yönetim") < menuYonetici.govde.indexOf("Ayarlar")
   );
 
   // Rotalar DEĞİŞMEDİ: eski adresler hâlâ açılıyor.
@@ -1990,8 +1994,85 @@ async function main() {
       sonrakiIsaretli !== oncekiIsaretli || toplamKutu === 0
     );
 
+    /*
+      SÜRÜKLEYİP DIŞARIDA BIRAKMAK MODALI KAPATMAZ (v1.26.0).
+
+      Ortağın bulgusu: "pencerenin içinde sol tıklayıp bırakmadan imleci
+      dışarı taşıyarak bıraktığımda pencere kapanıyor; veri girerken çok
+      sorun oluyor." Metin seçerken imleç formun dışına taşınca girilen
+      bütün veri kayboluyordu.
+    */
+    const kutu = await page
+      .getByRole("group", { name: "Ürünler" })
+      .boundingBox();
+    if (kutu) {
+      await page.mouse.move(kutu.x + kutu.width / 2, kutu.y + kutu.height / 2);
+      await page.mouse.down();
+      // İmleci kaplamanın boş alanına taşıyıp orada bırak.
+      await page.mouse.move(20, 20, { steps: 8 });
+      await page.mouse.up();
+      await durulmasiniBekle(page);
+    }
+    kontrol(
+      "İçeriden sürükleyip dışarıda bırakmak modalı KAPATMIYOR",
+      (await page.getByRole("group", { name: "Ürünler" }).count()) > 0
+    );
+
+    // Kasıtlı dış tıklama ise HÂLÂ kapatır.
+    await page.mouse.click(20, 20);
+    await durulmasiniBekle(page);
+    kontrol(
+      "Dışarı KASITLI tıklamak modalı kapatıyor",
+      (await page.getByRole("group", { name: "Ürünler" }).count()) === 0
+    );
+
     await ctx.close();
   }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Ayarlar bölümü (v1.26.0)
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Ayarlar bölümü\n");
+
+  const ayarGiris = await sayfaGetir(
+    "admin@gezegen.com",
+    "admin123",
+    "/kullanicilar"
+  );
+  kontrol(
+    "Sol menüde 'Ayarlar' girişi var",
+    ayarGiris.govde.toLocaleLowerCase("tr").includes("ayarlar")
+  );
+  for (const etiket of [
+    "Kullanıcılar",
+    "Gruplar",
+    "Özel Alanlar",
+    "Otomasyon",
+    "E-posta",
+    "AI Özellikleri",
+    "Yedekler",
+    "İçe Aktar",
+  ]) {
+    kontrol(
+      `Ayarlar sekme çubuğunda: ${etiket}`,
+      ayarGiris.govde.toLocaleLowerCase("tr").includes(etiket.toLocaleLowerCase("tr"))
+    );
+  }
+
+  // Rotalar KORUNDU: eski adresler çalışmaya devam ediyor.
+  for (const yol of ["/yedekler", "/ai", "/otomasyon/eposta", "/ozel-alanlar"]) {
+    const sayfa = await sayfaGetir("admin@gezegen.com", "admin123", yol);
+    kontrol(
+      `Ayarlar sekmesi eski adresinde açılıyor: ${yol}`,
+      !sayfa.url.includes("/yetkisiz") && !sayfa.url.includes("/login")
+    );
+  }
+
+  // Yönetim başlığında yalnızca Denetim ve KVKK kaldı.
+  kontrol(
+    "Denetim Günlüğü Ayarlar'a alınmadı (ayar değil, kayıttır)",
+    ayarGiris.govde.includes("Denetim Günlüğü")
+  );
 
   // ──────────────────────────────────────────────────────────────────────
   // Liquid glass tema (v1.24.0-pre) — hiçbir şeyin bozulmadığı

@@ -100,6 +100,9 @@ export default function YanPanel() {
 
   return (
     <ModalKatman
+      // Yan panel bir "pencere" değil: sağa yaslı ve TAM YÜKSEKLİK.
+      // Merkez düzeni onu ortalayıp kısaltırdı.
+      duzen="ozel"
       className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-sm"
       onClick={kapat}
     >

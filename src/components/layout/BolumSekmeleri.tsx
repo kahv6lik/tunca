@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import CamKatmanlari from "@/components/ui/CamKatmanlari";
 import {
   gorunurSekmeler,
-  sekmeAktifMi,
+  etkinSekme,
   yolunBolumu,
 } from "@/lib/bolum-tanimlar";
 
@@ -33,6 +33,7 @@ export default function BolumSekmeleri({ izinler }: { izinler: string[] }) {
   if (!b) return null;
 
   const sekmeler = gorunurSekmeler(b, new Set(izinler));
+  const etkin = etkinSekme(b, pathname);
   // Tek sekme kaldıysa çubuk bilgi vermez; kullanıcı zaten oradadır.
   if (sekmeler.length < 2) return null;
 
@@ -44,7 +45,9 @@ export default function BolumSekmeleri({ izinler }: { izinler: string[] }) {
       <CamKatmanlari />
       <div className="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-4 md:px-6 lg:px-8">
         {sekmeler.map((s) => {
-          const aktif = sekmeAktifMi(s, pathname);
+          // EN ÖZEL eşleşme kazanır: `/otomasyon/eposta` hem Otomasyon'a
+          // hem E-posta'ya uyar, işaretli olan E-posta olmalıdır.
+          const aktif = s === etkin;
           return (
             <Link
               key={s.href}

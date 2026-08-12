@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.25.1` — kampanya kapsamında onay kutulu çoklu seçim |
+| **Son çıkan sürüm** | `v1.26.0` — modal davranışı + Ayarlar bölümü |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,69 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.26.0 — Modal davranışı ve Ayarlar bölümü ✅
+
+Ortağın üç bulgusu:
+
+1. *"Açılır pencere saçma sapan yukarı aşağı kayabiliyor; özellikle herhangi
+   bir firma seçtiğimde. Pencere ortada sabit kalsın."*
+2. *"Pencerenin içinde sol tıklayıp bırakmadan imleci dışarı taşıyarak
+   bıraktığımda pencere kapanıyor. Bu veri girerken çok sorun oluyor. Tüm
+   açılır pencereler için geçerli bir ayar olması lazım."*
+3. *"YÖNETİM başlığının altına Ayarlar adında bir ana sekme eklememiz lazım;
+   içe aktar, kullanıcılar, gruplar, otomasyon, AI özellikleri, yedekler
+   bunun altına alt sekme olarak taşınmalı. Otomasyon altındaki e-posta
+   ayarları da oradan çıkarılarak Ayarlar altına taşınmalı."*
+
+- [x] Modal ortada sabit durur; taşan içerik pencerenin İÇİNDE kaydırılır.
+- [x] İçeriden başlayan sürükleme modalı kapatmaz; kasıtlı dış tıklama kapatır.
+- [x] `CokluSecim` onay kutusu `sr-only` olmaktan çıktı (sıçramanın kaynağı).
+- [x] Ayarlar bölümü: dokuz sekme, sol menüde tek giriş.
+- [x] E-posta ayarı Otomasyon ekranından çıkarıldı, kardeş sekme oldu.
+- [x] 6 birim + 6 menü testi + 14 tarayıcı kontrolü.
+
+**Kararlar**
+
+1. **KAPATMA KARARI TEK YERDE (`ModalKatman`).** Sorun tarayıcının `click`
+   olayıdır: basma ve bırakma FARKLI öğelerdeyse `click`, ikisinin ORTAK
+   ATASINDA tetiklenir. Metin seçerken imleç formun dışına taştığında ortak
+   ata kaplama olur ve "dışarı tıklandı" sanılır. Artık kapatma yalnızca
+   basma DA bırakma DA kaplamada olduğunda çalışır. Otuzdan fazla modalın
+   her biri kendi kuralını yazsaydı biri er ya da geç unutulurdu — kural
+   kaplamanın kendisinde.
+2. **SIÇRAMANIN KAYNAĞI `sr-only` İDİ.** Onay kutusu 1px'e sıkıştırılıp
+   akıştan koptuğu için, tıklayınca odaklanan öğeyi "görünür kılmak" isteyen
+   tarayıcı önce listeyi, sonra modalı, sonra sayfayı kaydırıyordu. Girdi
+   görsel kutunun TAM ÜSTÜNDE, kendi yerinde durunca kaydıracak bir şey
+   kalmıyor.
+3. **KAPLAMA ARTIK KAYDIRILMAZ.** `items-start` + `overflow-y-auto`
+   kaplamayı kaydırılabilir kılıyordu. Merkez düzende bu sınıflar ayıklanır,
+   taşan içerik `.modal-kaplama > *` kuralıyla modalın içinde kaydırılır.
+   Yan panel ve komut paleti `duzen="ozel"` ile dışarıda: ikisi de bir
+   "pencere" değil (biri sağa yaslı tam yükseklik, öteki üstten açılır).
+4. **AYARLAR: DOKUZ SATIR TEK GİRİŞE İNDİ.** Yönetim başlığı altındaki
+   ekranların neredeyse hepsi "kurulum" işiydi ve günlük menüyü uzatmaktan
+   başka bir şey yapmıyordu (v1.22.0'ın gerekçesinin aynısı).
+5. **İKİ EKRAN DAHA ALINDI** (istekte adı geçmiyordu, yerleri burasıydı):
+   Özel Alanlar (alan TANIMI bir kurulum işidir) ve Satış Aşamaları
+   (yalnızca Fırsatlar ekranından ulaşılabiliyordu; hattın tanımı da ayardır).
+6. **DENETİM VE KVKK DIŞARIDA KALDI.** Denetim Günlüğü bir ayar değil, bir
+   KAYITTIR — değiştirilemez olması da bunun gereğidir. KVKK kişisel bir
+   haktır (aydınlatma metni + kendi rızası) ve herkese açıktır.
+7. **E-POSTA OTOMASYONUN ALT EKRANI OLMAKTAN ÇIKTI.** SMTP/IMAP kurulumu iş
+   akışı kurallarının bir alt ayrıntısı değil, kendi başına bir sistem
+   ayarıdır. "← Otomasyon" geri bağlantısı da kaldırıldı: artık olmayan bir
+   hiyerarşiyi ima ederdi.
+8. **EN ÖZEL EŞLEŞME KAZANIR** (`sekmeSkoru`). İç içe rotalar aynı anda iki
+   sekmeye uyar: `/otomasyon/eposta` hem Otomasyon'a hem E-posta'ya,
+   `/firsatlar/asamalar` hem CRM'in Fırsatlar'ına hem Ayarlar'ın Satış
+   Aşamaları'na. Kural olmadan ikisi birden etkin görünür ya da yanlış
+   bölümün çubuğu çizilirdi.
+9. **HİÇBİR ROTA DEĞİŞMEDİ** (v1.22.0'ın sözü). Kayıtlı görünümler, bildirim
+   bağlantıları ve yer imleri çalışmaya devam eder.
+
+---
 
 ### v1.25.1 — Kampanya kapsamında çoklu seçim ✅
 

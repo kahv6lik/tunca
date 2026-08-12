@@ -367,6 +367,28 @@
    belgenin kendisi kâğıda düşer. Bu sayede sunucuya PDF kütüphanesi ya da
    headless tarayıcı eklemeden Türkçe karakterleri kusursuz bir çıktı alınır.
    ------------------------------------------------------------------------ */
+/*
+  MODAL ORTADA SABİT DURUR (v1.26.0).
+
+  Ortağın bulgusu: "açılır pencere saçma sapan yukarı aşağı kayabiliyor;
+  özellikle bir firma seçtiğimde." Sebep, KAPLAMANIN kaydırılabilir
+  olmasıydı (`items-start` + `overflow-y-auto`): içeride bir onay kutusuna
+  odaklanınca tarayıcı onu görünür kılmak için bütün pencereyi kaydırıyordu.
+
+  Artık kaplama kaydırılmaz; taşan içerik MODALIN KENDİ İÇİNDE kaydırılır.
+  Sınıf `ModalKatman` tarafından eklenir, tek tek modallara yazılmaz.
+
+  `margin-block: 0` gerekir: kartlar `my-8` taşıyordu ve kaplama artık
+  `overflow: hidden` olduğu için bu boşluk içeriği keserdi.
+*/
+.modal-kaplama > * {
+  margin-block: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  /* Modalın sonuna gelince arkadaki sayfa kaymasın. */
+  overscroll-behavior: contain;
+}
+
 @media print {
   /* Cam katmanları baskıda HİÇ çizilmez: backdrop-filter kâğıtta bir şey
      ifade etmez, gri bir bulanıklık bırakır ve toneri boşa harcar. Arka
