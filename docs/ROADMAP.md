@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.24.0` — liquid glass tema (ön sürümden onaylanarak prod'a alındı) |
+| **Son çıkan sürüm** | `v1.25.0` — paket satışa bağlandı (sipariş + teklif) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,65 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.25.0 — Paket satışa bağlandı ✅
+
+Bulgu (ortak): *"Ürünler sekmesi altından bir ürün paketi oluşturduğumda
+herhangi bir sipariş oluşturmak istediğimde ürün seçebiliyorum ancak paket
+seçemiyorum. Paket de seçebiliyor olmam gerekir."*
+
+- [x] **KÖK SEBEP:** Paket Faz 14'te (T2) tanımlanabiliyordu ama HİÇBİR
+      SATIŞA BAĞLI DEĞİLDİ. `paketBirimFiyati` fiyat motorunda duruyordu ve
+      yalnızca `/paketler` ekranındaki önizlemede çağrılıyordu;
+      `SiparisKalemi.paketId` sütunu şemada vardı ve HİÇ YAZILMIYORDU;
+      teklifte sütun bile yoktu. v1.23.0'daki teklif-katalog kopukluğunun
+      aynısı.
+- [x] Saf katman: `KapsamliPaket`, `firmaninPaketleri`, `paketiKalemlereAc`,
+      `paketDamgasiGecerliMi` (`fiyat-saf.ts` — testler veritabanısız sınar).
+- [x] Sunucu kapısı: `paket.ts` → `paketKatalogu` (kampanyadaki desen).
+- [x] Ortak `PaketSecici` bileşeni; sipariş ve teklif formuna bağlandı.
+- [x] `TeklifKalemi.paketId` (migration `20260812100000_teklif_paket`).
+- [x] Damga sipariş ve teklif detayında, tekliften siparişe geçişte ve
+      teklif revizyonunda taşınır.
+- [x] Yedek sırası düzeltildi: `teklifKalemi` artık ticari çekirdekten
+      SONRA geri yükleniyor.
+- [x] `tests/paket-secim.test.ts` (17) + 6 tarayıcı kontrolü.
+
+**Kararlar**
+
+1. **PAKET TEK SATIR DEĞİL, KALEMLERİNE AÇILIR.** Tek opak satır olsaydı
+   satırın `urunId`'si boş kalırdı ve onay anındaki stok düşümü
+   (`stokYeterliMi` / `siparisiOnayla` satırın ürününe bakar) SESSİZCE hiç
+   çalışmazdı — paket satılır, depodan hiçbir şey düşmezdi. Kalemlere açmak
+   kısmi sevkiyatı, iadeyi ve ürün bazlı raporu da olduğu gibi bırakır.
+2. **FİYAT PAKETTEN GELİR, SIRA BOZULMAZ:** `paketBirimFiyati` sabit paket
+   fiyatını kalemlere LİSTE DEĞERİNE ORANTILI dağıtır (Faz 14 kararı).
+   Motorun sırası aynen korunur: paket → kampanya → KDV.
+3. **`paketId` BİR DAMGADIR, BİR ALAN DEĞİL.** "Bu birim fiyat neden liste
+   fiyatından farklı?" sorusunun yanıtıdır ve satırda GÖRÜNÜR. Kullanıcı
+   sonradan fiyatı ya da miktarı değiştirebilir; satır o andan sonra sıradan
+   bir satırdır ama damga kalır.
+4. **DAMGA SUNUCUDA DOĞRULANIR** (v1.23.0'ın kampanya kuralı): paket aktif
+   olmalı, kiracıya ait olmalı, belgenin firmasına açık olmalı ve satırın
+   ürünü paketin içinde bulunmalıdır. Uydurma damga SESSİZCE düşer — satır
+   geçerli kalır, yalnızca iddia kaydedilmez. Siparişi reddetmek, zararsız
+   bir tutarsızlık yüzünden satışı durdururdu.
+5. **KATALOG KAPSAMIYLA VERİLİR, SÜZME İSTEMCİDE** — kampanyadaki gerekçenin
+   aynısı: seçili firma kullanıcı yazdıkça değişir, sunucuda bir kez süzmek
+   firmaya özel her paketi listeden düşürürdü.
+6. **FİRMA SEÇİLMEMİŞKEN YALNIZCA GENEL PAKETLER** listelenir; başka bir
+   müşterinin anlaşmalı fiyatını herkese göstermek olurdu.
+7. **SEÇİCİ LİSTE BOŞKEN DE ÇİZİLİR ve sebebini yazar** (v1.23.0'ın dersi):
+   alanı gizlemek, bulgunun asıl kaynağıydı — kullanıcı özelliğin var
+   olduğunu bile göremiyordu.
+8. **TEKLİF DE AYNI ANDA BAĞLANDI.** Yoksa paketli teklif siparişe dönerken
+   damga kaybolur ve zincir (Faz 20 / U4) yine kopardı. Revizyon kopyası da
+   düzeltildi: ürün, paket ve kampanya bağları artık revizyona taşınıyor
+   (v1.23.0'dan kalan eksik).
+9. **PASİF ÜRÜN PAKETTEN DÜŞER, PAKET LİSTEDE KALIR:** katalogdan kaldırılmış
+   tek bir ürün yüzünden bütün anlaşmayı satılamaz hâle getirmek olurdu.
+
+---
 
 ### v1.24.0 — Liquid glass tema ✅
 

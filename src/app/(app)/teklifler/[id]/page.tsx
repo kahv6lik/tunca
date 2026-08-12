@@ -12,6 +12,7 @@ import TeklifIslemleri from "@/components/teklifler/TeklifIslemleri";
 import { formatPara, formatTarih, toDateInput } from "@/lib/format";
 import EkPaneli from "@/components/ekler/EkPaneli";
 import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,12 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
       firsat: { select: { id: true, baslik: true } },
       kalemler: {
         orderBy: { sira: "asc" },
-        include: { kampanya: { select: { kod: true, ad: true } } },
+        include: {
+          kampanya: { select: { kod: true, ad: true } },
+          // Paket damgası (v1.25.0) belgede de görünür: birim fiyat liste
+          // fiyatından farklıysa müşteriye de sebebi gösterilir.
+          paket: { select: { kod: true, ad: true } },
+        },
       },
       ustTeklif: { select: { id: true, no: true, revizyonNo: true } },
       revizyonlar: { select: { id: true, no: true, revizyonNo: true, durum: true } },
@@ -99,8 +105,9 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
     sunucuda bir kez süzmek yanlış olurdu, çünkü ilk çizimde firma ve ürün
     henüz seçilmemiştir. İzni olmayan modül HİÇ sorgulanmaz.
   */
-  const [urunler, kampanyalar] = await Promise.all([
-    (await yetkiVarMi(IZIN.urunGoruntule))
+  const urunGorur = await yetkiVarMi(IZIN.urunGoruntule);
+  const [urunler, kampanyalar, paketler] = await Promise.all([
+    urunGorur
       ? db.urun.findMany({
           where: { durum: "aktif" },
           orderBy: { ad: "asc" },
@@ -111,6 +118,13 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
     (await yetkiVarMi(IZIN.kampanyaGoruntule))
       ? kampanyaKatalogu(kampanyaIstemcisi(db))
       : Promise.resolve([]),
+    /*
+      Paket kataloğu KAPSAMIYLA verilir; süzme istemcide yapılır (v1.25.0) —
+      kampanyadaki gerekçenin aynısı: seçili firma kullanıcı yazdıkça
+      değişir, sunucuda bir kez süzmek firmaya özel her paketi düşürürdü.
+      Paket katalogun bir türevidir, izni de katalog iznidir.
+    */
+    urunGorur ? paketKatalogu(paketIstemcisi(db)) : Promise.resolve([]),
   ]);
 
   return (
@@ -188,6 +202,7 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
           kisiler={kisiler}
           urunler={urunler}
           kampanyalar={kampanyalar}
+        paketler={paketler}
           mevcut={{
             id: teklif.id,
             firmaId: teklif.firmaId,
@@ -210,6 +225,7 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               birim: k.birim,
               birimFiyat: k.birimFiyat,
               urunId: k.urunId ?? "",
+              paketId: k.paketId ?? "",
               kampanyaId: k.kampanyaId ?? "",
             })),
           }}
@@ -230,7 +246,14 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               <tbody className="divide-y divide-border/50">
                 {teklif.kalemler.map((k) => (
                   <tr key={k.id}>
-                    <td className="td">{k.aciklama}</td>
+                    <td className="td">
+                      {k.aciklama}
+                      {k.paket && (
+                        <span className="ml-2 rounded bg-sky-500/10 px-1.5 py-0.5 text-xs text-sky-500">
+                          {k.paket.kod} paketi
+                        </span>
+                      )}
+                    </td>
                     <td className="td">
                       {k.miktar} {k.birim}
                     </td>

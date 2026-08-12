@@ -6,6 +6,7 @@ import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import SiparisForm from "@/components/siparisler/SiparisForm";
 import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +85,8 @@ export default async function SiparisDuzenlePage(props: {
     hiçbir kampanya listeye giremiyordu.
   */
   const kampanyalar = await kampanyaKatalogu(kampanyaIstemcisi(db));
+  // Paket kataloğu da kapsamıyla verilir; süzme istemcide (v1.25.0).
+  const paketler = await paketKatalogu(paketIstemcisi(db));
 
   return (
     <div>
@@ -103,6 +106,7 @@ export default async function SiparisDuzenlePage(props: {
         firmalar={firmalar}
         urunler={urunler}
         kampanyalar={kampanyalar}
+        paketler={paketler}
         kisiler={kisiler}
         projeler={projeler}
         mevcut={{
@@ -114,6 +118,7 @@ export default async function SiparisDuzenlePage(props: {
           notlar: siparis.notlar ?? "",
           kalemler: siparis.kalemler.map((k) => ({
             urunId: k.urunId ?? "",
+            paketId: k.paketId ?? "",
             aciklama: k.aciklama,
             miktar: k.miktar,
             birim: k.birim,

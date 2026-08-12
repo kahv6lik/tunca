@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Package } from "lucide-react";
 import {
   siparisOlustur,
   siparisGuncelle,
@@ -10,10 +10,14 @@ import {
 } from "@/app/(app)/siparisler/actions";
 import { PARA_BIRIMI, URUN_BIRIMLERI } from "@/lib/constants";
 import { formatPara } from "@/lib/format";
+import PaketSecici from "@/components/urunler/PaketSecici";
 import {
   satirFiyatiHesapla,
   satirinKampanyalari,
+  firmaninPaketleri,
+  paketiKalemlereAc,
   type KapsamliKampanya,
+  type KapsamliPaket,
 } from "@/lib/fiyat-saf";
 
 type UrunSecenek = {
@@ -29,6 +33,13 @@ type UrunSecenek = {
 
 export type SiparisKalemDegeri = {
   urunId: string;
+  /**
+   * Satır bir paketten açıldıysa hangi paketten geldiği (v1.25.0).
+   * Görünmez bir damgadır: kullanıcı doğrudan seçmez, "Paketten kalem ekle"
+   * ile gelir ve satırın birim fiyatının neden liste fiyatından farklı
+   * olduğunu açıklar.
+   */
+  paketId: string;
   aciklama: string;
   miktar: number;
   birim: string;
@@ -50,6 +61,7 @@ export type SiparisDegerleri = {
 
 const BOS_KALEM: SiparisKalemDegeri = {
   urunId: "",
+  paketId: "",
   aciklama: "",
   miktar: 1,
   birim: "adet",
@@ -70,6 +82,7 @@ export default function SiparisForm({
   firmalar,
   urunler,
   kampanyalar,
+  paketler = [],
   kisiler,
   mevcut,
   varsayilanFirmaId,
@@ -83,6 +96,8 @@ export default function SiparisForm({
   firmalar: { id: string; ad: string }[];
   urunler: UrunSecenek[];
   kampanyalar: KapsamliKampanya[];
+  /** Paket kataloğu KAPSAMIYLA gelir; süzme istemcide yapılır (v1.25.0). */
+  paketler?: KapsamliPaket[];
   kisiler?: { id: string; ad: string }[];
   mevcut?: SiparisDegerleri;
   varsayilanFirmaId?: string;
@@ -131,6 +146,9 @@ export default function SiparisForm({
           ? {
               ...k,
               urunId,
+              // Ürün değişince paket damgası da düşer: damga "bu ÜRÜN şu
+              // paketten geldi" demektir, ürün değişince iddia yalan olur.
+              paketId: "",
               aciklama: u ? u.ad : k.aciklama,
               birim: u ? u.birim : k.birim,
               birimFiyat: u ? u.listeFiyat : k.birimFiyat,
@@ -142,6 +160,46 @@ export default function SiparisForm({
           : k
       )
     );
+  }
+
+  /*
+    PAKETTEN KALEM EKLEME (v1.25.0).
+
+    Paket TEK BİR SATIR OLARAK EKLENMEZ, kalemlerine açılır: her ürün kendi
+    satırı olur. Tek opak satır olsaydı satırın `urunId`'si boş kalırdı ve
+    onay anındaki stok düşümü (satırın ürününe bakar) SESSİZCE hiç
+    çalışmazdı — paket satılır, depodan hiçbir şey düşmezdi. Kalemlere
+    açmak kısmi sevkiyatı, iadeyi ve ürün bazlı raporu da bozmaz.
+
+    Birim fiyat paketten gelir (`paketBirimFiyati`): sabit paket fiyatı
+    kalemlere liste değerine ORANTILI dağıtılır (Faz 14 kararı). Kullanıcı
+    sonradan fiyatı ya da miktarı değiştirebilir; satır o andan sonra
+    sıradan bir satırdır ama `paketId` damgası kalır.
+  */
+  const uygunPaketler = firmaninPaketleri(paketler, firmaId || null);
+
+  function paketEkle(paketId: string) {
+    const paket = uygunPaketler.find((p) => p.paketId === paketId);
+    if (!paket) return;
+
+    const yeniler: SiparisKalemDegeri[] = paketiKalemlereAc(paket).map((s) => ({
+      ...BOS_KALEM,
+      urunId: s.urunId,
+      paketId: s.paketId,
+      aciklama: s.aciklama,
+      miktar: s.miktar,
+      birim: s.birim,
+      birimFiyat: s.birimFiyat,
+      kdvOrani: s.kdvOrani,
+    }));
+
+    setKalemler((ks) => {
+      // Kullanıcı forma yeni girdiyse tek boş satır duruyordur; paketin
+      // kalemleri onun YERİNE geçer, altına boş bir satır bırakmaz.
+      const bosMu =
+        ks.length === 1 && !ks[0].urunId && !ks[0].aciklama.trim();
+      return bosMu ? yeniler : [...ks, ...yeniler];
+    });
   }
 
   /** Seçili kampanya, verilen bağlamda hâlâ geçerli mi? */
@@ -156,15 +214,32 @@ export default function SiparisForm({
     );
   }
 
-  /** Firma değişince geçersiz kalan kampanya seçimleri temizlenir. */
+  /** Bir paket damgası, verilen firmada hâlâ geçerli mi? */
+  function paketGecerliMi(paketId: string, firma: string): boolean {
+    if (!paketId) return false;
+    return firmaninPaketleri(paketler, firma || null).some(
+      (p) => p.paketId === paketId
+    );
+  }
+
+  /**
+   * Firma değişince geçersiz kalan kampanya VE paket damgaları temizlenir.
+   *
+   * Paket damgası da firmaya bağlıdır: A firmasına özel bir paketten açılan
+   * satır, firma B'ye çevrildiğinde "B ile şu paket anlaşması var" demeye
+   * devam ederdi. Fiyat elle değiştirilmeden kalır — kullanıcının girdiği
+   * rakama dokunmayız — ama iddia düşer.
+   */
   function firmaSec(yeni: string) {
     setFirmaId(yeni);
     setKalemler((ks) =>
-      ks.map((k) =>
-        gecerliMi(k.kampanyaId, yeni, k.urunId || null)
-          ? k
-          : { ...k, kampanyaId: "" }
-      )
+      ks.map((k) => ({
+        ...k,
+        kampanyaId: gecerliMi(k.kampanyaId, yeni, k.urunId || null)
+          ? k.kampanyaId
+          : "",
+        paketId: paketGecerliMi(k.paketId, yeni) ? k.paketId : "",
+      }))
     );
   }
 
@@ -292,20 +367,41 @@ export default function SiparisForm({
 
       {/* Kalemler */}
       <div className="card p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-foreground">Sipariş Kalemleri</h3>
-          <button
-            type="button"
-            onClick={() => setKalemler((k) => [...k, { ...BOS_KALEM }])}
-            className="btn-secondary h-8 px-3 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" /> Kalem Ekle
-          </button>
+          <div className="flex items-center gap-2">
+            <PaketSecici paketler={uygunPaketler} firmaSecili={Boolean(firmaId)} onSec={paketEkle} />
+            <button
+              type="button"
+              onClick={() => setKalemler((k) => [...k, { ...BOS_KALEM }])}
+              className="btn-secondary h-8 px-3 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" /> Kalem Ekle
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4">
           {kalemler.map((k, i) => (
             <div key={i} className="rounded-xl border border-border/60 p-3">
+              {/*
+                Paket damgası GÖRÜNÜR: satırın birim fiyatı liste fiyatından
+                farklıysa kullanıcı sebebini burada okur. Damga gizli bir
+                alan olsaydı, "bu fiyat nereden geldi?" sorusu ekranda
+                yanıtsız kalırdı.
+              */}
+              {k.paketId && (
+                <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-sky-500/10 px-2 py-1 text-xs text-sky-500">
+                  <Package className="h-3.5 w-3.5" />
+                  {paketler.find((p) => p.paketId === k.paketId)?.ad ?? "Paket"}{" "}
+                  paketinden — fiyat paketten geldi
+                </p>
+              )}
+              <input
+                type="hidden"
+                name={`kalem-${i}-paketId`}
+                value={k.paketId}
+              />
               <div className="grid gap-3 sm:grid-cols-12">
                 <div className="sm:col-span-4">
                   <label className="label text-xs" htmlFor={`kalem-${i}-urunId`}>Ürün</label>

@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Package } from "lucide-react";
 import { teklifOlustur, teklifGuncelle, type FormState } from "@/app/(app)/teklifler/actions";
 import { TEKLIF_DURUM, TEKLIF_BIRIMLERI, PARA_BIRIMI, durumBadge } from "@/lib/constants";
 import { formatPara } from "@/lib/format";
+import PaketSecici from "@/components/urunler/PaketSecici";
 import {
   satirFiyatiHesapla,
   satirinKampanyalari,
+  firmaninPaketleri,
+  paketiKalemlereAc,
   type KapsamliKampanya,
+  type KapsamliPaket,
 } from "@/lib/fiyat-saf";
 
 type UrunSecenek = {
@@ -30,6 +34,11 @@ export type Kalem = {
   birimFiyat: number;
   /** Katalog bağı — serbest metin kalemlerde boştur. */
   urunId: string;
+  /**
+   * Paket damgası (v1.25.0): satır bir paketten açıldıysa hangi paketten
+   * geldiği. Kullanıcı doğrudan seçmez; "Paketten kalem ekle" ile gelir.
+   */
+  paketId: string;
   kampanyaId: string;
 };
 
@@ -56,6 +65,7 @@ const BOS_KALEM: Kalem = {
   birim: "adet",
   birimFiyat: 0,
   urunId: "",
+  paketId: "",
   kampanyaId: "",
 };
 
@@ -71,6 +81,7 @@ export default function TeklifForm({
   kisiler,
   urunler = [],
   kampanyalar = [],
+  paketler = [],
   mevcut,
   varsayilanNo,
   sabitFirmaId,
@@ -89,6 +100,8 @@ export default function TeklifForm({
    * olurdu: ilk çizimde firma ve ürün henüz boştur.
    */
   kampanyalar?: KapsamliKampanya[];
+  /** Paket kataloğu KAPSAMIYLA gelir; süzme istemcide (v1.25.0). */
+  paketler?: KapsamliPaket[];
   mevcut?: TeklifDegerleri;
   varsayilanNo?: string;
   sabitFirmaId?: string;
@@ -169,6 +182,9 @@ export default function TeklifForm({
           ? {
               ...k,
               urunId,
+              // Ürün değişince paket damgası düşer: damga "bu ÜRÜN şu
+              // paketten geldi" demektir, ürün değişince iddia yalan olur.
+              paketId: "",
               aciklama: u ? u.ad : k.aciklama,
               birim: u ? u.birim : k.birim,
               birimFiyat: u ? u.listeFiyat : k.birimFiyat,
@@ -180,13 +196,50 @@ export default function TeklifForm({
     );
   }
 
-  /** Firma değişince geçersiz kalan kampanya seçimleri temizlenir. */
+  /* PAKETTEN KALEM EKLEME (v1.25.0) — siparişteki desenin aynısı.
+     Paket tek satır olarak eklenmez, KALEMLERİNE açılır; teklif siparişe
+     dönerken satırlar ve paket damgası olduğu gibi taşınır. */
+  const uygunPaketler = firmaninPaketleri(paketler, firmaId || null);
+
+  function paketEkle(paketId: string) {
+    const paket = uygunPaketler.find((p) => p.paketId === paketId);
+    if (!paket) return;
+
+    const yeniler: Kalem[] = paketiKalemlereAc(paket).map((s) => ({
+      ...BOS_KALEM,
+      urunId: s.urunId,
+      paketId: s.paketId,
+      aciklama: s.aciklama,
+      miktar: s.miktar,
+      birim: s.birim,
+      birimFiyat: s.birimFiyat,
+    }));
+
+    setKalemler((ks) => {
+      const bosMu = ks.length === 1 && !ks[0].urunId && !ks[0].aciklama.trim();
+      return bosMu ? yeniler : [...ks, ...yeniler];
+    });
+  }
+
+  /** Bir paket damgası, verilen firmada hâlâ geçerli mi? */
+  function paketGecerliMi(paketId: string, firma: string): boolean {
+    if (!paketId) return false;
+    return firmaninPaketleri(paketler, firma || null).some(
+      (p) => p.paketId === paketId
+    );
+  }
+
+  /** Firma değişince geçersiz kalan kampanya VE paket damgaları temizlenir. */
   function firmaSec(yeni: string) {
     setFirmaId(yeni);
     setKalemler((ks) =>
-      ks.map((k) =>
-        gecerliMi(k.kampanyaId, yeni, k.urunId || null) ? k : { ...k, kampanyaId: "" }
-      )
+      ks.map((k) => ({
+        ...k,
+        kampanyaId: gecerliMi(k.kampanyaId, yeni, k.urunId || null)
+          ? k.kampanyaId
+          : "",
+        paketId: paketGecerliMi(k.paketId, yeni) ? k.paketId : "",
+      }))
     );
   }
 
@@ -343,20 +396,37 @@ export default function TeklifForm({
 
       {/* Kalemler */}
       <div className="card p-5">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-foreground">Kalemler</h2>
-          <button
-            type="button"
-            onClick={() => setKalemler((k) => [...k, { ...BOS_KALEM }])}
-            className="btn-secondary h-9 px-3 text-sm"
-          >
-            <Plus className="h-4 w-4" /> Kalem Ekle
-          </button>
+          <div className="flex items-center gap-2">
+            <PaketSecici
+              paketler={uygunPaketler}
+              firmaSecili={Boolean(firmaId)}
+              onSec={paketEkle}
+            />
+            <button
+              type="button"
+              onClick={() => setKalemler((k) => [...k, { ...BOS_KALEM }])}
+              className="btn-secondary h-9 px-3 text-sm"
+            >
+              <Plus className="h-4 w-4" /> Kalem Ekle
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
           {kalemler.map((k, i) => (
             <div key={i} className="grid gap-2 sm:grid-cols-12">
+              <input type="hidden" name={`kalem-${i}-paketId`} value={k.paketId} />
+              {/* Paket damgası GÖRÜNÜR: birim fiyat liste fiyatından
+                  farklıysa sebebi burada okunur. */}
+              {k.paketId && (
+                <p className="sm:col-span-12 inline-flex items-center gap-1.5 text-xs text-sky-500">
+                  <Package className="h-3.5 w-3.5" />
+                  {paketler.find((p) => p.paketId === k.paketId)?.ad ?? "Paket"}{" "}
+                  paketinden — fiyat paketten geldi
+                </p>
+              )}
               {/* Katalog bağı (v1.23.0): ürün seçilince fiyat ve birim gelir,
                   ürüne tanımlı kampanyalar da böylece görünür hâle gelir. */}
               {urunler.length > 0 && (

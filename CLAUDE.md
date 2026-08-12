@@ -133,7 +133,7 @@ src/
     yedekler/          # YedekPanel (Faz 10)
     ozel-alanlar/      # OzelAlanPanel (Faz 11)
     urunler/           # UrunPanel, PaketPanel, KampanyaPanel, StokPanel,
-                       # KullanimPanel (Faz 14)
+                       # KullanimPanel (Faz 14), PaketSecici (v1.25.0)
     siparisler/        # SiparisForm, OnayPanel, SevkiyatPanel,
                        # DurumDugmeleri (Faz 15)
     projeler/          # ProjePanel (Faz 16)
@@ -188,6 +188,7 @@ src/
     arama.ts              # Türkçe duyarsız liste araması — saf (Faz 13)
     tarih-araligi.ts      # rapor tarih aralığı + hazır aralıklar — saf (Faz 13)
     fiyat-saf.ts          # fiyat motoru: liste→paket→kampanya→KDV (Faz 14)
+    paket.ts              # paket kataloğu — satışa açık paketler (v1.25.0)
     kampanya.ts           # atomik kota sayacı + kullanım defteri (Faz 14)
     stok.ts               # stok hareket defteri + atomik bakiye (Faz 14)
     urun-tanimlar.ts      # kod normalize, stok durumu — saf (Faz 14)
@@ -421,6 +422,30 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   kişi katalogu düzenlemeyebilir.
 - **`urun`, `kampanya`, `stok` birer paket modülüdür**; hizmet satan bir
   kuruluş katalogu kullanır ama stok tutmaz.
+
+### Paketin Satışa Bağlanması (v1.25.0)
+
+- **PAKET TEK SATIR DEĞİL, KALEMLERİNE AÇILIR.** Paket Faz 14'te
+  tanımlanabiliyordu ama hiçbir satışa bağlı DEĞİLDİ (`paketBirimFiyati`
+  yalnızca `/paketler` önizlemesinde çağrılıyordu, `SiparisKalemi.paketId`
+  hiç yazılmıyordu, teklifte sütun bile yoktu). Artık "Paketten kalem ekle"
+  paketi satırlara açar: her ürün KENDİ satırıdır. Tek opak satır olsaydı
+  satırın `urunId`'si boş kalırdı ve onay anındaki stok düşümü SESSİZCE hiç
+  çalışmazdı — paket satılır, depodan hiçbir şey düşmezdi.
+- **`paketId` BİR DAMGADIR, BİR ALAN DEĞİL:** "bu birim fiyat neden liste
+  fiyatından farklı?" sorusunun yanıtıdır ve satırda GÖRÜNÜR. Kullanıcı
+  fiyatı ya da miktarı sonradan değiştirebilir; satır sıradanlaşır ama damga
+  kalır. Ürün değişirse damga düşer (iddia yalan olurdu).
+- **DAMGA SUNUCUDA DOĞRULANIR** (`paketDamgasiGecerliMi`): paket katalogda
+  olmalı, belgenin firmasına açık olmalı ve satırın ürünü paketin içinde
+  bulunmalıdır. Uydurma damga SESSİZCE düşer — satır geçerli kalır, yalnızca
+  iddia kaydedilmez.
+- **KATALOG KAPSAMIYLA VERİLİR, SÜZME İSTEMCİDE** (kampanyadaki gerekçe).
+  Firma seçilmemişken yalnızca GENEL paketler listelenir; seçici liste boşken
+  de çizilir ve sebebini yazar.
+- **TEKLİF DE BAĞLIDIR** (`TeklifKalemi.paketId`): yoksa paketli teklif
+  siparişe dönerken damga kaybolurdu. Revizyon kopyası da ürün/paket/kampanya
+  bağlarını taşır.
 
 ### Sipariş, Onay ve Sevkiyat (Faz 15)
 
@@ -786,7 +811,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**822 kontrol**.
+**845 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -794,10 +819,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (533 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (550 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 268)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 274)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -1058,6 +1083,16 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.25.0** — **Paket satışa bağlandı.** Ürün paketi Faz 14'ten beri
+  tanımlanabiliyor ama hiçbir siparişe ya da teklife bağlanamıyordu; artık
+  "Paketten kalem ekle" ile paket KALEMLERİNE açılıyor (her ürün kendi
+  satırı — stok düşümü, kısmi sevkiyat ve ürün raporu bozulmuyor), birim
+  fiyat paketten geliyor ve her satıra hangi paketten geldiği damgalanıyor.
+  Damga sunucuda kapsamıyla doğrulanıyor, sipariş/teklif belgesinde görünüyor
+  ve tekliften siparişe geçişte taşınıyor. `TeklifKalemi.paketId` eklendi;
+  teklif revizyonunun ürün/kampanya bağlarını düşürdüğü (v1.23.0'dan kalan)
+  eksik ve yedekte teklif kaleminin ticari çekirdekten önce geri yüklendiği
+  sıra hatası da düzeltildi.
 - **v1.24.0** — **Liquid glass tema.** Üst çubuk, sol menü, bölüm sekme
   çubuğu, mobil menü, komut paleti ve yan panel beş katmanlı cam yüzeye
   çevrildi (buzlu taban, gerçek kırılma, gövde rengi, parlama, ışıklı kenar);

@@ -55,6 +55,9 @@ export default async function SiparisDetayPage(props: {
         include: {
           urun: { select: { kod: true, stokTakibi: true, stokMiktar: true } },
           kampanya: { select: { kod: true, ad: true } },
+          // Paket damgası (v1.25.0): satır bir paketten açıldıysa hangi
+          // anlaşmadan geldiği belgede de görünür.
+          paket: { select: { kod: true, ad: true } },
         },
       },
       sevkiyatlar: { orderBy: { createdAt: "desc" } },
@@ -207,6 +210,11 @@ export default async function SiparisDetayPage(props: {
                         stok {k.urun.stokMiktar}
                       </span>
                     )}
+                  {k.paket && (
+                    <span className="ml-2 rounded bg-sky-500/10 px-1.5 py-0.5 text-xs text-sky-500">
+                      {k.paket.kod} paketi
+                    </span>
+                  )}
                 </td>
                 <td className="td text-right">{k.miktar} {k.birim}</td>
                 <td className="td text-right">{formatPara(k.birimFiyat, siparis.paraBirimi)}</td>

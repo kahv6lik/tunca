@@ -354,3 +354,108 @@ export function satirinKampanyalari(
     )
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PAKET SEÇİMİ (v1.25.0)
+
+   Paket Faz 14'te tanımlanabiliyordu ama hiçbir satışa BAĞLI DEĞİLDİ:
+   `paketBirimFiyati` yalnızca `/paketler` ekranındaki önizlemede
+   çağrılıyordu, `SiparisKalemi.paketId` hiç yazılmıyordu ve teklifte
+   sütun bile yoktu. Ortağın bulgusu: "sipariş oluştururken ürün
+   seçebiliyorum ama paket seçemiyorum."
+
+   PAKET TEK SATIR DEĞİL, KALEMLERİNE AÇILIR. Tek opak satır olsaydı
+   satırın `urunId`'si boş kalırdı ve onay anındaki stok düşümü
+   (`stokYeterliMi` / `siparisiOnayla` satırın ürününe bakar) SESSİZCE
+   hiç çalışmazdı — paket satılır, depodan hiçbir şey düşmezdi. Kalemlere
+   açmak ayrıca kısmi sevkiyatı, iadeyi ve ürün bazlı raporu da olduğu
+   gibi bırakır.
+
+   Satıra basılan `paketId` damgası "bu fiyat neden böyle?" sorusunun
+   yanıtıdır: liste fiyatından farklı bir birim fiyat gördüğünde kullanıcı
+   hangi paket anlaşmasından geldiğini görebilmelidir.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/** Forma verilen paket kataloğu — kapsamıyla birlikte. */
+export type KapsamliPaket = Omit<FiyatPaketi, "kalemler"> & {
+  kod: string;
+  ad: string;
+  /** null = herkese açık genel paket; dolu = yalnızca o firmaya. */
+  firmaId: string | null;
+  kalemler: {
+    urunId: string;
+    miktar: number;
+    listeFiyat: number;
+    /** Satır açıklaması ve birimi katalogdan gelir. */
+    ad: string;
+    birim: string;
+    kdvOrani: number;
+  }[];
+};
+
+/**
+ * Firmaya sunulabilecek paketleri süzer — kampanyadaki desenin aynısı.
+ *
+ * Genel paketler (firmaId = null) her firmaya açıktır; firmaya özel paket
+ * yalnızca o firmada görünür. Firma HENÜZ SEÇİLMEMİŞSE yalnızca genel
+ * paketler listelenir: başka bir müşterinin anlaşmalı fiyatını, firma
+ * seçilmediği için, herkese göstermek olurdu.
+ */
+export function firmaninPaketleri(
+  katalog: KapsamliPaket[],
+  firmaId?: string | null
+): KapsamliPaket[] {
+  return katalog.filter((p) => p.firmaId === null || p.firmaId === firmaId);
+}
+
+/** Paketten açılan bir sipariş/teklif satırı. */
+export type PaketSatiri = {
+  urunId: string;
+  paketId: string;
+  aciklama: string;
+  miktar: number;
+  birim: string;
+  birimFiyat: number;
+  kdvOrani: number;
+};
+
+/**
+ * Paketi satırlara açar: her kalem KENDİ satırı olur.
+ *
+ * Birim fiyat `paketBirimFiyati`ndan gelir — yani sabit paket fiyatı
+ * kalemlere LİSTE DEĞERİNE ORANTILI dağıtılır (Faz 14 kararı). Miktar
+ * paketteki miktardır; kullanıcı sonradan değiştirebilir, satır o andan
+ * sonra sıradan bir satır gibi davranır ama `paketId` damgası kalır.
+ */
+export function paketiKalemlereAc(paket: KapsamliPaket): PaketSatiri[] {
+  return paket.kalemler.map((k) => ({
+    urunId: k.urunId,
+    paketId: paket.paketId,
+    aciklama: `${paket.ad} — ${k.ad}`,
+    miktar: k.miktar,
+    birim: k.birim,
+    birimFiyat: paketBirimFiyati(paket, k.urunId, k.listeFiyat) ?? k.listeFiyat,
+    kdvOrani: k.kdvOrani,
+  }));
+}
+
+/**
+ * Satıra basılacak `paketId` damgasını doğrular — SUNUCUDA çağrılır.
+ *
+ * Kampanyadaki kuralın aynısı (v1.23.0): istemciden gelen bir id'ye
+ * güvenilmez. Paket katalogda olmalı (yani aktif ve kiracıya ait), belgenin
+ * firmasına açık olmalı (genel ya da o firmaya özel) ve satırın ÜRÜNÜ
+ * paketin içinde bulunmalıdır. Aksi hâlde bir müşterinin belgesinde başka
+ * bir müşterinin anlaşma adı görünebilirdi.
+ */
+export function paketDamgasiGecerliMi(
+  katalog: KapsamliPaket[],
+  paketId: string,
+  baglam: { firmaId?: string | null; urunId?: string | null }
+): boolean {
+  const paket = katalog.find((p) => p.paketId === paketId);
+  if (!paket) return false;
+  if (paket.firmaId !== null && paket.firmaId !== baglam.firmaId) return false;
+  if (!baglam.urunId) return false;
+  return paket.kalemler.some((k) => k.urunId === baglam.urunId);
+}

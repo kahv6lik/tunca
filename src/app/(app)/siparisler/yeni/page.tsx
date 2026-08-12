@@ -5,6 +5,7 @@ import { IZIN, yetkiGerektir } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import SiparisForm from "@/components/siparisler/SiparisForm";
 import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 
 export const dynamic = "force-dynamic";
 
@@ -76,12 +77,24 @@ export default async function YeniSiparisPage(props: {
   const kampanyalar = await kampanyaKatalogu(kampanyaIstemcisi(db));
 
   /*
+    Paket kataloğu da KAPSAMIYLA verilir (v1.25.0) ve süzme istemcide
+    yapılır — kampanyadaki gerekçenin aynısı: seçili firma kullanıcı
+    yazdıkça değişir, sunucuda bir kez süzmek firmaya özel her paketi
+    listeden düşürürdü.
+  */
+  const paketler = await paketKatalogu(paketIstemcisi(db));
+
+  /*
     Tekliften siparişe geçişte ÜRÜN ve KAMPANYA da taşınır (v1.23.0).
     Eskiden boş geçiliyordu: müşteriye kampanyalı bir teklif verilip sipariş
     aşamasında indirim kayboluyordu — zincirin (Faz 20 / U4) anlamı buydu.
   */
   const teklifKalemleri = (teklif?.kalemler ?? []).map((k) => ({
     urunId: k.urunId ?? "",
+    // Paket damgası tekliften siparişe TAŞINIR: taşınmasaydı paketli bir
+    // teklif siparişe dönerken "bu fiyat nereden geldi" bilgisi kaybolurdu
+    // (v1.23.0'da kampanya için verilen kararın aynısı).
+    paketId: k.paketId ?? "",
     aciklama: k.aciklama,
     miktar: k.miktar,
     birim: k.birim,
@@ -113,6 +126,7 @@ export default async function YeniSiparisPage(props: {
         firmalar={firmalar}
         urunler={urunler}
         kampanyalar={kampanyalar}
+        paketler={paketler}
         kisiler={kisiler}
         varsayilanFirmaId={firmaId}
         varsayilanTeklifId={teklif?.id}

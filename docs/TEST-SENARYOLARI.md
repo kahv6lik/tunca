@@ -288,6 +288,33 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.25.0 — Paket satışa bağlandı
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Ürünler → Paketler → yeni paket (genel, iki ürün, iskontolu) | Paket kaydedilir |
+| 2 | `/siparisler/yeni` → firma seç | Kalemler başlığında **Paketten kalem ekle** görünür |
+| 3 | Paketi seç | Paketin her ürünü AYRI satır olur; açıklamada paket adı geçer |
+| 4 | Satır fiyatlarına bak | Birim fiyat liste fiyatı değil, PAKET fiyatıdır |
+| 5 | Satırdaki mavi rozeti oku | "… paketinden — fiyat paketten geldi" yazar |
+| 6 | Siparişi kaydet → detayına bak | Kalem satırında "PKT-… paketi" rozeti var |
+| 7 | Siparişi onayla | Stok her ürün için AYRI AYRI düşer (paket tek satır değil) |
+| 8 | Firmaya özel bir paket tanımla (A firması) | Kaydedilir |
+| 9 | Sipariş formunda B firmasını seç | O paket listede YOK |
+| 10 | A firmasını seç | Paket listeye gelir |
+| 11 | Paketi ekle, sonra firmayı B'ye çevir | Fiyat kalır ama paket rozeti DÜŞER |
+| 12 | Paketten gelen satırda ürünü değiştir | Rozet düşer (damga artık doğru değil) |
+| 13 | Firma seçmeden forma bak | "Paket için önce firma seçin" yazar (alan gizlenmez) |
+| 14 | Hiç aktif paket yokken forma bak | "Bu firmaya açık aktif paket yok" yazar |
+| 15 | `/teklifler/yeni` → paketten kalem ekle | Teklifte de aynı şekilde çalışır |
+| 16 | Teklifi kaydet, detayına bak | Kalemde paket rozeti görünür |
+| 17 | Teklifi kabul et → "Siparişe dönüştür" | Ürün, paket ve kampanya siparişe TAŞINIR |
+| 18 | Teklifi revize et | Revizyonda ürün/paket/kampanya bağları korunur |
+| 19 | `admin@anadolu.com` ile sipariş formu | Gezegen'in paketlerinden hiçbiri görünmez |
+| 20 | Yedek al → temiz kiracıya geri yükle | Teklif kalemleri FK hatası vermeden yüklenir |
+
+---
+
 ### v1.24.0 — Liquid glass tema
 
 Ön sürüm olarak çıktı (`-pre.1`, `-pre.2`), ortak onayladı ve `v1.24.0`

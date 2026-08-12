@@ -5,6 +5,7 @@ import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import TeklifForm from "@/components/teklifler/TeklifForm";
 import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 
 export const dynamic = "force-dynamic";
 
@@ -71,8 +72,9 @@ export default async function YeniTeklifPage(
     sunucuda bir kez süzmek yanlış olurdu, çünkü ilk çizimde firma ve ürün
     henüz seçilmemiştir. İzni olmayan modül HİÇ sorgulanmaz.
   */
-  const [urunler, kampanyalar] = await Promise.all([
-    (await yetkiVarMi(IZIN.urunGoruntule))
+  const urunGorur = await yetkiVarMi(IZIN.urunGoruntule);
+  const [urunler, kampanyalar, paketler] = await Promise.all([
+    urunGorur
       ? db.urun.findMany({
           where: { durum: "aktif" },
           orderBy: { ad: "asc" },
@@ -83,6 +85,13 @@ export default async function YeniTeklifPage(
     (await yetkiVarMi(IZIN.kampanyaGoruntule))
       ? kampanyaKatalogu(kampanyaIstemcisi(db))
       : Promise.resolve([]),
+    /*
+      Paket kataloğu KAPSAMIYLA verilir; süzme istemcide yapılır (v1.25.0) —
+      kampanyadaki gerekçenin aynısı: seçili firma kullanıcı yazdıkça
+      değişir, sunucuda bir kez süzmek firmaya özel her paketi düşürürdü.
+      Paket katalogun bir türevidir, izni de katalog iznidir.
+    */
+    urunGorur ? paketKatalogu(paketIstemcisi(db)) : Promise.resolve([]),
   ]);
 
   return (
@@ -108,6 +117,7 @@ export default async function YeniTeklifPage(
         kisiler={kisiler.length ? kisiler : undefined}
         urunler={urunler}
         kampanyalar={kampanyalar}
+        paketler={paketler}
         varsayilanNo={varsayilanNo}
         varsayilanFirmaId={secilenFirmaId}
         varsayilanFirsatId={kaynakFirsat?.id}

@@ -75,7 +75,6 @@ const MODELLER = [
   "aktivite",
   "lead",
   "teklif",
-  "teklifKalemi",
   "yatirimDestegi",
   "egitim",
   "hizmet",
@@ -97,6 +96,14 @@ const MODELLER = [
   "kampanyaFirma",
   "kampanyaKullanim",
   "stokHareketi",
+  /*
+    TEKLİF KALEMİ TİCARİ ÇEKİRDEKTEN SONRA gelir. Faz 7'de kalem yalnızca
+    teklife bağlıydı ve teklifin hemen ardında duruyordu; v1.23.0 ürün ve
+    kampanya bağını, v1.25.0 paket bağını ekledi. O bağlarla birlikte kalem
+    artık urun/kampanya/paket satırlarını da bekler — eski sırada geri
+    yükleme FK hatasıyla düşerdi.
+  */
+  "teklifKalemi",
   // Faz 15 — sipariş ve sevkiyat. Sipariş kalemden, sevkiyat siparişten
   // önce gelir (FK sırası).
   "siparis",

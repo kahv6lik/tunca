@@ -23,8 +23,13 @@ import {
   siparisiIptalEt,
   siradakiBelgeNo,
 } from "@/lib/siparis";
-import { satirFiyatiHesapla, type FiyatKampanyasi } from "@/lib/fiyat-saf";
+import {
+  satirFiyatiHesapla,
+  paketDamgasiGecerliMi,
+  type FiyatKampanyasi,
+} from "@/lib/fiyat-saf";
 import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 
 /**
  * Sipariş işlemleri — Faz 15 / S1, S2, S3.
@@ -61,6 +66,8 @@ function revalidate(id?: string) {
 
 type Kalem = {
   urunId: string | null;
+  /** Satır bir paketten açıldıysa hangi paketten geldiği (v1.25.0). */
+  paketId: string | null;
   aciklama: string;
   miktar: number;
   birim: string;
@@ -85,6 +92,7 @@ function kalemleriOku(formData: FormData): Kalem[] {
 
     kalemler.push({
       urunId: String(formData.get(`kalem-${i}-urunId`) ?? "").trim() || null,
+      paketId: String(formData.get(`kalem-${i}-paketId`) ?? "").trim() || null,
       aciklama,
       miktar,
       birim: String(formData.get(`kalem-${i}-birim`) ?? "adet"),
@@ -122,6 +130,17 @@ async function tutarlariHesapla(
   let indirimToplam = 0;
   let kdvToplam = 0;
 
+  /*
+    Paket damgası SUNUCUDA doğrulanır (v1.25.0) — kampanyadaki kuralın
+    aynısı. İstemciden gelen bir `paketId`'ye güvenip satıra basmak,
+    "bu fiyat şu anlaşmadan geliyor" iddiasını herkesin uydurabilmesi
+    demekti; başka bir firmaya özel paketin adı bu firmanın belgesinde
+    görünürdü. Katalog satır döngüsünün DIŞINDA bir kez okunur.
+  */
+  const paketKatalog = kalemler.some((k) => k.paketId)
+    ? await paketKatalogu(paketIstemcisi(db))
+    : [];
+
   for (const k of kalemler) {
     // Kampanya seçilmişse GEÇERLİLİĞİ sunucuda doğrulanır: istemciden gelen
     // bir kampanya id'sine güvenip indirim vermek, indirim yetkisini herkese
@@ -157,6 +176,17 @@ async function tutarlariHesapla(
       ...k,
       // Kampanya uygulanmadıysa satırda da işaretlenmez.
       kampanyaId: sonuc.kampanya?.kampanyaId ?? null,
+      // Damga doğrulanmadıysa SESSİZCE düşer: satır geçerli kalır, yalnızca
+      // "bu paketten geldi" iddiası kaydedilmez. Siparişi reddetmek, çoğu
+      // zaman zararsız bir tutarsızlık yüzünden satışı durdururdu.
+      paketId:
+        k.paketId &&
+        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
+          firmaId,
+          urunId: k.urunId,
+        })
+          ? k.paketId
+          : null,
       tutar: sonuc.netTutar,
       indirimTutari: sonuc.indirimTutari,
       kdvTutari: sonuc.kdvTutari,
@@ -191,6 +221,7 @@ async function kalemleriYaz(
       siparisId,
       sira: i,
       urunId: s.urunId,
+      paketId: s.paketId,
       aciklama: s.aciklama,
       miktar: s.miktar,
       birim: s.birim,

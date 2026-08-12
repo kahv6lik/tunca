@@ -1878,6 +1878,56 @@ async function main() {
   );
 
   // ──────────────────────────────────────────────────────────────────────
+  // Paket satışa bağlandı (v1.25.0)
+  //
+  // ORTAĞIN BULGUSU: "ürün paketi oluşturduğumda sipariş oluştururken ürün
+  // seçebiliyorum ama paket seçemiyorum." Paket Faz 14'te tanımlanabiliyordu
+  // ama hiçbir satışa bağlı DEĞİLDİ.
+  // ──────────────────────────────────────────────────────────────────────
+  console.log("\n▸ Paket seçimi (sipariş ve teklif)\n");
+
+  // `yeniSiparis` / `yeniTeklif` yukarıda alındı; aynı gövdeler sınanır.
+  kontrol(
+    "Sipariş formunda 'Paketten kalem ekle' seçicisi var",
+    yeniSiparis.govde.includes("Paketten kalem ekle")
+  );
+  kontrol(
+    "Teklif formunda 'Paketten kalem ekle' seçicisi var",
+    yeniTeklif.govde.includes("Paketten kalem ekle")
+  );
+  kontrol(
+    "Seed'deki genel paket sipariş formunda LİSTELENİYOR",
+    yeniSiparis.govde.includes("Başlangıç Paketi")
+  );
+  kontrol(
+    "Seed'deki genel paket teklif formunda LİSTELENİYOR",
+    yeniTeklif.govde.includes("Başlangıç Paketi")
+  );
+
+  // Üyenin ürün görme izni var; paket katalogun türevidir, o da görünmeli.
+  const uyePaketSiparis = await sayfaGetir(
+    "kullanici@gezegen.com",
+    "user123",
+    "/siparisler/yeni"
+  );
+  kontrol(
+    "Üye de paket seçicisini görüyor (katalog izniyle gelir)",
+    !uyePaketSiparis.url.includes("/yetkisiz") &&
+      uyePaketSiparis.govde.includes("Paketten kalem ekle")
+  );
+
+  // Çapraz kiracı: Gezegen'in paketi Anadolu'da GÖRÜNMEZ.
+  const anadoluPaketSiparis = await sayfaGetir(
+    "admin@anadolu.com",
+    "admin123",
+    "/siparisler/yeni"
+  );
+  kontrol(
+    "Başka kiracının paketi sipariş formunda görünmüyor",
+    !anadoluPaketSiparis.govde.includes("Başlangıç Paketi")
+  );
+
+  // ──────────────────────────────────────────────────────────────────────
   // Liquid glass tema (v1.24.0-pre) — hiçbir şeyin bozulmadığı
   // ──────────────────────────────────────────────────────────────────────
   console.log("\n▸ Liquid glass tema — işlev kaybı var mı\n");

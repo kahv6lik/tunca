@@ -16,8 +16,12 @@ import {
 import { IZIN, yetkiVarMi } from "@/lib/yetki";
 import { denetimYaz } from "@/lib/denetim";
 import { TEKLIF_DURUM } from "@/lib/constants";
-import { satirFiyatiHesapla } from "@/lib/fiyat-saf";
+import {
+  satirFiyatiHesapla,
+  paketDamgasiGecerliMi,
+} from "@/lib/fiyat-saf";
 import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
+import { paketIstemcisi, paketKatalogu } from "@/lib/paket";
 import { bildirimGonder } from "@/lib/bildirim";
 
 /**
@@ -42,6 +46,9 @@ const kalemSchema = z.object({
   // Katalog bağı OPSİYONELDİR: danışmanlık, montaj gibi katalogda olmayan
   // satırlar serbest metin olarak yazılmaya devam eder.
   urunId: z.string().trim().nullable().default(null),
+  // Paket damgası (v1.25.0): satır bir paketten açıldıysa hangi paketten
+  // geldiği. Sunucuda doğrulanır; uydurma damga sessizce düşer.
+  paketId: z.string().trim().nullable().default(null),
   kampanyaId: z.string().trim().nullable().default(null),
 });
 
@@ -82,6 +89,7 @@ function kalemleriOku(formData: FormData) {
       birim: String(formData.get(`kalem-${i}-birim`) ?? "adet"),
       birimFiyat: formData.get(`kalem-${i}-birimFiyat`) ?? 0,
       urunId: String(formData.get(`kalem-${i}-urunId`) ?? "").trim() || null,
+      paketId: String(formData.get(`kalem-${i}-paketId`) ?? "").trim() || null,
       kampanyaId: String(formData.get(`kalem-${i}-kampanyaId`) ?? "").trim() || null,
     });
     if (parsed.success) kalemler.push(parsed.data);
@@ -110,12 +118,23 @@ async function tutarlariHesapla(
 ) {
   const satirlar: {
     kampanyaId: string | null;
+    paketId: string | null;
     indirimTutari: number;
     tutar: number;
   }[] = [];
 
   let araToplam = 0;
   let kampanyaIndirimi = 0;
+
+  /*
+    Paket damgası da SUNUCUDA doğrulanır (v1.25.0) — kampanyadaki kuralın
+    aynısı. İstemciden gelen bir `paketId`'ye güvenip belgeye basmak, başka
+    bir firmaya özel bir anlaşmanın adını bu müşterinin teklifinde
+    gösterebilmek demekti. Katalog döngünün DIŞINDA bir kez okunur.
+  */
+  const paketKatalog = kalemler.some((k) => k.paketId)
+    ? await paketKatalogu(paketIstemcisi(db))
+    : [];
 
   for (const k of kalemler) {
     const brut = k.miktar * k.birimFiyat;
@@ -148,6 +167,16 @@ async function tutarlariHesapla(
     kampanyaIndirimi += indirim;
     satirlar.push({
       kampanyaId: uygulanan,
+      // Doğrulanmayan damga SESSİZCE düşer: satır geçerli kalır, yalnızca
+      // "bu paketten geldi" iddiası kaydedilmez.
+      paketId:
+        k.paketId &&
+        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
+          firmaId,
+          urunId: k.urunId,
+        })
+          ? k.paketId
+          : null,
       indirimTutari: indirim,
       tutar: brut - indirim,
     });
@@ -197,7 +226,12 @@ async function kalemleriYaz(
   db: TenantClient,
   teklifId: string,
   kalemler: z.infer<typeof kalemSchema>[],
-  satirlar: { kampanyaId: string | null; indirimTutari: number; tutar: number }[]
+  satirlar: {
+    kampanyaId: string | null;
+    paketId: string | null;
+    indirimTutari: number;
+    tutar: number;
+  }[]
 ) {
   await db.teklifKalemi.deleteMany({ where: { teklifId } });
   for (const [i, k] of kalemler.entries()) {
@@ -205,6 +239,7 @@ async function kalemleriYaz(
       teklifId,
       sira: i,
       urunId: k.urunId,
+      paketId: satirlar[i]?.paketId ?? null,
       aciklama: k.aciklama,
       miktar: k.miktar,
       birim: k.birim,
@@ -450,6 +485,13 @@ export async function teklifRevizeEt(id: string): Promise<void> {
     await tenantOlustur(db, "teklifKalemi", {
       teklifId: yeni.id,
       sira: k.sira,
+      // Katalog bağları REVİZYONA DA TAŞINIR: taşınmasaydı revize edilen
+      // teklif ürününü, paketini ve kampanyasını kaybeder, siparişe
+      // dönerken de zincir kopardı (v1.23.0/v1.25.0 gerekçesi).
+      urunId: k.urunId,
+      paketId: k.paketId,
+      kampanyaId: k.kampanyaId,
+      indirimTutari: k.indirimTutari,
       aciklama: k.aciklama,
       miktar: k.miktar,
       birim: k.birim,

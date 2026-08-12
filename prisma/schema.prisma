@@ -630,6 +630,11 @@ model TeklifKalemi {
   // olmadan kampanyalar teklif aşamasında hiç görünmüyordu.
   urunId String?
   urun   Urun?   @relation(fields: [urunId], references: [id], onDelete: SetNull)
+  // Paket damgası (v1.25.0): satır bir paketten açıldıysa hangi paketten
+  // geldiği burada durur. "Bu birim fiyat neden liste fiyatından farklı?"
+  // sorusunun yanıtı budur.
+  paketId String?
+  paket   Paket?  @relation(fields: [paketId], references: [id], onDelete: SetNull)
 
   sira       Int    @default(0)
   aciklama   String
@@ -1104,6 +1109,7 @@ model Paket {
   kalemler       PaketKalemi[]
   kampanyaKapsam KampanyaPaket[]
   SiparisKalemi  SiparisKalemi[]
+  TeklifKalemi   TeklifKalemi[]
 
   @@unique([tenantId, kod])
   @@index([tenantId, durum])
