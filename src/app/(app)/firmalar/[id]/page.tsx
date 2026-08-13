@@ -83,7 +83,7 @@ export default async function FirmaDetayPage(
     hizmetEkler, hizmetDuzenler, hizmetSiler,
     kisiEkler, kisiDuzenler, kisiSiler,
     firsatEkler, firsatDuzenler, firsatSiler, firsatGorur,
-    aktiviteEkler, teklifGorur, teklifEkler,
+    aktiviteEkler, teklifGorur, teklifEkler, urunGorur,
   ] = await Promise.all([
     yetkiVarMi(IZIN.firmaDuzenle), yetkiVarMi(IZIN.firmaSil),
     yetkiVarMi(IZIN.yatirimOlustur), yetkiVarMi(IZIN.yatirimDuzenle), yetkiVarMi(IZIN.yatirimSil),
@@ -95,6 +95,8 @@ export default async function FirmaDetayPage(
     yetkiVarMi(IZIN.aktiviteOlustur),
     yetkiVarMi(IZIN.teklifGoruntule),
     yetkiVarMi(IZIN.teklifOlustur),
+    // Paket katalogun bir türevidir; izni de katalog iznidir (v1.26.1).
+    yetkiVarMi(IZIN.urunGoruntule),
   ]);
 
   const { db, session } = await getTenantContext();
@@ -146,6 +148,35 @@ export default async function FirmaDetayPage(
           }),
         ])
       : [[], [], []];
+
+  /*
+    FİRMAYA AÇIK PAKETLER (v1.26.1).
+
+    Ortağın bulgusu: "ziyaret anında veya müşteri kartında bu paketi görmek
+    gerekiyor." Paket v1.25.0'da satışa bağlandı ama yalnızca sipariş/teklif
+    FORMUNDA görünüyordu: müşteriyle konuşurken "bu firmaya hangi paketi
+    verdik?" sorusunun yanıtı hiçbir ekranda yoktu.
+
+    Sekme bir SORGU KAPISIDIR (Faz 20): seçilmeyen sekmenin sorgusu hiç
+    çalışmaz. Genel paketler de listelenir — firmaya sunulabilecek her paket
+    burada görünmelidir.
+  */
+  const firmaPaketleri =
+    sekme === "satis" && urunGorur
+      ? await db.paket.findMany({
+          where: {
+            durum: "aktif",
+            OR: [{ firmaId: firma.id }, { firmaId: null }],
+          },
+          orderBy: [{ firmaId: "desc" }, { ad: "asc" }],
+          include: {
+            kalemler: {
+              orderBy: { sira: "asc" },
+              include: { urun: { select: { kod: true, ad: true, birim: true } } },
+            },
+          },
+        })
+      : [];
 
   const firsatlar =
     sekme === "satis" && firsatGorur
@@ -665,6 +696,66 @@ export default async function FirmaDetayPage(
       {/* ── Satış sekmesi ────────────────────────────────────────────────── */}
       {sekme === "satis" && (
       <>
+      {/*
+        Firmaya açık paketler (v1.26.1) — ortağın isteği: "müşteri kartında
+        bu paketi görmek gerekiyor." Paket v1.25.0'da satışa bağlandı ama
+        yalnızca sipariş/teklif FORMUNDA görünüyordu; müşteriyle konuşurken
+        "bu firmaya hangi paketi verdik?" sorusunun yanıtı hiçbir ekranda
+        yoktu. Satış sekmesinde, tekliflerin ÜSTÜNDE durur: teklif hazırlarken
+        bakılacak ilk şey odur.
+      */}
+      {urunGorur && (
+        <Section
+          title="Firmaya Açık Paketler"
+          count={firmaPaketleri.length}
+          addPanel={null}
+        >
+          {firmaPaketleri.length === 0 ? (
+            <Empty />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {firmaPaketleri.map((p) => (
+                <div key={p.id} className="rounded-xl border border-border/60 p-3">
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{p.ad}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{p.kod}</p>
+                    </div>
+                    {/* Firmaya ÖZEL mi, herkese açık mı — fiyat pazarlığında
+                        bilinmesi gereken ilk ayrım. */}
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
+                        p.firmaId
+                          ? "bg-sky-500/10 text-sky-500"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {p.firmaId ? "firmaya özel" : "genel"}
+                    </span>
+                  </div>
+
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    {p.sabitFiyat
+                      ? `Sabit fiyat: ${formatPara(p.fiyat, p.paraBirimi)}`
+                      : p.iskontoOrani > 0
+                        ? `Liste üzerinden %${p.iskontoOrani} iskonto`
+                        : "Liste fiyatı"}
+                  </p>
+
+                  <ul className="space-y-0.5 text-xs text-muted-foreground">
+                    {p.kalemler.map((k) => (
+                      <li key={k.id}>
+                        {k.miktar} {k.urun.birim} · {k.urun.kod} — {k.urun.ad}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
       {/* Teklifler (Faz 7 / C7) */}
       {teklifGorur && (
         <Section

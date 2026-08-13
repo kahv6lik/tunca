@@ -158,6 +158,9 @@ async function tutarlariHesapla(
       const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
         firmaId,
         urunId: k.urunId ?? null,
+        // Paket kapsamlı kampanya ancak satırın damgasıyla sorulabilir
+        // (v1.26.1); damga olmadan paket kapsamı hiç değerlendirilemiyordu.
+        paketId: k.paketId ?? null,
       });
       kampanyalar = adaylar.filter((a) => a.kampanyaId === k.kampanyaId);
     }

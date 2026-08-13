@@ -5,7 +5,7 @@ import { getTenantContext } from "@/lib/tenant-db";
 import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatTarih } from "@/lib/format";
+import { formatTarih, formatPara } from "@/lib/format";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
 import {
   DOGRULAMA_ETIKET,
@@ -50,6 +50,8 @@ export default async function ZiyaretlerPage(props: {
     ],
   };
 
+  const urunGorur = await yetkiVarMi(IZIN.urunGoruntule);
+
   const [acikZiyaret, ziyaretler, firmalar, kullanicilar] = await Promise.all([
     db.ziyaret.findFirst({
       where: { kullaniciId: session.userId, bitis: null },
@@ -74,6 +76,27 @@ export default async function ZiyaretlerPage(props: {
     }),
   ]);
 
+
+  /*
+    Açık ziyaretin firmasına sunulabilen paketler (v1.26.1).
+    Ziyaret AÇIK DEĞİLSE hiç sorgulanmaz — göstermeyeceğimiz bir şeyi
+    hesaplamak, her ziyaret listesine bedava bir sorgu eklemek olurdu.
+  */
+  const acikPaketler =
+    acikZiyaret && urunGorur
+      ? await db.paket.findMany({
+          where: {
+            durum: "aktif",
+            OR: [{ firmaId: acikZiyaret.firmaId }, { firmaId: null }],
+          },
+          orderBy: [{ firmaId: "desc" }, { ad: "asc" }],
+          take: 20,
+          select: {
+            id: true, kod: true, ad: true, firmaId: true,
+            sabitFiyat: true, fiyat: true, iskontoOrani: true, paraBirimi: true,
+          },
+        })
+      : [];
   const adOf = new Map(kullanicilar.map((u) => [u.id, u.name]));
 
   // Rapor: süre yalnızca BİTMİŞ ziyaretlerden hesaplanır; açık bir ziyaretin
@@ -107,6 +130,37 @@ export default async function ZiyaretlerPage(props: {
                 {DOGRULAMA_ETIKET[acikZiyaret.dogrulama as DogrulamaDurumu]?.label ??
                   acikZiyaret.dogrulama}
               </p>
+              {/*
+                ZİYARET ANINDA FİRMANIN PAKETLERİ (v1.26.1) — ortağın isteği.
+                Saha görüşmesinde "bu müşteriye hangi paketi verdik?"
+                sorusunun yanıtı elin altında olmalı; ekrandan çıkıp firma
+                kartına gitmek, karşısında müşteri olan biri için gerçek bir
+                sürtünmedir. Yalnızca AÇIK ziyaret varken sorgulanır.
+              */}
+              {acikPaketler.length > 0 && (
+                <div className="mb-3 rounded-xl border border-border/60 p-3">
+                  <p className="mb-1.5 text-xs font-medium text-foreground">
+                    Bu firmaya açık paketler
+                  </p>
+                  <ul className="space-y-1 text-xs text-muted-foreground">
+                    {acikPaketler.map((p) => (
+                      <li key={p.id}>
+                        <span className="font-mono">{p.kod}</span> — {p.ad}
+                        <span className="ml-1">
+                          (
+                          {p.sabitFiyat
+                            ? formatPara(p.fiyat, p.paraBirimi)
+                            : p.iskontoOrani > 0
+                              ? `%${p.iskontoOrani} iskonto`
+                              : "liste fiyatı"}
+                          {p.firmaId ? " · firmaya özel" : ""})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <ZiyaretBitir id={acikZiyaret.id} />
             </>
           ) : (

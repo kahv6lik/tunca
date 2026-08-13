@@ -138,7 +138,12 @@ export default function TeklifForm({
     görünüp kaydederken düşen kampanyalar çıkardı.
   */
   const satirKampanyalari = kalemler.map((k) =>
-    satirinKampanyalari(kampanyalar, { firmaId, urunId: k.urunId || null })
+    satirinKampanyalari(kampanyalar, {
+      firmaId,
+      urunId: k.urunId || null,
+      // Paket kapsamlı kampanya satırın damgasıyla sorulur (v1.26.1).
+      paketId: k.paketId || null,
+    })
   );
 
   // Önizleme — sunucudaki hesabın aynısı: kampanya → belge iskontosu → KDV.
@@ -166,11 +171,18 @@ export default function TeklifForm({
   }
 
   /** Seçili kampanya bu bağlamda hâlâ geçerli mi? */
-  function gecerliMi(kampanyaId: string, firma: string, urunId: string | null) {
+  function gecerliMi(
+    kampanyaId: string,
+    firma: string,
+    urunId: string | null,
+    paketId: string | null = null
+  ) {
     if (!kampanyaId) return false;
-    return satirinKampanyalari(kampanyalar, { firmaId: firma, urunId }).some(
-      (x) => x.kampanyaId === kampanyaId
-    );
+    return satirinKampanyalari(kampanyalar, {
+      firmaId: firma,
+      urunId,
+      paketId,
+    }).some((x) => x.kampanyaId === kampanyaId);
   }
 
   /** Ürün seçilince açıklama, birim, fiyat katalogdan gelir. */
@@ -235,7 +247,12 @@ export default function TeklifForm({
     setKalemler((ks) =>
       ks.map((k) => ({
         ...k,
-        kampanyaId: gecerliMi(k.kampanyaId, yeni, k.urunId || null)
+        kampanyaId: gecerliMi(
+          k.kampanyaId,
+          yeni,
+          k.urunId || null,
+          k.paketId || null
+        )
           ? k.kampanyaId
           : "",
         paketId: paketGecerliMi(k.paketId, yeni) ? k.paketId : "",

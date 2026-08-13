@@ -181,3 +181,138 @@ describe("Rapor PDF çıktısı", () => {
     }
   });
 });
+
+describe("Paket kapsamı artık DEĞERLENDİRİLİYOR (v1.26.1)", () => {
+  /*
+    ORTAĞIN BULGUSU: "kampanya modülünden test ettiğimde sipariş ve sevk
+    ettiğimde kampanya tanımından düşmüyor."
+
+    KÖK SEBEP: `paketIdler` toplanıyor, forma taşınıyor ve veritabanında
+    saklanıyordu ama KARAR VEREN fonksiyon (`kampanyaGecerliMi`) onu HİÇ
+    OKUMUYORDU. İki sonucu vardı:
+
+      1. Yalnızca pakete tanımlı kampanya "tüm ürünler" gibi davranıyor,
+         kapsam dışı satışlara indirim veriyordu.
+      2. Ürün + paket birlikte seçildiğinde paketten açılan satırlar kapsam
+         dışı kalıyor, kampanya uygulanmıyor ve bu yüzden ONAYDA KOTA DA
+         DÜŞMÜYORDU — kota yalnızca UYGULANAN kampanya için düşer.
+
+    Paket kapsamı ancak v1.25.0'dan sonra sorulabilir hâle geldi: satır artık
+    hangi paketten açıldığını `paketId` damgasıyla taşıyor.
+  */
+  const PAKETLI: KapsamliKampanya = {
+    kampanyaId: "k-paket",
+    kod: "PKT100",
+    ad: "Paket kampanyası",
+    tip: "yuzde",
+    deger: 10,
+    alN: 0,
+    odeM: 0,
+    kalanKota: 0,
+    baslangic: "2026-01-01",
+    bitis: "2030-12-31",
+    tukendi: false,
+    urunIdler: [],
+    paketIdler: ["p1"],
+    firmaIdler: [],
+  };
+
+  const AN = new Date("2026-08-13");
+
+  it("yalnızca PAKETE tanımlı kampanya, kapsam dışı satıra UYGULANMAZ", () => {
+    // Eski davranış: paketIdler okunmadığı için bu satır kampanyayı görürdü.
+    const liste = satirinKampanyalari([PAKETLI], {
+      firmaId: "f1",
+      urunId: "baska-urun",
+      paketId: null,
+      an: AN,
+    });
+    expect(liste).toHaveLength(0);
+  });
+
+  it("paketten AÇILAN satır kampanyayı görür", () => {
+    const liste = satirinKampanyalari([PAKETLI], {
+      firmaId: "f1",
+      urunId: "u1",
+      paketId: "p1",
+      an: AN,
+    });
+    expect(liste.map((k) => k.kod)).toEqual(["PKT100"]);
+  });
+
+  it("başka paketten açılan satır görmez", () => {
+    const liste = satirinKampanyalari([PAKETLI], {
+      firmaId: "f1",
+      urunId: "u1",
+      paketId: "p-baska",
+      an: AN,
+    });
+    expect(liste).toHaveLength(0);
+  });
+
+  it("ürün VE paket kapsamı TEK kapsamdır — biri yeterlidir", () => {
+    /*
+      Ortağın ekranındaki durum: hem CV-01 ürünü hem "deneme paketi"
+      işaretliydi. Eskiden yalnızca ürün eşleşmesi sayılıyordu; paketten
+      açılan satırlar kapsam dışı kalıp kotayı hiç düşürmüyordu.
+    */
+    const ikisi: KapsamliKampanya = {
+      ...PAKETLI,
+      urunIdler: ["cv-01"],
+      paketIdler: ["p1"],
+    };
+
+    // Ürünle eşleşen satır
+    expect(
+      satirinKampanyalari([ikisi], { firmaId: "f1", urunId: "cv-01", an: AN })
+    ).toHaveLength(1);
+
+    // Paketten açılan satır (ürünü kapsamda DEĞİL)
+    expect(
+      satirinKampanyalari([ikisi], {
+        firmaId: "f1",
+        urunId: "baska",
+        paketId: "p1",
+        an: AN,
+      })
+    ).toHaveLength(1);
+
+    // İkisi de tutmuyorsa uygulanmaz
+    expect(
+      satirinKampanyalari([ikisi], {
+        firmaId: "f1",
+        urunId: "baska",
+        paketId: "p-baska",
+        an: AN,
+      })
+    ).toHaveLength(0);
+  });
+
+  it("iki kapsam da boşsa kampanya HER kaleme açıktır", () => {
+    const serbest: KapsamliKampanya = {
+      ...PAKETLI,
+      urunIdler: [],
+      paketIdler: [],
+    };
+    expect(
+      satirinKampanyalari([serbest], { firmaId: "f1", urunId: "her-urun", an: AN })
+    ).toHaveLength(1);
+  });
+
+  it("paket damgası sunucu ve istemci süzgecine BAĞLANDI", () => {
+    // Kural saf katmanda; iki taraf da onu aynı bağlamla çağırmalı.
+    const kmp = readFileSync("src/lib/kampanya.ts", "utf8");
+    expect(kmp, "sunucu süzgeci paketId almıyor").toContain("paketId: secenekler.paketId");
+
+    for (const yol of [
+      "src/app/(app)/siparisler/actions.ts",
+      "src/app/(app)/teklifler/actions.ts",
+      "src/components/siparisler/SiparisForm.tsx",
+      "src/components/teklifler/TeklifForm.tsx",
+    ]) {
+      expect(readFileSync(yol, "utf8"), `${yol} paketId'yi taşımıyor`).toMatch(
+        /paketId: k\.paketId/
+      );
+    }
+  });
+});

@@ -291,7 +291,13 @@ export function kampanyaGecerliMi(
     paketIdler: string[];
     firmaIdler: string[];
   },
-  baglam: { an: Date; firmaId?: string | null; urunId?: string | null }
+  baglam: {
+    an: Date;
+    firmaId?: string | null;
+    urunId?: string | null;
+    /** Satır bir paketten açıldıysa paketin id'si (v1.25.0 damgası). */
+    paketId?: string | null;
+  }
 ): boolean {
   if (k.durum !== "aktif") return false;
   if (baglam.an < k.baslangic || baglam.an > k.bitis) return false;
@@ -301,11 +307,34 @@ export function kampanyaGecerliMi(
     if (!baglam.firmaId || !k.firmaIdler.includes(baglam.firmaId)) return false;
   }
 
-  // Ürün kapsamı: ürün listesi doluysa ürün orada olmalı. Paket kapsamı
-  // burada değerlendirilmez — paket satırının ürünleri çağıran tarafından
-  // açılıp tek tek sorulur.
-  if (k.urunIdler.length > 0) {
-    if (!baglam.urunId || !k.urunIdler.includes(baglam.urunId)) return false;
+  /*
+    KATALOG KAPSAMI: ürün VE paket listesi TEK bir kapsamdır (v1.26.1).
+
+    ORTAĞIN BULGUSU: "kampanya modülünden test ettiğimde sipariş ve sevk
+    ettiğimde kampanya tanımından düşmüyor." Sebep buradaydı: `paketIdler`
+    toplanıyor, forma taşınıyor ve veritabanında saklanıyordu ama BU KARARDA
+    HİÇ OKUNMUYORDU. Sonuçları:
+
+      • Yalnızca PAKETE tanımlı bir kampanya "tüm ürünler" gibi davranıyordu
+        — kapsam dışı satışlara indirim veriyordu.
+      • Ürün + paket birlikte seçildiğinde paketten açılan satırlar kapsam
+        dışı kalıyor, kampanya uygulanmıyor ve bu yüzden ONAYDA KOTA DA
+        DÜŞMÜYORDU (kota yalnızca uygulanan kampanya için düşer).
+
+    Paket kapsamı ancak v1.25.0'dan sonra sorulabilir hâle geldi: satır artık
+    hangi paketten açıldığını `paketId` damgasıyla taşıyor.
+
+    Kural: iki liste de boşsa kampanya HER kaleme açıktır ("Boş = hepsi").
+    Biri doluysa satır ya o ürünlerden biri olmalı YA DA o paketlerden
+    birinden açılmış olmalıdır.
+  */
+  const kapsamVar = k.urunIdler.length > 0 || k.paketIdler.length > 0;
+  if (kapsamVar) {
+    const urunUyar = Boolean(baglam.urunId && k.urunIdler.includes(baglam.urunId));
+    const paketUyar = Boolean(
+      baglam.paketId && k.paketIdler.includes(baglam.paketId)
+    );
+    if (!urunUyar && !paketUyar) return false;
   }
 
   return true;
@@ -332,7 +361,13 @@ export type KapsamliKampanya = FiyatKampanyasi & {
 
 export function satirinKampanyalari(
   katalog: KapsamliKampanya[],
-  baglam: { firmaId?: string | null; urunId?: string | null; an?: Date }
+  baglam: {
+    firmaId?: string | null;
+    urunId?: string | null;
+    /** Satırın paket damgası — paket kapsamlı kampanyalar için (v1.26.1). */
+    paketId?: string | null;
+    an?: Date;
+  }
 ): KapsamliKampanya[] {
   const an = baglam.an ?? new Date();
   return katalog.filter((k) =>
@@ -350,7 +385,12 @@ export function satirinKampanyalari(
         paketIdler: k.paketIdler,
         firmaIdler: k.firmaIdler,
       },
-      { an, firmaId: baglam.firmaId, urunId: baglam.urunId }
+      {
+        an,
+        firmaId: baglam.firmaId,
+        urunId: baglam.urunId,
+        paketId: baglam.paketId,
+      }
     )
   );
 }

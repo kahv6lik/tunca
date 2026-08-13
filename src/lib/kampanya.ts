@@ -165,7 +165,13 @@ export async function kampanyaKullan(
  */
 export async function gecerliKampanyalar(
   db: KampanyaIstemcisi,
-  secenekler: { firmaId?: string | null; urunId?: string | null; an?: Date }
+  secenekler: {
+    firmaId?: string | null;
+    urunId?: string | null;
+    /** Satırın paket damgası — paket kapsamlı kampanyalar için (v1.26.1). */
+    paketId?: string | null;
+    an?: Date;
+  }
 ): Promise<FiyatKampanyasi[]> {
   const an = secenekler.an ?? new Date();
 
@@ -208,7 +214,12 @@ export async function gecerliKampanyalar(
           paketIdler: k.paketler.map((p) => p.paketId),
           firmaIdler: k.firmalar.map((f) => f.firmaId),
         },
-        { an, firmaId: secenekler.firmaId, urunId: secenekler.urunId }
+        {
+          an,
+          firmaId: secenekler.firmaId,
+          urunId: secenekler.urunId,
+          paketId: secenekler.paketId,
+        }
       )
     )
     .map((k) => ({

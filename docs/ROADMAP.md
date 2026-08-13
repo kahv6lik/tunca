@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.26.0` — modal davranışı + Ayarlar bölümü |
+| **Son çıkan sürüm** | `v1.26.1` — kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,59 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.26.1 — Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü ✅
+
+Ortağın iki bulgusu:
+
+1. *"Ziyarete başla dediğimizde konum alsın, ayrıca konum al basmasın;
+   ziyareti bitirince konum bitsin."*
+2. *"Kampanya modülünden test ettiğimde sipariş ve sevk ettiğimde kampanya
+   bölümündeki tanımdan düşmüyor. Ve ziyaret anında veya müşteri kartında bu
+   paketi görmek gerekiyor."*
+
+- [x] **HATA (kök sebep):** `kampanyaGecerliMi` `paketIdler`'i HİÇ OKUMUYORDU.
+- [x] Ürün + paket kapsamı tek kapsam olarak değerlendiriliyor.
+- [x] `paketId` sunucu (`gecerliKampanyalar`) ve istemci
+      (`satirinKampanyalari`) süzgeçlerine, iki action ve iki forma bağlandı.
+- [x] Ziyaret başlatma tek adım: konum alınır, sonra form gönderilir.
+- [x] Firma çalışma ekranı Satış sekmesinde "Firmaya Açık Paketler".
+- [x] Ziyaret ekranında açık ziyaretin firmasına ait paketler.
+- [x] 6 kampanya + 8 ziyaret/paket testi.
+
+**Kararlar**
+
+1. **KOTA DÜŞMEMESİNİN SEBEBİ KOTA MEKANİZMASI DEĞİLDİ.** `kotaDus` atomik
+   `UPDATE` ile doğru çalışıyordu; sorun satırın kampanyaya HİÇ
+   BAĞLANMAMASIYDI. Kota yalnızca UYGULANAN kampanya için düşer
+   (`siparisiOnayla`), kampanya uygulanmayınca düşecek bir şey de yoktu.
+   Bu, "belirtiyi değil sebebi ara" örneğidir: kota koduna dokunulmadı.
+2. **`paketIdler` v1.25.0'A KADAR SORULAMAZDI.** Kapsam alanı Faz 14'te
+   eklendi ama satırın hangi paketten geldiği bilinmiyordu; damga v1.25.0'da
+   geldi ve kural ancak şimdi tamamlanabildi. Eski yorum satırı ("paket
+   kapsamı burada değerlendirilmez") bu eksikliği belgeliyordu.
+3. **ÜRÜN VE PAKET TEK KAPSAMDIR:** ikisi de boşsa kampanya her kaleme
+   açıktır ("Boş = hepsi"); biri doluysa satır ya o ürünlerden biri olmalı YA
+   DA o paketlerden birinden açılmış olmalıdır. Ayrı ayrı "VE" saymak,
+   ortağın ekranındaki gibi ikisi birden seçili bir kampanyayı hiçbir satıra
+   uygulanamaz hâle getirirdi.
+4. **KONUM AYRI DÜĞME OLMAKTAN ÇIKTI.** İki adımın ikisi de zorunlu değildi:
+   "Konumumu al"a basmadan başlatan kullanıcı ziyareti konumsuz açıyor, kayıt
+   sessizce "doğrulanamadı" oluyordu. Sahada en kolay unutulan adım,
+   doğrulamanın dayandığı tek veriydi.
+5. **KONUM DEĞERLERİ REACT DURUMUNA DEĞİL, GİZLİ ALANA YAZILIR.** Durum
+   güncellemesinin çizime yansımasını beklemeden gönderim yapmak gerekiyor;
+   aradaki bir çizim turunda form eski (boş) değerle giderdi.
+6. **SÜREKLİ TAKİP HÂLÂ YOK.** Bitişte konum sorulmaz, `watchPosition`
+   kurulmaz. KVKK metninin (v1.12.2) verdiği söz budur ve test onu kilitler.
+7. **PAKET GÖRÜNÜRLÜĞÜ İKİ EKRANDA:** firma kartının Satış sekmesinde
+   (tekliflerin ÜSTÜNDE — teklif hazırlarken bakılacak ilk şey) ve ziyaret
+   ekranında açık ziyaret varken. Saha görüşmesinde firma kartına gitmek,
+   karşısında müşteri olan biri için gerçek bir sürtünmedir.
+8. **SEKME BİR SORGU KAPISIDIR** (Faz 20): Satış sekmesi seçilmemişse ya da
+   açık ziyaret yoksa paket sorgusu HİÇ çalışmaz.
+
+---
 
 ### v1.26.0 — Modal davranışı ve Ayarlar bölümü ✅
 

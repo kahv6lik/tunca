@@ -151,6 +151,8 @@ async function tutarlariHesapla(
       const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
         firmaId,
         urunId: k.urunId,
+        // Paket kapsamlı kampanya için satırın paket damgası gerekir (v1.26.1).
+        paketId: k.paketId,
       });
       const sonuc = satirFiyatiHesapla(
         { urunId: k.urunId ?? "", listeFiyat: k.birimFiyat, kdvOrani },

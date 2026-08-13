@@ -403,6 +403,13 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   ÖNCE gelir çünkü paket "bu müşterinin fiyatı budur" anlaşmasıdır, kampanya
   onun üzerine yapılan geçici bir jesttir. **KDV indirimli tutar üzerinden**
   hesaplanır.
+- **ÜRÜN VE PAKET KAPSAMI TEK KAPSAMDIR** (v1.26.1): ikisi de boşsa kampanya
+  her kaleme açıktır; biri doluysa satır ya o ürünlerden biri olmalı YA DA o
+  paketlerden birinden açılmış olmalıdır. `paketIdler` v1.25.0'a kadar
+  SORULAMIYORDU (satırın hangi paketten geldiği bilinmiyordu) ve bu yüzden
+  `kampanyaGecerliMi` içinde hiç okunmuyordu; sonuç, paketten açılan satırlara
+  kampanya uygulanmaması ve ONAYDA KOTANIN DÜŞMEMESİYDİ — kota yalnızca
+  UYGULANAN kampanya için düşer.
 - **Tek kampanya uygulanır** — müşteriye en avantajlı olan otomatik seçilir,
   kullanıcı isterse değiştirir. Üst üste binen indirimler hem hesabı hem de
   müşteriye yapılan savunmayı imkânsızlaştırır. İstemciden gelen bir kampanya
@@ -774,6 +781,17 @@ düzenine TAŞINDI.
   39. enlemde doğu-batı sapmasını ~%30 fazla gösterirdi.
 - **Konum yalnızca ziyaretin başında alınır; sürekli takip YOKTUR.** Bu,
   KVKK aydınlatma metninin (v1.12.2) verdiği sözdür ve uygulamayı bağlar.
+  Bitişte konum sorulmaz, `watchPosition` kurulmaz.
+- **KONUM AYRI BİR DÜĞME DEĞİL, BAŞLATMANIN PARÇASIDIR** (v1.26.1): iki
+  adımın ikisi de zorunlu değildi ve "Konumumu al"a basmadan başlatan
+  kullanıcı ziyareti konumsuz açıyor, kayıt sessizce "doğrulanamadı" oluyordu.
+  Tek düğme önce konumu alır, SONRA formu gönderir (`requestSubmit`); değerler
+  React durumuna değil doğrudan gizli alana yazılır, yoksa gönderim bir çizim
+  turu geriden gelen boş değerle giderdi.
+- **FİRMANIN PAKETLERİ SAHADA GÖRÜNÜR** (v1.26.1): firma çalışma ekranının
+  Satış sekmesinde ve açık ziyaret varken ziyaret ekranında. "Bu müşteriye
+  hangi paketi verdik?" sorusunun yanıtı v1.25.0'a kadar yalnızca sipariş
+  formunda vardı.
 
 ### Arayüz ve Veri Düzeltmeleri (Faz 13)
 
@@ -842,7 +860,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**886 kontrol**.
+**899 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -850,7 +868,7 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (569 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (582 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
 npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 296)
@@ -1114,6 +1132,15 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.26.1** — **Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü.**
+  Kampanya kapsamındaki `paketIdler` toplanıyor ve saklanıyor ama kararı veren
+  fonksiyonda HİÇ OKUNMUYORDU; paketten açılan satırlara kampanya
+  uygulanmıyor, bu yüzden onayda kota da düşmüyordu (ortağın "kampanya
+  tanımından düşmüyor" bulgusunun kök sebebi). Ziyaret başlatma tek adıma
+  indi: "Ziyareti Başlat" önce konumu alır, sonra kaydı açar; ayrı "konum al"
+  düğmesi kalktı ve sürekli takip olmadığı sözü test edilir hâle geldi.
+  Firmaya açık paketler artık firma kartının Satış sekmesinde ve açık ziyaret
+  sırasında ziyaret ekranında görünüyor.
 - **v1.26.0** — **Modal davranışı ve Ayarlar bölümü.** Açılır pencereler
   artık ortada sabit duruyor (taşan içerik pencerenin içinde kaydırılıyor)
   ve içeriden başlayıp dışarıda biten bir sürükleme onları KAPATMIYOR —

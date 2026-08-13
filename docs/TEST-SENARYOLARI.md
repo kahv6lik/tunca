@@ -288,6 +288,48 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.26.1 — Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü
+
+**Kampanya paket kapsamı (asıl hata)**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Bir paket tanımla (2 ürün), sonra kapsamı YALNIZCA o paket olan bir kampanya aç | Kaydedilir |
+| 2 | Sipariş formunda o paketi "Paketten kalem ekle" ile ekle | Satırlarda kampanya listede ÇIKAR |
+| 3 | Aynı formda kapsam dışı bir ürün satırı ekle | O satırda kampanya ÇIKMAZ (eskiden çıkıyordu) |
+| 4 | Kampanyayı seçip siparişi kaydet, sonra ONAYLA | Kampanya ekranında "kullanım" sayısı ARTAR |
+| 5 | Kotalı bir kampanyada aynısını yap | "Kota: n / m" artar, kalan azalır |
+| 6 | Siparişi iptal et | Kota İADE edilir |
+| 7 | Kapsamı ürün + paket birlikte olan kampanya | Hem o ürün satırında hem paket satırlarında çıkar |
+| 8 | Kapsamı tamamen boş kampanya | Her satırda çıkar ("Boş = hepsi") |
+| 9 | Teklifte aynı paketi ekle | Kampanya teklifte de görünür |
+| 10 | Teklifi siparişe dönüştür | Ürün, paket ve kampanya taşınır |
+
+**Ziyaret konumu**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 11 | `/ziyaretler` → firma seç → **Ziyareti Başlat** | Tarayıcı konum izni sorar; ayrı "konum al" düğmesi YOK |
+| 12 | İzin ver | "Konum alınıyor…" → ziyaret açılır, doğrulama sonucu yazar |
+| 13 | İzni reddet | Ziyaret YİNE açılır, "doğrulanamadı" olur |
+| 14 | Firma seçmeden başlat | Konum istenmez, form uyarır |
+| 15 | Ziyareti bitir | Konum SORULMAZ |
+| 16 | Ziyaret açıkken sekmeyi arka planda bırak | Konum yeniden alınmaz (takip yok) |
+
+**Paket görünürlüğü**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 17 | Firma kartı → **Satış** sekmesi | "Firmaya Açık Paketler" bölümü, tekliflerin üstünde |
+| 18 | Firmaya özel bir paket bak | "firmaya özel" rozeti; genel paketlerde "genel" |
+| 19 | Paket kartındaki kalemler | Miktar, birim, ürün kodu ve adı yazar |
+| 20 | Ziyaret başlat, ziyaret ekranına bak | "Bu firmaya açık paketler" listesi çıkar |
+| 21 | Ziyareti bitir | Liste kaybolur (açık ziyaret yok) |
+| 22 | `urun.goruntule` izni olmayan kullanıcı | İki ekranda da paket bölümü YOK |
+| 23 | Başka kiracının firmasında | Kendi paketlerinden hiçbiri görünmez |
+
+---
+
 ### v1.26.0 — Modal davranışı ve Ayarlar bölümü
 
 **Açılır pencereler** (herhangi bir modal: kampanya, ürün, aktivite, aday…)
