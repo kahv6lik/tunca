@@ -442,3 +442,56 @@ describe("Kota PAKET sayar (v1.27.0)", () => {
     expect(kaynak.match(/kotaKullanimlari\(/g) ?? []).toHaveLength(2);
   });
 });
+
+describe("Onay bekleyen kampanya hakkı GÖRÜNÜR (v1.27.1)", () => {
+  /*
+    ORTAĞIN BULGUSU: "Kampanya kullanarak bir sipariş oluşturdum ama
+    kampanyada kullanım durumu ilerlemiyor, hiç kullanılmamış gibi."
+
+    GERÇEK TARAYICIYLA DOĞRULANDI: sipariş oluşturmak kampanyayı satıra
+    YAZIYOR (kampanyaId + indirim) ama kota ONAYDA düşüyor (Faz 15 kararı —
+    reddedilen sipariş kotayı boşuna tüketmemeli). Mekanizma doğruydu;
+    EKRAN bunu hiçbir yerde söylemiyordu.
+
+    Kural DEĞİŞMEDİ. Bekleyen haklar ayrıca sayılıp gösteriliyor.
+  */
+  const SAYFA = readFileSync("src/app/(app)/kampanyalar/page.tsx", "utf8");
+  const KMP = readFileSync("src/lib/kampanya.ts", "utf8");
+
+  it("kampanya ekranı onay bekleyen hakları sayıyor", () => {
+    expect(KMP).toContain("bekleyenKotalar");
+    expect(SAYFA).toContain("bekleyenKotalar(db)");
+    expect(SAYFA).toContain("onay bekliyor");
+  });
+
+  it("bekleyen sayımı yalnızca ONAY BEKLEYEN siparişlere bakar", () => {
+    const bas = KMP.indexOf("export async function bekleyenKotalar");
+    const govde = KMP.slice(bas, bas + 1200);
+    expect(govde).toContain('durum: "onaybekliyor"');
+    // Onayda hangi kural işleyecekse bekleyen de onunla sayılır.
+    expect(govde).toContain("kotaKullanimlari");
+  });
+
+  it("bekleyen sayımı SİPARİŞ bazında gruplanır", () => {
+    /*
+      Aynı paketin satırları tek hak sayılır ama İKİ AYRI siparişteki aynı
+      paket iki haktır. Sipariş id'si anahtara girmezse iki sipariş tek
+      kullanım gibi görünürdü.
+    */
+    const bas = KMP.indexOf("export async function bekleyenKotalar");
+    expect(KMP.slice(bas, bas + 2000)).toContain("siparisId");
+  });
+
+  it("KOTA SAYACI DEĞİŞMEDİ — bekleyen ayrı gösterilir", () => {
+    // Sayaç hâlâ gerçekten düşülmüş hakkı anlatmalı.
+    expect(SAYFA).toContain("Kota: {k.kullanilan} / {k.kota}");
+  });
+
+  it("sipariş formu kotanın NE ZAMAN düşeceğini söylüyor", () => {
+    const form = readFileSync(
+      "src/components/siparisler/SiparisForm.tsx",
+      "utf8"
+    );
+    expect(form).toContain("onaylandığında");
+  });
+});

@@ -414,6 +414,13 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   kullanıcı isterse değiştirir. Üst üste binen indirimler hem hesabı hem de
   müşteriye yapılan savunmayı imkânsızlaştırır. İstemciden gelen bir kampanya
   id'si ADAYLAR arasında yoksa indirim uygulanmaz.
+- **KOTA ONAYDA DÜŞER, OLUŞTURMADA DEĞİL** (Faz 15) — reddedilen sipariş
+  kotayı boşuna tüketmemeli. Ekran bunu SÖYLEMELİDİR (v1.27.1): kampanya
+  kartı onay bekleyen hakları "(+N onay bekliyor)" olarak ayrıca gösterir ve
+  sipariş formu "hak onaylandığında düşer" yazar. Bekleyen sayaca
+  KARIŞTIRILMAZ; `kullanilan` hâlâ yalnızca gerçekten düşüleni anlatır.
+  Bekleyen de `kotaKullanimlari` ile sayılır — onayla aynı kural, yoksa
+  rakam onaydan sonra sıçrardı.
 - **Kota ve stok İKİ AYRI ATOMİK sayaçtır.** İkisi de koşullu `UPDATE … WHERE`
   ile düşer (`kampanya.ts`, `stok.ts`); "oku → kontrol et → yaz" yaklaşımı iki
   temsilcinin son adedi aynı anda satmasına izin verirdi. Kota "bu kampanyadan
@@ -883,7 +890,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**913 kontrol**.
+**918 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -891,7 +898,7 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (596 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (601 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
 npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 296)
@@ -1155,6 +1162,12 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.27.1** — Kampanyayla sipariş oluşturulduğunda kampanya ekranında
+  hiçbir şeyin kımıldamaması giderildi. Tanı gerçek tarayıcıyla konuldu:
+  oluşturma kampanyayı satıra yazıyor ama kota ONAYDA düşüyor (Faz 15
+  kararı, doğru). Kural korundu; onay bekleyen haklar kampanya kartında
+  "(+N onay bekliyor)" olarak ayrıca gösteriliyor ve sipariş formu kotanın
+  ne zaman düşeceğini yazıyor.
 - **v1.27.0** — **Paket bir bütündür.** "Paket fiyatı 1000 TL" kampanyası
   iki ürünlü bir pakette 2000 TL'ye çıkıyordu: v1.25.0 paketi satırlara açtı
   ama fiyatı da satır satır hesaplıyordu. Artık paket formda TEK KUTUDUR —

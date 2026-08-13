@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.27.0` — paket bir bütündür: grup fiyatı, paket adedi, paket kotası |
+| **Son çıkan sürüm** | `v1.27.1` — onay bekleyen kampanya hakkı görünür |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,41 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.27.1 — Onay bekleyen kampanya hakkı görünür ✅
+
+Bulgu (ortak): *"Kampanya kullanarak bir sipariş oluşturdum. Ancak
+görüyorum ki kampanyada kullanım durumu ilerlemiyor, hiç kullanılmamış
+gibi."*
+
+- [x] **TANI (gerçek tarayıcıyla doğrulandı):** sipariş oluşturmak kampanyayı
+      satıra YAZIYOR (`kampanyaId` + indirim tutarı) ama kota ONAYDA düşüyor.
+      Kota sayacı `12 → 14` biçiminde onayda hareket ediyor; oluşturmada
+      kımıldamıyor. Mekanizma DOĞRUYDU — eksik olan ekrandı.
+- [x] `bekleyenKotalar` — onay bekleyen siparişlerdeki haklar.
+- [x] Kampanya kartında "(+N onay bekliyor)"; kotasız kampanyalarda da satır.
+- [x] Sipariş formunda "Kampanya hakkı sipariş onaylandığında düşer."
+- [x] 5 test.
+
+**Kararlar**
+
+1. **KURAL DEĞİŞMEDİ: KOTA ONAYDA DÜŞER.** Faz 15'in gerekçesi ayakta —
+   sipariş girildiği anda düşseydi, reddedilen her sipariş kotayı boşuna
+   tüketirdi. Sorun muhasebe kuralında değil, kullanıcının hiçbir geri
+   bildirim almamasındaydı.
+2. **BEKLEYEN AYRI GÖSTERİLİR, SAYACA KARIŞTIRILMAZ.** `kullanilan` hâlâ
+   yalnızca gerçekten düşülmüş hakkı anlatır; bekleyen onun yanında, farklı
+   renkte durur. Tek rakama toplamak "kalan"ı yanlış gösterirdi.
+3. **BEKLEYEN, ONAYLA AYNI KURALDAN SAYILIR** (`kotaKullanimlari`): paket 1
+   hak, ürün miktarı kadar değil. Ayrı bir sayım yazılsaydı ekrandaki rakam
+   onaydan sonra sıçrardı.
+4. **GRUPLAMA SİPARİŞ BAZINDADIR:** aynı paketin satırları tek hak sayılır
+   ama İKİ AYRI siparişteki aynı paket iki haktır. Sipariş id'si anahtara
+   girmezse iki sipariş tek kullanım gibi görünürdü.
+5. **FORMDA DA SÖYLENİR.** Kullanıcıyı bozuk bir şey aramaktan kurtaran en
+   ucuz yol, kaydetmeden önce ne olacağını yazmaktır.
+
+---
 
 ### v1.27.0 — Paket bir bütündür ✅
 

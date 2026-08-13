@@ -10,6 +10,7 @@ import { toDateInput } from "@/lib/format";
 import KampanyaPanel from "@/components/urunler/KampanyaPanel";
 import DeleteButton from "@/components/DeleteButton";
 import { kampanyaSil } from "./actions";
+import { bekleyenKotalar } from "@/lib/kampanya";
 import { tarihAraligi, araliktanEtiket, hazirAraliklar } from "@/lib/tarih-araligi";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export default async function KampanyalarPage(props: {
   const aralik = tarihAraligi(searchParams.bas, searchParams.bit);
   const aralikEtiketi = araliktanEtiket(aralik);
 
-  const [kampanyalar, urunler, paketler, firmalar] = await Promise.all([
+  const [kampanyalar, urunler, paketler, firmalar, bekleyen] = await Promise.all([
     db.kampanya.findMany({
       where: durum ? { durum } : {},
       orderBy: [{ durum: "asc" }, { baslangic: "desc" }],
@@ -70,6 +71,8 @@ export default async function KampanyalarPage(props: {
       take: 500,
       select: { id: true, ad: true },
     }),
+    // Onay bekleyen siparişlerdeki haklar (v1.27.1).
+    bekleyenKotalar(db),
   ]);
 
   const urunSecenek = urunler.map((u) => ({ id: u.id, ad: `${u.kod} — ${u.ad}` }));
@@ -156,6 +159,15 @@ export default async function KampanyalarPage(props: {
             const kalanKota = k.kota === 0 ? null : Math.max(k.kota - k.kullanilan, 0);
             const doluluk = k.kota === 0 ? 0 : Math.min((k.kullanilan / k.kota) * 100, 100);
 
+            /*
+              ONAY BEKLEYEN HAKLAR (v1.27.1) — ortağın bulgusu: "kampanyayla
+              sipariş oluşturdum ama kullanım ilerlemiyor, hiç kullanılmamış
+              gibi." Kota ONAYDA düşer (Faz 15 kararı: reddedilen sipariş
+              kotayı boşuna tüketmemeli) ama ekran bunu söylemiyordu.
+              Sayaç DEĞİŞMEDİ; bekleyen ayrı gösterilir.
+            */
+            const bekleyenAdet = bekleyen.get(k.id) ?? 0;
+
             return (
               <div key={k.id} className="card p-5">
                 <div className="mb-3 flex items-start justify-between gap-3">
@@ -223,6 +235,11 @@ export default async function KampanyalarPage(props: {
                     <div className="mb-1 flex justify-between text-xs">
                       <span className="text-muted-foreground">
                         Kota: {k.kullanilan} / {k.kota}
+                        {bekleyenAdet > 0 && (
+                          <span className="ml-1 text-amber-500">
+                            (+{bekleyenAdet} onay bekliyor)
+                          </span>
+                        )}
                       </span>
                       <span
                         className={
@@ -242,10 +259,24 @@ export default async function KampanyalarPage(props: {
                 )}
 
                 {/* T5 — kullanım özeti */}
+                {/*
+                  ONAY BEKLEYEN, KOTASIZ kampanyalarda da gösterilir: sipariş
+                  kaydedildikten sonra ekranda hiçbir şeyin kımıldamaması,
+                  ortağın "hiç kullanılmamış gibi" demesine yol açmıştı.
+                */}
+                {k.kota === 0 && bekleyenAdet > 0 && (
+                  <p className="mb-3 text-xs text-amber-500">
+                    {bekleyenAdet} hak onay bekliyor — kota onay anında düşer.
+                  </p>
+                )}
+
                 <div className="grid grid-cols-3 gap-2 border-t border-border/60 pt-3 text-center">
                   <div>
                     <p className="text-lg font-semibold text-foreground">{kullanilanAdet}</p>
-                    <p className="text-xs text-muted-foreground">kullanım</p>
+                    <p className="text-xs text-muted-foreground">
+                      kullanım
+                      {bekleyenAdet > 0 ? ` (+${bekleyenAdet} bekliyor)` : ""}
+                    </p>
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-foreground">{firmaSayisi}</p>

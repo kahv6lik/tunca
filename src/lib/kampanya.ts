@@ -1,5 +1,9 @@
 import { Prisma } from "@prisma/client";
-import { kampanyaGecerliMi, type FiyatKampanyasi } from "./fiyat-saf";
+import {
+  kampanyaGecerliMi,
+  kotaKullanimlari,
+  type FiyatKampanyasi,
+} from "./fiyat-saf";
 import type { KampanyaTipi } from "./constants";
 
 /**
@@ -330,4 +334,71 @@ export async function kampanyaKatalogu(
     paketIdler: k.paketler.map((p) => p.paketId),
     firmaIdler: k.firmalar.map((f) => f.firmaId),
   }));
+}
+
+/**
+ * Onay BEKLEYEN siparişlerde kaç hak "sözlenmiş" — kampanya id'sine göre.
+ *
+ * ORTAĞIN BULGUSU (v1.27.1): "Kampanya kullanarak bir sipariş oluşturdum
+ * ama kampanyada kullanım durumu ilerlemiyor, hiç kullanılmamış gibi."
+ *
+ * Mekanizma DOĞRU çalışıyordu: kota yalnızca ONAYDA düşer (Faz 15 kararı —
+ * sipariş girildiği anda düşseydi, reddedilen her sipariş kotayı boşuna
+ * tüketirdi). Eksik olan şuydu: ekran bunu hiçbir yerde SÖYLEMİYORDU.
+ * Kullanıcı siparişi kaydediyor, kampanya kartında hiçbir şey kımıldamıyor
+ * ve özellik bozuk görünüyordu.
+ *
+ * Çözüm kuralı değiştirmek değil, BEKLEYENİ GÖRÜNÜR KILMAK: onay bekleyen
+ * siparişlerdeki haklar ayrı ayrı sayılır ve kartta "onay bekliyor" olarak
+ * gösterilir. Kota sayacına DOKUNULMAZ — rakam hâlâ gerçekten düşülmüş
+ * hakkı anlatır.
+ *
+ * Sayım `kotaKullanimlari` ile yapılır: onayda hangi kural işleyecekse
+ * bekleyen de onunla sayılır (paket 1 hak düşer, ürün miktarı kadar değil).
+ */
+export async function bekleyenKotalar(
+  db: unknown
+): Promise<Map<string, number>> {
+  const istemci = db as {
+    siparisKalemi: { findMany: (arg: unknown) => Promise<unknown[]> };
+  };
+  const kalemler = (await istemci.siparisKalemi.findMany({
+    where: {
+      kampanyaId: { not: null },
+      siparis: { durum: "onaybekliyor" },
+    },
+    select: {
+      kampanyaId: true,
+      paketId: true,
+      paketAdedi: true,
+      miktar: true,
+      siparisId: true,
+    },
+    take: 2000,
+  })) as {
+    kampanyaId: string | null;
+    paketId: string | null;
+    paketAdedi: number | null;
+    miktar: number;
+    siparisId: string;
+  }[];
+
+  /*
+    Gruplama SİPARİŞ BAZINDA yapılır: aynı paketin satırları tek hak sayılır
+    ama İKİ AYRI siparişteki aynı paket iki haktır. Sipariş id'si anahtara
+    girmezse iki sipariş tek kullanım gibi görünürdü.
+  */
+  const toplam = new Map<string, number>();
+  const siparisler = new Map<string, typeof kalemler>();
+  for (const k of kalemler) {
+    siparisler.set(k.siparisId, [...(siparisler.get(k.siparisId) ?? []), k]);
+  }
+
+  for (const grup of siparisler.values()) {
+    for (const u of kotaKullanimlari(grup)) {
+      toplam.set(u.kampanyaId, (toplam.get(u.kampanyaId) ?? 0) + u.adet);
+    }
+  }
+
+  return toplam;
 }

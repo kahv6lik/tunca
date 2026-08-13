@@ -288,6 +288,23 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.27.1 — Onay bekleyen kampanya hakkı
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Kotalı bir kampanya seçip sipariş oluştur (onaylama) | Kampanya kartında "Kota: 0 / 10 **(+1 onay bekliyor)**" |
+| 2 | "kullanım" kutusuna bak | "0 kullanım (+1 bekliyor)" |
+| 3 | Sipariş formundaki toplam kartını oku | "Kampanya hakkı sipariş onaylandığında düşer." |
+| 4 | Siparişi ONAYLA | Kota 1'e çıkar, "onay bekliyor" kaybolur |
+| 5 | Siparişi reddet/sil | Bekleyen düşer, kota hiç değişmemiş olur |
+| 6 | Kotasız (0) kampanyada sipariş oluştur | "N hak onay bekliyor — kota onay anında düşer." |
+| 7 | Aynı paketten 1 sipariş (2 ürünlü) | Bekleyen **1** görünür, 2 değil |
+| 8 | İki ayrı siparişte aynı paket | Bekleyen **2** görünür |
+| 9 | Siparişi onayla, sonra iptal et | Kota geri iade edilir |
+| 10 | Kampanya tarih süzgecini değiştir | "kullanım" süzgeçten etkilenir, "Kota" etkilenmez |
+
+---
+
 ### v1.27.0 — Paket bir bütündür
 
 Ortağın senaryosu: paket = 4000 TL'lik telefon + 5000 TL'lik kılıf,

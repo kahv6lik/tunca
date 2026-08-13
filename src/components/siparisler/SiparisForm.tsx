@@ -603,6 +603,14 @@ export default function SiparisForm({
         </dl>
         <p className="mt-3 text-right text-xs text-muted-foreground">
           Tutarlar kaydederken sunucuda yeniden hesaplanır.
+          {/*
+            Ortağın bulgusu (v1.27.1): siparişi kaydettikten sonra kampanya
+            kartında hiçbir şey kımıldamayınca özellik bozuk sanılıyordu.
+            Kota ONAYDA düşer (Faz 15) — bunu burada söylemek, kullanıcıyı
+            bozuk bir şey aramaktan kurtarır.
+          */}
+          <br />
+          Kampanya hakkı sipariş <strong>onaylandığında</strong> düşer.
         </p>
       </div>
 
