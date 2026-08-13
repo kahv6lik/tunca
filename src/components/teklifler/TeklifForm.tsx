@@ -39,6 +39,8 @@ export type Kalem = {
    * geldiği. Kullanıcı doğrudan seçmez; "Paketten kalem ekle" ile gelir.
    */
   paketId: string;
+  /** Kaç PAKET (v1.27.0) — paket bir bütündür, kampanya ona uygulanır. */
+  paketAdedi: number;
   kampanyaId: string;
 };
 
@@ -66,6 +68,7 @@ const BOS_KALEM: Kalem = {
   birimFiyat: 0,
   urunId: "",
   paketId: "",
+  paketAdedi: 0,
   kampanyaId: "",
 };
 
@@ -217,17 +220,31 @@ export default function TeklifForm({
     const paket = uygunPaketler.find((p) => p.paketId === paketId);
     if (!paket) return;
 
-    const yeniler: Kalem[] = paketiKalemlereAc(paket).map((s) => ({
-      ...BOS_KALEM,
-      urunId: s.urunId,
-      paketId: s.paketId,
-      aciklama: s.aciklama,
-      miktar: s.miktar,
-      birim: s.birim,
-      birimFiyat: s.birimFiyat,
-    }));
-
     setKalemler((ks) => {
+      // Aynı paket ikinci kez eklenirse ADEDİ artar, satır çoğalmaz (v1.27.0).
+      if (ks.some((k) => k.paketId === paketId)) {
+        return ks.map((k) =>
+          k.paketId === paketId
+            ? {
+                ...k,
+                paketAdedi: k.paketAdedi + 1,
+                miktar: (k.miktar / Math.max(k.paketAdedi, 1)) * (k.paketAdedi + 1),
+              }
+            : k
+        );
+      }
+
+      const yeniler: Kalem[] = paketiKalemlereAc(paket).map((s) => ({
+        ...BOS_KALEM,
+        urunId: s.urunId,
+        paketId: s.paketId,
+        paketAdedi: 1,
+        aciklama: s.aciklama,
+        miktar: s.miktar,
+        birim: s.birim,
+        birimFiyat: s.birimFiyat,
+      }));
+
       const bosMu = ks.length === 1 && !ks[0].urunId && !ks[0].aciklama.trim();
       return bosMu ? yeniler : [...ks, ...yeniler];
     });
@@ -435,6 +452,11 @@ export default function TeklifForm({
           {kalemler.map((k, i) => (
             <div key={i} className="grid gap-2 sm:grid-cols-12">
               <input type="hidden" name={`kalem-${i}-paketId`} value={k.paketId} />
+              <input
+                type="hidden"
+                name={`kalem-${i}-paketAdedi`}
+                value={k.paketAdedi}
+              />
               {/* Paket damgası GÖRÜNÜR: birim fiyat liste fiyatından
                   farklıysa sebebi burada okunur. */}
               {k.paketId && (

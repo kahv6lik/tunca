@@ -25,6 +25,7 @@ import {
 } from "@/lib/siparis";
 import {
   satirFiyatiHesapla,
+  paketGrubuHesapla,
   paketDamgasiGecerliMi,
   type FiyatKampanyasi,
 } from "@/lib/fiyat-saf";
@@ -68,6 +69,8 @@ type Kalem = {
   urunId: string | null;
   /** Satır bir paketten açıldıysa hangi paketten geldiği (v1.25.0). */
   paketId: string | null;
+  /** Kaç PAKET (v1.27.0) — kota paket sayar, ürün adedi değil. */
+  paketAdedi: number | null;
   aciklama: string;
   miktar: number;
   birim: string;
@@ -93,6 +96,7 @@ function kalemleriOku(formData: FormData): Kalem[] {
     kalemler.push({
       urunId: String(formData.get(`kalem-${i}-urunId`) ?? "").trim() || null,
       paketId: String(formData.get(`kalem-${i}-paketId`) ?? "").trim() || null,
+      paketAdedi: Number(formData.get(`kalem-${i}-paketAdedi`) ?? 0) || null,
       aciklama,
       miktar,
       birim: String(formData.get(`kalem-${i}-birim`) ?? "adet"),
@@ -125,7 +129,11 @@ async function tutarlariHesapla(
   kdvTutari: number;
   toplam: number;
 }> {
-  const satirlar = [];
+  const satirlar: (Kalem & {
+    tutar: number;
+    indirimTutari: number;
+    kdvTutari: number;
+  })[] = [];
   let araToplam = 0;
   let indirimToplam = 0;
   let kdvToplam = 0;
@@ -135,41 +143,123 @@ async function tutarlariHesapla(
     aynısı. İstemciden gelen bir `paketId`'ye güvenip satıra basmak,
     "bu fiyat şu anlaşmadan geliyor" iddiasını herkesin uydurabilmesi
     demekti; başka bir firmaya özel paketin adı bu firmanın belgesinde
-    görünürdü. Katalog satır döngüsünün DIŞINDA bir kez okunur.
+    görünürdü. Katalog döngünün DIŞINDA bir kez okunur.
   */
   const paketKatalog = kalemler.some((k) => k.paketId)
     ? await paketKatalogu(paketIstemcisi(db))
     : [];
 
+  /** Satırın paket damgası geçerli mi? Değilse sıradan bir satır sayılır. */
+  const damgaliMi = (k: Kalem) =>
+    Boolean(
+      k.paketId &&
+        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
+          firmaId,
+          urunId: k.urunId,
+        })
+    );
+
+  /** Seçilen kampanyayı TAM kapsamla doğrular; geçersizse null döner. */
+  async function kampanyaDogrula(
+    kampanyaId: string | null,
+    urunId: string | null,
+    paketId: string | null
+  ): Promise<FiyatKampanyasi | null> {
+    if (!kampanyaId) return null;
+    /*
+      Yalnızca "durum = aktif" bakmak yetmez. Tarihi geçmiş, kotası dolmuş,
+      başka bir firmaya/ürüne/pakete tanımlı bir kampanyanın id'si
+      istemciden gelirse indirim UYGULANMAMALIDIR — aksi hâlde indirim
+      yetkisi fiilen herkese açılır (Faz 14 kuralı).
+    */
+    const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
+      firmaId,
+      urunId,
+      paketId,
+    });
+    return adaylar.find((a) => a.kampanyaId === kampanyaId) ?? null;
+  }
+
+  /*
+    ═══ PAKET BİR BÜTÜNDÜR (v1.27.0) ═══
+
+    Ortağın bulgusu: "kampanyada paket fiyatı 1000 TL atandı ama ürün
+    bazında hesaplandığı için 2000 TL oluyor." Aynı `paketId`yi taşıyan
+    satırlar TEK GRUPTUR: kampanya bir kez ve paketin TAMAMINA uygulanır,
+    indirim satırlara brüt paylarıyla dağıtılır.
+
+    Satırlar yine ayrı ayrı kaydedilir — stok düşümü, kısmi sevkiyat ve ürün
+    raporu satırın ürününe bakar (v1.25.0 kararı).
+  */
+  const paketGruplari = new Map<string, Kalem[]>();
+  const tekil: Kalem[] = [];
   for (const k of kalemler) {
-    // Kampanya seçilmişse GEÇERLİLİĞİ sunucuda doğrulanır: istemciden gelen
-    // bir kampanya id'sine güvenip indirim vermek, indirim yetkisini herkese
-    // açmak olurdu.
-    let kampanyalar: FiyatKampanyasi[] = [];
-    if (k.kampanyaId) {
-      /*
-        Doğrulama TAM kapsamla yapılır: yalnızca "durum = aktif" bakmak
-        yetmez. Tarihi geçmiş, kotası dolmuş, başka bir firmaya ya da başka
-        bir ürüne tanımlı bir kampanyanın id'si istemciden gelirse indirim
-        UYGULANMAMALIDIR — aksi hâlde indirim yetkisi fiilen herkese açılır.
-        Aday listesi `gecerliKampanyalar` ile üretilir; seçilen id o listede
-        yoksa kampanya yok sayılır (Faz 14 kuralı).
-      */
-      const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
-        firmaId,
-        urunId: k.urunId ?? null,
-        // Paket kapsamlı kampanya ancak satırın damgasıyla sorulabilir
-        // (v1.26.1); damga olmadan paket kapsamı hiç değerlendirilemiyordu.
-        paketId: k.paketId ?? null,
-      });
-      kampanyalar = adaylar.filter((a) => a.kampanyaId === k.kampanyaId);
+    if (damgaliMi(k) && k.paketId) {
+      const grup = paketGruplari.get(k.paketId) ?? [];
+      grup.push(k);
+      paketGruplari.set(k.paketId, grup);
+    } else {
+      // Damgası düşen satır sıradanlaşır; iddia kaydedilmez.
+      tekil.push({ ...k, paketId: null, paketAdedi: null });
     }
+  }
+
+  for (const [paketId, grup] of paketGruplari) {
+    /*
+      Paket adedi grubun TAMAMI için tektir; istemciden farklı gelen
+      değerler olursa en büyüğü alınır (satırlar birlikte güncellenir,
+      ayrışması bir hatadır). En az 1 paket satılır.
+    */
+    const paketAdedi = Math.max(
+      1,
+      ...grup.map((k) => Math.max(k.paketAdedi ?? 0, 0))
+    );
+
+    const kampanya = await kampanyaDogrula(
+      grup[0].kampanyaId,
+      grup[0].urunId,
+      paketId
+    );
+
+    const sonuc = paketGrubuHesapla(
+      grup.map((k) => ({
+        urunId: k.urunId ?? "",
+        // Bir pakette kaç adet: satırın miktarı ÷ paket adedi.
+        birimMiktar: paketAdedi > 0 ? k.miktar / paketAdedi : k.miktar,
+        birimFiyat: k.birimFiyat,
+        kdvOrani: k.kdvOrani,
+      })),
+      paketAdedi,
+      kampanya
+    );
+
+    grup.forEach((k, j) => {
+      const c = sonuc.satirlar[j];
+      satirlar.push({
+        ...k,
+        paketId,
+        paketAdedi,
+        miktar: c.miktar,
+        // Kampanya uygulanmadıysa satırda da işaretlenmez.
+        kampanyaId: sonuc.kampanya?.kampanyaId ?? null,
+        tutar: c.tutar,
+        indirimTutari: c.indirimTutari,
+        kdvTutari: c.kdvTutari,
+      });
+      araToplam += k.birimFiyat * c.miktar;
+      indirimToplam += c.indirimTutari;
+      kdvToplam += c.kdvTutari;
+    });
+  }
+
+  for (const k of tekil) {
+    const kampanya = await kampanyaDogrula(k.kampanyaId, k.urunId, null);
 
     const sonuc = satirFiyatiHesapla(
       { urunId: k.urunId ?? "", listeFiyat: k.birimFiyat, kdvOrani: k.kdvOrani },
       k.miktar,
       {
-        kampanyalar,
+        kampanyalar: kampanya ? [kampanya] : [],
         secilenKampanyaId: k.kampanyaId,
         elIskontoOrani: k.iskontoOrani,
       }
@@ -177,19 +267,7 @@ async function tutarlariHesapla(
 
     satirlar.push({
       ...k,
-      // Kampanya uygulanmadıysa satırda da işaretlenmez.
       kampanyaId: sonuc.kampanya?.kampanyaId ?? null,
-      // Damga doğrulanmadıysa SESSİZCE düşer: satır geçerli kalır, yalnızca
-      // "bu paketten geldi" iddiası kaydedilmez. Siparişi reddetmek, çoğu
-      // zaman zararsız bir tutarsızlık yüzünden satışı durdururdu.
-      paketId:
-        k.paketId &&
-        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
-          firmaId,
-          urunId: k.urunId,
-        })
-          ? k.paketId
-          : null,
       tutar: sonuc.netTutar,
       indirimTutari: sonuc.indirimTutari,
       kdvTutari: sonuc.kdvTutari,
@@ -225,6 +303,7 @@ async function kalemleriYaz(
       sira: i,
       urunId: s.urunId,
       paketId: s.paketId,
+      paketAdedi: s.paketAdedi,
       aciklama: s.aciklama,
       miktar: s.miktar,
       birim: s.birim,

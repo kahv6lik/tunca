@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.26.1` — kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü |
+| **Son çıkan sürüm** | `v1.27.0` — paket bir bütündür: grup fiyatı, paket adedi, paket kotası |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,59 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.27.0 — Paket bir bütündür ✅
+
+Bulgu (ortak): *"Kampanyada paket fiyatı 1000 TL atandı; paketteki
+ürünlerden biri 4000, biri 5000 TL. Kampanya ürün bazında girildiği için
+ikisi de 1000'er TL'den hesaplıyor, paket 1000 yerine 2000 TL oluyor. Biz
+oraya paket eklediğimizde paketteki ürünler yazsa ve 4 paket 5 paket sipariş
+verilebilmeli. Şu anki durumda iki farklı kalemmiş gibi oluyor. Ürün seçince
+ayrı, paket seçince ayrı davranmalı."*
+
+- [x] **HATA:** v1.25.0 paketi satırlara açtı (stok için doğruydu) ama
+      FİYATI da satır satır hesapladı; paket, ürünlerin toplamına indi.
+- [x] `paketGrubuHesapla` — paket düzeyinde fiyat, satırlara pay.
+- [x] Formda paket TEK KUTU: paket adedi + tek kampanya + içindeki ürünler.
+- [x] Aynı paket ikinci kez eklenirse ADEDİ artar, satır çoğalmaz.
+- [x] `SiparisKalemi.paketAdedi` / `TeklifKalemi.paketAdedi` (migration
+      `20260813120000_paket_adedi`).
+- [x] Kota PAKET sayar (`kotaKullanimlari`); onay ve iptal aynı fonksiyondan.
+- [x] Teklif tarafı da aynı kuralla gruplanır.
+- [x] 14 yeni test (ortağın 4000+5000 senaryosu dahil).
+
+**Kararlar**
+
+1. **SATIRLAR KALDI, FİYAT PAKET DÜZEYİNE ÇIKTI.** Satırları geri toplamak
+   (tek opak satır) stok düşümünü sessizce durdururdu — v1.25.0'ın kararı
+   hâlâ geçerli. Çözüm satırları kaldırmak değil, FİYATI paketten hesaplayıp
+   satırlara PAY ETMEK oldu.
+2. **KAMPANYA PAKETİ BİRİM KABUL EDER.** `kampanyaIndirimi` aynen kullanılır;
+   yalnızca "birim fiyat" yerine PAKETİN bedeli, "miktar" yerine PAKET ADEDİ
+   verilir. Böylece bütün kampanya tipleri kendiliğinden doğru anlama gelir:
+   `paketfiyat` → bir paketin fiyatı (ortağın beklediği), `yuzde` → paketin
+   tamamına, `alnodem` → "3 paket al 2 öde". Yeni indirim matematiği YAZILMADI.
+3. **İNDİRİM BRÜT PAYIYLA DAĞITILIR** (paketBirimFiyati'ndaki gerekçe): 4000
+   TL'lik ürünle 5000 TL'lik ürün aynı indirimi almamalı, yoksa iade ve kısmi
+   sevkiyatta rakam saçmalar. Kuruş artığı SON satırda kapatılır; aksi hâlde
+   satır toplamları belgenin toplamını tutmaz.
+4. **`paketAdedi` AYRI BİR ALANDIR, `miktar`dan TÜRETİLMEZ.** `miktar` ürün
+   adedidir ve stok onu düşer; kota ise paket sayar. Bölerek türetmek,
+   kullanıcı satır miktarını elle değiştirdiğinde yanlış cevap verirdi.
+5. **AYNI PAKET İKİNCİ KEZ EKLENİRSE ADEDİ ARTAR.** Ayrı bir grup olarak
+   eklemek kampanyayı da iki kez uygulanır hâle getirirdi; ortağın istediği
+   "4 paket 5 paket" zaten adettir.
+6. **KOTA PAKET SAYAR.** İki ürünlü bir paketten 1 adet satmak eskiden 2 hak
+   düşürüyordu; kotanın anlamı "kaç paket verilebilir"dir. Onay ve iptal
+   AYNI saf fonksiyondan geçer — ayrı hesaplasalardı kota her iptalde
+   sessizce kayardı.
+7. **ÜRÜN SATIRI DEĞİŞMEDİ.** Pakete ait olmayan kalemler eskisi gibi kendi
+   miktarı, iskontosu ve kampanyasıyla çalışır: "ürün seçince ayrı, paket
+   seçince ayrı davranmalı."
+8. **DAMGASI DÜŞEN SATIR SIRADANLAŞIR.** Sunucu paket damgasını doğrulayamazsa
+   satır gruptan çıkar ve tek başına fiyatlanır; sipariş reddedilmez.
+
+---
 
 ### v1.26.1 — Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü ✅
 

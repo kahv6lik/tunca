@@ -16,6 +16,7 @@ import {
   satirinKampanyalari,
   firmaninPaketleri,
   paketiKalemlereAc,
+  paketGrubuHesapla,
   type KapsamliKampanya,
   type KapsamliPaket,
 } from "@/lib/fiyat-saf";
@@ -40,6 +41,13 @@ export type SiparisKalemDegeri = {
    * olduğunu açıklar.
    */
   paketId: string;
+  /**
+   * Kaç PAKET satıldığı (v1.27.0). `miktar` ürün adedidir; paket adedi ayrı
+   * durur çünkü kampanya kotası PAKET sayar, ürün sayısı değil.
+   */
+  paketAdedi: number;
+  /** Bir pakette bu üründen kaç adet var — paket adedi değişince kullanılır. */
+  birimMiktar: number;
   aciklama: string;
   miktar: number;
   birim: string;
@@ -62,6 +70,8 @@ export type SiparisDegerleri = {
 const BOS_KALEM: SiparisKalemDegeri = {
   urunId: "",
   paketId: "",
+  paketAdedi: 0,
+  birimMiktar: 0,
   aciklama: "",
   miktar: 1,
   birim: "adet",
@@ -182,23 +192,72 @@ export default function SiparisForm({
     const paket = uygunPaketler.find((p) => p.paketId === paketId);
     if (!paket) return;
 
-    const yeniler: SiparisKalemDegeri[] = paketiKalemlereAc(paket).map((s) => ({
-      ...BOS_KALEM,
-      urunId: s.urunId,
-      paketId: s.paketId,
-      aciklama: s.aciklama,
-      miktar: s.miktar,
-      birim: s.birim,
-      birimFiyat: s.birimFiyat,
-      kdvOrani: s.kdvOrani,
-    }));
-
     setKalemler((ks) => {
+      /*
+        AYNI PAKET İKİ KEZ EKLENİRSE ADEDİ ARTAR, satır ÇOĞALMAZ (v1.27.0).
+        Ortağın istediği "4 paket 5 paket sipariş verilebilmeli" budur;
+        aynı paketi ikinci kez ayrı bir grup olarak eklemek, kampanyayı da
+        iki kez uygulanır hâle getirirdi.
+      */
+      if (ks.some((k) => k.paketId === paketId)) {
+        return ks.map((k) =>
+          k.paketId === paketId
+            ? {
+                ...k,
+                paketAdedi: k.paketAdedi + 1,
+                miktar: k.birimMiktar * (k.paketAdedi + 1),
+              }
+            : k
+        );
+      }
+
+      const yeniler: SiparisKalemDegeri[] = paketiKalemlereAc(paket).map((s) => ({
+        ...BOS_KALEM,
+        urunId: s.urunId,
+        paketId: s.paketId,
+        paketAdedi: 1,
+        birimMiktar: s.miktar,
+        aciklama: s.aciklama,
+        miktar: s.miktar,
+        birim: s.birim,
+        birimFiyat: s.birimFiyat,
+        kdvOrani: s.kdvOrani,
+      }));
+
       // Kullanıcı forma yeni girdiyse tek boş satır duruyordur; paketin
       // kalemleri onun YERİNE geçer, altına boş bir satır bırakmaz.
-      const bosMu =
-        ks.length === 1 && !ks[0].urunId && !ks[0].aciklama.trim();
+      const bosMu = ks.length === 1 && !ks[0].urunId && !ks[0].aciklama.trim();
       return bosMu ? yeniler : [...ks, ...yeniler];
+    });
+  }
+
+  /** Paket adedi değişince grubun BÜTÜN satırlarının miktarı yeniden kurulur. */
+  function paketAdediDegistir(paketId: string, adet: number) {
+    const guvenli = Math.max(adet, 0);
+    setKalemler((ks) =>
+      ks.map((k) =>
+        k.paketId === paketId
+          ? { ...k, paketAdedi: guvenli, miktar: k.birimMiktar * guvenli }
+          : k
+      )
+    );
+  }
+
+  /*
+    Kampanya PAKETE seçilir, satıra değil: paket bir bütündür ve "paket
+    fiyatı 1000 TL" kampanyası paketin tamamına uygulanmalıdır. Seçim
+    grubun bütün satırlarına yazılır; sunucu da aynı şekilde gruplar.
+  */
+  function paketKampanyaSec(paketId: string, kampanyaId: string) {
+    setKalemler((ks) =>
+      ks.map((k) => (k.paketId === paketId ? { ...k, kampanyaId } : k))
+    );
+  }
+
+  function paketSil(paketId: string) {
+    setKalemler((ks) => {
+      const kalan = ks.filter((k) => k.paketId !== paketId);
+      return kalan.length > 0 ? kalan : [{ ...BOS_KALEM }];
     });
   }
 
@@ -265,20 +324,115 @@ export default function SiparisForm({
     })
   );
 
-  // Önizleme — sunucudaki hesabın aynısı.
-  const satirlar = kalemler.map((k, i) =>
-    satirFiyatiHesapla(
-      { urunId: k.urunId, listeFiyat: k.birimFiyat, kdvOrani: k.kdvOrani },
-      k.miktar,
-      {
-        kampanyalar: k.kampanyaId
-          ? satirKampanyalari[i].filter((x) => x.kampanyaId === k.kampanyaId)
-          : [],
-        secilenKampanyaId: k.kampanyaId || null,
-        elIskontoOrani: k.iskontoOrani,
-      }
-    )
-  );
+  /*
+    GRUPLAMA (v1.27.0) — paket bir BÜTÜNDÜR.
+
+    Ortağın bulgusu: "paket fiyatı 1000 TL atandı ama ürün bazında
+    hesaplandığı için 2000 TL oluyor." Paketten açılan satırlar tek tek
+    fiyatlanırsa paket, ürünlerin toplamına iner. Artık aynı `paketId`yi
+    taşıyan satırlar TEK GRUPTUR: adet paket cinsindendir, kampanya bir kez
+    ve paketin tamamına uygulanır, indirim satırlara pay edilir.
+
+    Satırlar yine ayrı ayrı KAYDEDİLİR — stok, kısmi sevkiyat ve ürün
+    raporu bozulmasın diye (v1.25.0 kararı).
+  */
+  type Grup =
+    | { tur: "urun"; indeks: number }
+    | { tur: "paket"; paketId: string; indeksler: number[] };
+
+  const gruplar: Grup[] = [];
+  kalemler.forEach((k, i) => {
+    if (!k.paketId) {
+      gruplar.push({ tur: "urun", indeks: i });
+      return;
+    }
+    const varOlan = gruplar.find(
+      (g): g is Extract<Grup, { tur: "paket" }> =>
+        g.tur === "paket" && g.paketId === k.paketId
+    );
+    if (varOlan) varOlan.indeksler.push(i);
+    else gruplar.push({ tur: "paket", paketId: k.paketId, indeksler: [i] });
+  });
+
+  /** Satır başına önizleme sonucu — hangi gruptan geldiği fark etmez. */
+  const satirlar: {
+    indirimTutari: number;
+    netTutar: number;
+    kdvTutari: number;
+    kampanya: { kod: string } | null;
+  }[] = kalemler.map(() => ({
+    indirimTutari: 0,
+    netTutar: 0,
+    kdvTutari: 0,
+    kampanya: null,
+  }));
+
+  /** Paket grubunun özeti — başlıkta gösterilir. */
+  const paketOzet = new Map<
+    string,
+    { paketBirimFiyati: number; brut: number; indirim: number; net: number }
+  >();
+
+  for (const g of gruplar) {
+    if (g.tur === "urun") {
+      const k = kalemler[g.indeks];
+      const s = satirFiyatiHesapla(
+        { urunId: k.urunId, listeFiyat: k.birimFiyat, kdvOrani: k.kdvOrani },
+        k.miktar,
+        {
+          kampanyalar: k.kampanyaId
+            ? satirKampanyalari[g.indeks].filter(
+                (x) => x.kampanyaId === k.kampanyaId
+              )
+            : [],
+          secilenKampanyaId: k.kampanyaId || null,
+          elIskontoOrani: k.iskontoOrani,
+        }
+      );
+      satirlar[g.indeks] = {
+        indirimTutari: s.indirimTutari,
+        netTutar: s.netTutar,
+        kdvTutari: s.kdvTutari,
+        kampanya: s.kampanya,
+      };
+      continue;
+    }
+
+    const ilk = kalemler[g.indeksler[0]];
+    const secilen = ilk.kampanyaId
+      ? (satirKampanyalari[g.indeksler[0]].find(
+          (x) => x.kampanyaId === ilk.kampanyaId
+        ) ?? null)
+      : null;
+
+    const sonuc = paketGrubuHesapla(
+      g.indeksler.map((i) => ({
+        urunId: kalemler[i].urunId,
+        birimMiktar: kalemler[i].birimMiktar,
+        birimFiyat: kalemler[i].birimFiyat,
+        kdvOrani: kalemler[i].kdvOrani,
+      })),
+      ilk.paketAdedi,
+      secilen
+    );
+
+    g.indeksler.forEach((i, j) => {
+      const c = sonuc.satirlar[j];
+      satirlar[i] = {
+        indirimTutari: c.indirimTutari,
+        netTutar: c.tutar,
+        kdvTutari: c.kdvTutari,
+        kampanya: sonuc.kampanya,
+      };
+    });
+
+    paketOzet.set(g.paketId, {
+      paketBirimFiyati: sonuc.paketBirimFiyati,
+      brut: sonuc.brut,
+      indirim: sonuc.indirimTutari,
+      net: sonuc.netTutar,
+    });
+  }
 
   const araToplam = kalemler.reduce((s, k) => s + k.birimFiyat * k.miktar, 0);
   const indirim = satirlar.reduce((s, x) => s + x.indirimTutari, 0);
@@ -395,197 +549,45 @@ export default function SiparisForm({
         </div>
 
         <div className="space-y-4">
-          {kalemler.map((k, i) => (
-            <div key={i} className="rounded-xl border border-border/60 p-3">
-              {/*
-                Paket damgası GÖRÜNÜR: satırın birim fiyatı liste fiyatından
-                farklıysa kullanıcı sebebini burada okur. Damga gizli bir
-                alan olsaydı, "bu fiyat nereden geldi?" sorusu ekranda
-                yanıtsız kalırdı.
-              */}
-              {k.paketId && (
-                <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-sky-500/10 px-2 py-1 text-xs text-sky-500">
-                  <Package className="h-3.5 w-3.5" />
-                  {paketler.find((p) => p.paketId === k.paketId)?.ad ?? "Paket"}{" "}
-                  paketinden — fiyat paketten geldi
-                </p>
-              )}
-              <input
-                type="hidden"
-                name={`kalem-${i}-paketId`}
-                value={k.paketId}
+          {gruplar.map((g) =>
+            g.tur === "paket" ? (
+              <PaketGrubu
+                key={`p-${g.paketId}`}
+                paketAd={
+                  paketler.find((p) => p.paketId === g.paketId)?.ad ?? "Paket"
+                }
+                kalemler={g.indeksler.map((i) => ({ i, k: kalemler[i] }))}
+                ozet={paketOzet.get(g.paketId)}
+                adaylar={satirKampanyalari[g.indeksler[0]]}
+                kampanyaVarMi={kampanyalar.length > 0}
+                firmaSecili={Boolean(firmaId)}
+                satirlar={satirlar}
+                onAdet={(a) => paketAdediDegistir(g.paketId, a)}
+                onKampanya={(id) => paketKampanyaSec(g.paketId, id)}
+                onSil={() => paketSil(g.paketId)}
+                onFiyat={(i, v) => guncelle(i, "birimFiyat", v)}
               />
-              <div className="grid gap-3 sm:grid-cols-12">
-                <div className="sm:col-span-4">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-urunId`}>Ürün</label>
-                  <select
-                    id={`kalem-${i}-urunId`}
-                    name={`kalem-${i}-urunId`}
-                    value={k.urunId}
-                    onChange={(e) => urunSec(i, e.target.value)}
-                    className="input"
-                  >
-                    <option value="">Katalog dışı</option>
-                    {urunler.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.kod} — {u.ad}
-                        {u.stokTakibi ? ` (stok ${u.stokMiktar})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-8">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-aciklama`}>
-                    Açıklama *
-                  </label>
-                  <input
-                    id={`kalem-${i}-aciklama`}
-                    name={`kalem-${i}-aciklama`}
-                    required
-                    value={k.aciklama}
-                    onChange={(e) => guncelle(i, "aciklama", e.target.value)}
-                    className="input"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-miktar`}>Miktar</label>
-                  <input
-                    id={`kalem-${i}-miktar`}
-                    name={`kalem-${i}-miktar`}
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={k.miktar}
-                    onChange={(e) => guncelle(i, "miktar", Number(e.target.value))}
-                    className="input"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-birim`}>Birim</label>
-                  <select
-                    id={`kalem-${i}-birim`}
-                    name={`kalem-${i}-birim`}
-                    value={k.birim}
-                    onChange={(e) => guncelle(i, "birim", e.target.value)}
-                    className="input"
-                  >
-                    {URUN_BIRIMLERI.map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-birimFiyat`}>
-                    Birim Fiyat
-                  </label>
-                  <input
-                    id={`kalem-${i}-birimFiyat`}
-                    name={`kalem-${i}-birimFiyat`}
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={k.birimFiyat}
-                    onChange={(e) => guncelle(i, "birimFiyat", Number(e.target.value))}
-                    className="input"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-iskonto`}>
-                    İskonto (%)
-                  </label>
-                  <input
-                    id={`kalem-${i}-iskonto`}
-                    name={`kalem-${i}-iskonto`}
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    max={100}
-                    value={k.iskontoOrani}
-                    onChange={(e) => guncelle(i, "iskontoOrani", Number(e.target.value))}
-                    className="input"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-kdv`}>KDV (%)</label>
-                  <input
-                    id={`kalem-${i}-kdv`}
-                    name={`kalem-${i}-kdv`}
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    value={k.kdvOrani}
-                    onChange={(e) => guncelle(i, "kdvOrani", Number(e.target.value))}
-                    className="input"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 flex items-end justify-between gap-2">
-                  <div className="text-right text-sm">
-                    <p className="text-xs text-muted-foreground">Net</p>
-                    <p className="font-medium">{formatPara(satirlar[i]?.netTutar ?? 0)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setKalemler((ks) => ks.filter((_, j) => j !== i))}
-                    aria-label="Kalemi sil"
-                    className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-rose-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/*
-                  Kampanya alanı HER ZAMAN çizilir. Eskiden liste boşsa alan
-                  hiç görünmüyordu ve kullanıcı "kampanya diye bir şey yok"
-                  sanıyordu; oysa çoğu zaman kampanya vardı ama kapsamı
-                  yüzünden süzülmüştü. Artık sebebi yazıyor.
-                */}
-                <div className="sm:col-span-12">
-                  <label className="label text-xs" htmlFor={`kalem-${i}-kampanyaId`}>
-                    Kampanya
-                  </label>
-                  {satirKampanyalari[i].length > 0 ? (
-                    <select
-                      id={`kalem-${i}-kampanyaId`}
-                      name={`kalem-${i}-kampanyaId`}
-                      value={k.kampanyaId}
-                      onChange={(e) => guncelle(i, "kampanyaId", e.target.value)}
-                      className="input"
-                    >
-                      <option value="">Kampanya yok</option>
-                      {satirKampanyalari[i].map((kmp) => (
-                        <option key={kmp.kampanyaId} value={kmp.kampanyaId}>
-                          {kmp.kod} — {kmp.ad}
-                          {kmp.kalanKota > 0 ? ` (${kmp.kalanKota} hak)` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {kampanyalar.length === 0
-                        ? "Tanımlı aktif kampanya yok."
-                        : !firmaId
-                          ? "Önce firma seçin — kampanyaların bir kısmı firmaya özeldir."
-                          : !k.urunId
-                            ? "Ürün seçin — kampanyaların bir kısmı belirli ürünlere tanımlıdır."
-                            : "Bu firma ve ürün için geçerli kampanya yok."}
-                    </p>
-                  )}
-                  {satirlar[i]?.kampanya && (
-                    <p className="mt-1 text-xs text-emerald-500">
-                      İndirim: {formatPara(satirlar[i].indirimTutari)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+            ) : (
+              <UrunSatiri
+                key={`u-${g.indeks}`}
+                i={g.indeks}
+                k={kalemler[g.indeks]}
+                urunler={urunler}
+                adaylar={satirKampanyalari[g.indeks]}
+                kampanyaVarMi={kampanyalar.length > 0}
+                firmaSecili={Boolean(firmaId)}
+                sonuc={satirlar[g.indeks]}
+                onUrun={(id) => urunSec(g.indeks, id)}
+                onAlan={(alan, v) => guncelle(g.indeks, alan, v)}
+                onSil={() =>
+                  setKalemler((ks) => {
+                    const kalan = ks.filter((_, j) => j !== g.indeks);
+                    return kalan.length > 0 ? kalan : [{ ...BOS_KALEM }];
+                  })
+                }
+              />
+            )
+          )}
         </div>
       </div>
 
@@ -629,6 +631,396 @@ export default function SiparisForm({
         <Kaydet duzenleme={Boolean(mevcut)} />
       </div>
     </form>
+  );
+}
+
+type SatirSonucu = {
+  indirimTutari: number;
+  netTutar: number;
+  kdvTutari: number;
+  kampanya: { kod: string } | null;
+};
+
+/** Kampanya alanı — liste boşken de çizilir ve SEBEBİNİ yazar (v1.23.0). */
+function KampanyaAlani({
+  id,
+  ad,
+  deger,
+  adaylar,
+  kampanyaVarMi,
+  firmaSecili,
+  urunSecili,
+  onSec,
+  ipucu,
+}: {
+  id: string;
+  /** Form alan adı; paket grubunda `undefined` (satırlara gizli yazılır). */
+  ad?: string;
+  deger: string;
+  adaylar: KapsamliKampanya[];
+  kampanyaVarMi: boolean;
+  firmaSecili: boolean;
+  urunSecili: boolean;
+  onSec: (kampanyaId: string) => void;
+  ipucu?: string;
+}) {
+  if (adaylar.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {!kampanyaVarMi
+          ? "Tanımlı aktif kampanya yok."
+          : !firmaSecili
+            ? "Önce firma seçin — kampanyaların bir kısmı firmaya özeldir."
+            : !urunSecili
+              ? "Ürün seçin — kampanyaların bir kısmı belirli ürünlere tanımlıdır."
+              : (ipucu ?? "Bu firma ve ürün için geçerli kampanya yok.")}
+      </p>
+    );
+  }
+  return (
+    <select
+      id={id}
+      name={ad}
+      value={deger}
+      onChange={(e) => onSec(e.target.value)}
+      className="input"
+    >
+      <option value="">Kampanya yok</option>
+      {adaylar.map((kmp) => (
+        <option key={kmp.kampanyaId} value={kmp.kampanyaId}>
+          {kmp.kod} — {kmp.ad}
+          {kmp.kalanKota > 0 ? ` (${kmp.kalanKota} hak)` : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * PAKET GRUBU — v1.27.0.
+ *
+ * Paket TEK BİR KUTUDUR: adedi paket cinsindendir ("4 paket"), kampanyası
+ * bir kez seçilir ve paketin TAMAMINA uygulanır. İçindeki ürünler
+ * listelenir; her birinin birim fiyatı düzeltilebilir ama miktarı paket
+ * adedinden türer — pakette 2 adet varsa 4 pakette 8 adet olur.
+ *
+ * Satırlar yine ayrı ayrı kaydedilir (gizli alanlarla): stok düşümü, kısmi
+ * sevkiyat ve ürün raporu satırın ürününe bakar (v1.25.0 kararı).
+ */
+function PaketGrubu({
+  paketAd,
+  kalemler,
+  ozet,
+  adaylar,
+  kampanyaVarMi,
+  firmaSecili,
+  satirlar,
+  onAdet,
+  onKampanya,
+  onSil,
+  onFiyat,
+}: {
+  paketAd: string;
+  kalemler: { i: number; k: SiparisKalemDegeri }[];
+  ozet?: { paketBirimFiyati: number; brut: number; indirim: number; net: number };
+  adaylar: KapsamliKampanya[];
+  kampanyaVarMi: boolean;
+  firmaSecili: boolean;
+  satirlar: SatirSonucu[];
+  onAdet: (adet: number) => void;
+  onKampanya: (kampanyaId: string) => void;
+  onSil: () => void;
+  onFiyat: (i: number, deger: number) => void;
+}) {
+  const ilk = kalemler[0].k;
+
+  return (
+    <div className="rounded-xl border border-sky-500/40 bg-sky-500/5 p-3">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-sky-500" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">{paketAd}</p>
+            <p className="text-xs text-muted-foreground">
+              Paket · {kalemler.length} ürün
+              {ozet ? ` · paket bedeli ${formatPara(ozet.paketBirimFiyati)}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-3">
+          <div className="w-28">
+            <label className="label text-xs" htmlFor={`paket-${ilk.paketId}-adet`}>
+              Paket adedi
+            </label>
+            <input
+              id={`paket-${ilk.paketId}-adet`}
+              type="number"
+              step="1"
+              min={1}
+              value={ilk.paketAdedi}
+              onChange={(e) => onAdet(Number(e.target.value))}
+              className="input"
+            />
+          </div>
+          <div className="text-right text-sm">
+            <p className="text-xs text-muted-foreground">Net</p>
+            <p className="font-medium">{formatPara(ozet?.net ?? 0)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onSil}
+            aria-label="Paketi çıkar"
+            className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-rose-400"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Paketin ürünleri */}
+      <div className="mb-3 space-y-1.5">
+        {kalemler.map(({ i, k }) => (
+          <div
+            key={i}
+            className="grid items-center gap-2 rounded-lg bg-background/60 px-2 py-1.5 sm:grid-cols-12"
+          >
+            {/* Satır alanları gizli gider: sunucu her ürünü ayrı kaydeder. */}
+            <input type="hidden" name={`kalem-${i}-urunId`} value={k.urunId} />
+            <input type="hidden" name={`kalem-${i}-paketId`} value={k.paketId} />
+            <input type="hidden" name={`kalem-${i}-paketAdedi`} value={k.paketAdedi} />
+            <input type="hidden" name={`kalem-${i}-aciklama`} value={k.aciklama} />
+            <input type="hidden" name={`kalem-${i}-miktar`} value={k.miktar} />
+            <input type="hidden" name={`kalem-${i}-birim`} value={k.birim} />
+            <input type="hidden" name={`kalem-${i}-kdv`} value={k.kdvOrani} />
+            <input type="hidden" name={`kalem-${i}-iskonto`} value={k.iskontoOrani} />
+            <input
+              type="hidden"
+              name={`kalem-${i}-kampanyaId`}
+              value={k.kampanyaId}
+            />
+
+            <p className="truncate text-sm sm:col-span-5">{k.aciklama}</p>
+            <p className="text-xs text-muted-foreground sm:col-span-2">
+              {k.birimMiktar} × {k.paketAdedi} = <strong>{k.miktar}</strong> {k.birim}
+            </p>
+            <div className="sm:col-span-3">
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                value={k.birimFiyat}
+                onChange={(e) => onFiyat(i, Number(e.target.value))}
+                aria-label={`${k.aciklama} birim fiyatı`}
+                className="input h-8 text-xs"
+              />
+            </div>
+            <p className="text-right text-xs sm:col-span-2">
+              {formatPara(satirlar[i]?.netTutar ?? 0)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <label className="label text-xs" htmlFor={`paket-${ilk.paketId}-kampanya`}>
+          Kampanya (paketin tamamına)
+        </label>
+        <KampanyaAlani
+          id={`paket-${ilk.paketId}-kampanya`}
+          deger={ilk.kampanyaId}
+          adaylar={adaylar}
+          kampanyaVarMi={kampanyaVarMi}
+          firmaSecili={firmaSecili}
+          urunSecili
+          onSec={onKampanya}
+          ipucu="Bu firma ve paket için geçerli kampanya yok."
+        />
+        {ozet && ozet.indirim > 0 && (
+          <p className="mt-1 text-xs text-emerald-500">
+            İndirim: {formatPara(ozet.indirim)} · {formatPara(ozet.brut)} →{" "}
+            {formatPara(ozet.net)}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Sıradan ürün satırı — pakete ait olmayan kalemler. */
+function UrunSatiri({
+  i,
+  k,
+  urunler,
+  adaylar,
+  kampanyaVarMi,
+  firmaSecili,
+  sonuc,
+  onUrun,
+  onAlan,
+  onSil,
+}: {
+  i: number;
+  k: SiparisKalemDegeri;
+  urunler: UrunSecenek[];
+  adaylar: KapsamliKampanya[];
+  kampanyaVarMi: boolean;
+  firmaSecili: boolean;
+  sonuc?: SatirSonucu;
+  onUrun: (urunId: string) => void;
+  onAlan: (alan: keyof SiparisKalemDegeri, deger: string | number) => void;
+  onSil: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 p-3">
+      <input type="hidden" name={`kalem-${i}-paketId`} value="" />
+      <div className="grid gap-3 sm:grid-cols-12">
+        <div className="sm:col-span-4">
+          <label className="label text-xs" htmlFor={`kalem-${i}-urunId`}>Ürün</label>
+          <select
+            id={`kalem-${i}-urunId`}
+            name={`kalem-${i}-urunId`}
+            value={k.urunId}
+            onChange={(e) => onUrun(e.target.value)}
+            className="input"
+          >
+            <option value="">Katalog dışı</option>
+            {urunler.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.kod} — {u.ad}
+                {u.stokTakibi ? ` (stok ${u.stokMiktar})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sm:col-span-8">
+          <label className="label text-xs" htmlFor={`kalem-${i}-aciklama`}>
+            Açıklama *
+          </label>
+          <input
+            id={`kalem-${i}-aciklama`}
+            name={`kalem-${i}-aciklama`}
+            required
+            value={k.aciklama}
+            onChange={(e) => onAlan("aciklama", e.target.value)}
+            className="input"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label text-xs" htmlFor={`kalem-${i}-miktar`}>Miktar</label>
+          <input
+            id={`kalem-${i}-miktar`}
+            name={`kalem-${i}-miktar`}
+            type="number"
+            step="0.01"
+            min={0}
+            value={k.miktar}
+            onChange={(e) => onAlan("miktar", Number(e.target.value))}
+            className="input"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label text-xs" htmlFor={`kalem-${i}-birim`}>Birim</label>
+          <select
+            id={`kalem-${i}-birim`}
+            name={`kalem-${i}-birim`}
+            value={k.birim}
+            onChange={(e) => onAlan("birim", e.target.value)}
+            className="input"
+          >
+            {URUN_BIRIMLERI.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label text-xs" htmlFor={`kalem-${i}-birimFiyat`}>
+            Birim Fiyat
+          </label>
+          <input
+            id={`kalem-${i}-birimFiyat`}
+            name={`kalem-${i}-birimFiyat`}
+            type="number"
+            step="0.01"
+            min={0}
+            value={k.birimFiyat}
+            onChange={(e) => onAlan("birimFiyat", Number(e.target.value))}
+            className="input"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label text-xs" htmlFor={`kalem-${i}-iskonto`}>
+            İskonto (%)
+          </label>
+          <input
+            id={`kalem-${i}-iskonto`}
+            name={`kalem-${i}-iskonto`}
+            type="number"
+            step="0.1"
+            min={0}
+            max={100}
+            value={k.iskontoOrani}
+            onChange={(e) => onAlan("iskontoOrani", Number(e.target.value))}
+            className="input"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label text-xs" htmlFor={`kalem-${i}-kdv`}>KDV (%)</label>
+          <input
+            id={`kalem-${i}-kdv`}
+            name={`kalem-${i}-kdv`}
+            type="number"
+            step="0.1"
+            min={0}
+            value={k.kdvOrani}
+            onChange={(e) => onAlan("kdvOrani", Number(e.target.value))}
+            className="input"
+          />
+        </div>
+
+        <div className="sm:col-span-2 flex items-end justify-between gap-2">
+          <div className="text-right text-sm">
+            <p className="text-xs text-muted-foreground">Net</p>
+            <p className="font-medium">{formatPara(sonuc?.netTutar ?? 0)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onSil}
+            aria-label="Kalemi sil"
+            className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-rose-400"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="sm:col-span-12">
+          <label className="label text-xs" htmlFor={`kalem-${i}-kampanyaId`}>
+            Kampanya
+          </label>
+          <KampanyaAlani
+            id={`kalem-${i}-kampanyaId`}
+            ad={`kalem-${i}-kampanyaId`}
+            deger={k.kampanyaId}
+            adaylar={adaylar}
+            kampanyaVarMi={kampanyaVarMi}
+            firmaSecili={firmaSecili}
+            urunSecili={Boolean(k.urunId)}
+            onSec={(v) => onAlan("kampanyaId", v)}
+          />
+          {sonuc?.kampanya && (
+            <p className="mt-1 text-xs text-emerald-500">
+              İndirim: {formatPara(sonuc.indirimTutari)}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

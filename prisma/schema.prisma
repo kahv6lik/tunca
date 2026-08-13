@@ -635,6 +635,8 @@ model TeklifKalemi {
   // sorusunun yanıtı budur.
   paketId String?
   paket   Paket?  @relation(fields: [paketId], references: [id], onDelete: SetNull)
+  // Kaç paket satıldığı (v1.27.0) — kampanya kotası paket sayar.
+  paketAdedi Float?
 
   sira       Int    @default(0)
   aciklama   String
@@ -1348,6 +1350,10 @@ model SiparisKalemi {
   urun    Urun?   @relation(fields: [urunId], references: [id], onDelete: SetNull)
   paketId String?
   paket   Paket?  @relation(fields: [paketId], references: [id], onDelete: SetNull)
+  // Kaç PAKET satıldığı (v1.27.0). `miktar` ürün adedidir (stok bunu düşer);
+  // kampanya kotası ise PAKET sayar — 1 paket 1 hak düşer, içindeki ürün
+  // sayısı kadar değil. İkisi ayrı sorulardır, ayrı alanlarda durur.
+  paketAdedi Float?
 
   sira         Int    @default(0)
   aciklama     String

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { stokIstemcisi, stokHareketiIsle, type StokIstemcisi } from "./stok";
+import { kotaKullanimlari } from "./fiyat-saf";
 import { kampanyaIstemcisi, kampanyaKullan, kotaIade } from "./kampanya";
 
 /**
@@ -104,6 +105,8 @@ type KalemBilgisi = {
   aciklama: string;
   miktar: number;
   kampanyaId: string | null;
+  paketId?: string | null;
+  paketAdedi?: number | null;
   indirimTutari: number;
 };
 
@@ -164,6 +167,7 @@ export async function siparisiOnayla(
         select: {
           id: true, urunId: true, aciklama: true, miktar: true,
           kampanyaId: true, indirimTutari: true,
+          paketId: true, paketAdedi: true,
         },
       },
     },
@@ -220,15 +224,22 @@ export async function siparisiOnayla(
     dusulenler.push({ urunId: k.urunId, miktar: k.miktar });
   }
 
-  // 3) Kampanya kotası — satırda kampanya varsa kullanım defterine işlenir.
-  for (const k of siparis.kalemler) {
-    if (!k.kampanyaId) continue;
+  /*
+    3) Kampanya kotası — satırda kampanya varsa kullanım defterine işlenir.
 
+    PAKET BİR HAK DÜŞER, İÇİNDEKİ ÜRÜN SAYISI KADAR DEĞİL (v1.27.0). İki
+    ürünlü bir paketten 1 adet satmak eskiden 2 hak düşürüyordu; kotanın
+    anlamı "kaç paket verilebilir"dir. Bu yüzden aynı paketin satırları TEK
+    kullanım olarak yazılır ve adet PAKET cinsindendir.
+  */
+  const kullanimlar = kotaKullanimlari(siparis.kalemler);
+
+  for (const u of kullanimlar) {
     const sonuc = await kampanyaKullan(kampanyaIstemcisi(db), tenantId, {
-      kampanyaId: k.kampanyaId,
+      kampanyaId: u.kampanyaId,
       firmaId: siparis.firmaId,
-      adet: k.miktar,
-      indirimTutari: k.indirimTutari,
+      adet: u.adet,
+      indirimTutari: u.indirimTutari,
       referans: siparis.no,
       kullananId: onaylayanId,
     });
@@ -290,7 +301,10 @@ export async function siparisiIptalEt(
     where: { id: siparisId },
     include: {
       kalemler: {
-        select: { urunId: true, miktar: true, kampanyaId: true },
+        select: {
+          urunId: true, miktar: true, kampanyaId: true,
+          paketId: true, paketAdedi: true,
+        },
       },
       sevkiyatlar: { select: { id: true, durum: true } },
     },
@@ -299,7 +313,13 @@ export async function siparisiIptalEt(
         no: string;
         durum: string;
         stokDusuldu: boolean;
-        kalemler: { urunId: string | null; miktar: number; kampanyaId: string | null }[];
+        kalemler: {
+          urunId: string | null;
+          miktar: number;
+          kampanyaId: string | null;
+          paketId: string | null;
+          paketAdedi: number | null;
+        }[];
         sevkiyatlar: { id: string; durum: string }[];
       }
     | null;
@@ -338,9 +358,13 @@ export async function siparisiIptalEt(
       });
     }
 
-    for (const k of siparis.kalemler) {
-      if (!k.kampanyaId) continue;
-      await kotaIade(kampanyaIstemcisi(db), tenantId, k.kampanyaId, k.miktar);
+    /*
+      İADE, DÜŞÜMLE AYNI KURALDAN geçer (v1.27.0): onayda paket başına 1 hak
+      düşüldüyse iptalde de paket başına 1 hak iade edilmelidir. İki taraf
+      ayrı hesaplasaydı kota her iptalde sessizce kayardı.
+    */
+    for (const u of kotaKullanimlari(siparis.kalemler)) {
+      await kotaIade(kampanyaIstemcisi(db), tenantId, u.kampanyaId, u.adet);
     }
   }
 

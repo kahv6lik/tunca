@@ -226,6 +226,7 @@ export default async function TeklifDetayPage(props: { params: Promise<{ id: str
               birimFiyat: k.birimFiyat,
               urunId: k.urunId ?? "",
               paketId: k.paketId ?? "",
+              paketAdedi: k.paketAdedi ?? 0,
               kampanyaId: k.kampanyaId ?? "",
             })),
           }}

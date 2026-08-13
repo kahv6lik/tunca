@@ -18,6 +18,7 @@ import { denetimYaz } from "@/lib/denetim";
 import { TEKLIF_DURUM } from "@/lib/constants";
 import {
   satirFiyatiHesapla,
+  paketGrubuHesapla,
   paketDamgasiGecerliMi,
 } from "@/lib/fiyat-saf";
 import { kampanyaIstemcisi, gecerliKampanyalar } from "@/lib/kampanya";
@@ -49,6 +50,8 @@ const kalemSchema = z.object({
   // Paket damgası (v1.25.0): satır bir paketten açıldıysa hangi paketten
   // geldiği. Sunucuda doğrulanır; uydurma damga sessizce düşer.
   paketId: z.string().trim().nullable().default(null),
+  // Kaç PAKET (v1.27.0) — paket bir bütündür, kampanya ona uygulanır.
+  paketAdedi: z.coerce.number().nullable().default(null),
   kampanyaId: z.string().trim().nullable().default(null),
 });
 
@@ -90,6 +93,7 @@ function kalemleriOku(formData: FormData) {
       birimFiyat: formData.get(`kalem-${i}-birimFiyat`) ?? 0,
       urunId: String(formData.get(`kalem-${i}-urunId`) ?? "").trim() || null,
       paketId: String(formData.get(`kalem-${i}-paketId`) ?? "").trim() || null,
+      paketAdedi: Number(formData.get(`kalem-${i}-paketAdedi`) ?? 0) || null,
       kampanyaId: String(formData.get(`kalem-${i}-kampanyaId`) ?? "").trim() || null,
     });
     if (parsed.success) kalemler.push(parsed.data);
@@ -136,23 +140,96 @@ async function tutarlariHesapla(
     ? await paketKatalogu(paketIstemcisi(db))
     : [];
 
-  for (const k of kalemler) {
+  /** Satırın paket damgası geçerli mi? Değilse sıradan bir satır sayılır. */
+  const damgaliMi = (k: (typeof kalemler)[number]) =>
+    Boolean(
+      k.paketId &&
+        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
+          firmaId,
+          urunId: k.urunId,
+        })
+    );
+
+  /*
+    ═══ PAKET BİR BÜTÜNDÜR (v1.27.0) ═══
+
+    Siparişteki kuralın AYNISI: aynı `paketId`yi taşıyan satırlar tek
+    gruptur, kampanya bir kez ve paketin TAMAMINA uygulanır, indirim
+    satırlara pay edilir. Sıra teklifte de aynı kalır (kampanya → belge
+    iskontosu → KDV), böylece kabul edilen teklif siparişe döndüğünde rakam
+    değişmez.
+  */
+  const sonuclar = new Map<
+    number,
+    { kampanyaId: string | null; indirim: number }
+  >();
+
+  const paketGruplari = new Map<string, number[]>();
+  kalemler.forEach((k, i) => {
+    if (damgaliMi(k) && k.paketId) {
+      paketGruplari.set(k.paketId, [...(paketGruplari.get(k.paketId) ?? []), i]);
+    }
+  });
+
+  for (const [paketId, indeksler] of paketGruplari) {
+    const ilk = kalemler[indeksler[0]];
+    const paketAdedi = Math.max(
+      1,
+      ...indeksler.map((i) => Math.max(kalemler[i].paketAdedi ?? 0, 0))
+    );
+
+    let kampanya = null;
+    if (ilk.kampanyaId) {
+      const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
+        firmaId,
+        urunId: ilk.urunId,
+        paketId,
+      });
+      kampanya = adaylar.find((a) => a.kampanyaId === ilk.kampanyaId) ?? null;
+    }
+
+    const sonuc = paketGrubuHesapla(
+      indeksler.map((i) => ({
+        urunId: kalemler[i].urunId ?? "",
+        birimMiktar:
+          paketAdedi > 0 ? kalemler[i].miktar / paketAdedi : kalemler[i].miktar,
+        birimFiyat: kalemler[i].birimFiyat,
+        kdvOrani,
+      })),
+      paketAdedi,
+      kampanya
+    );
+
+    indeksler.forEach((i, j) => {
+      sonuclar.set(i, {
+        kampanyaId: sonuc.kampanya?.kampanyaId ?? null,
+        indirim: sonuc.satirlar[j].indirimTutari,
+      });
+    });
+  }
+
+  for (const [i, k] of kalemler.entries()) {
     const brut = k.miktar * k.birimFiyat;
     araToplam += brut;
 
-    /*
-      Kampanya GEÇERLİLİĞİ sunucuda doğrulanır: tarihi geçmiş, kotası dolmuş
-      ya da başka bir firmaya/ürüne tanımlı bir kampanyanın id'si istemciden
-      gelirse indirim uygulanmaz. İstemcideki süzgeç bir kolaylıktır.
-    */
     let indirim = 0;
     let uygulanan: string | null = null;
-    if (k.kampanyaId) {
+
+    const grup = sonuclar.get(i);
+    if (grup) {
+      indirim = grup.indirim;
+      uygulanan = grup.kampanyaId;
+    } else if (k.kampanyaId) {
+      /*
+        Kampanya GEÇERLİLİĞİ sunucuda doğrulanır: tarihi geçmiş, kotası
+        dolmuş ya da başka bir firmaya/ürüne tanımlı bir kampanyanın id'si
+        istemciden gelirse indirim uygulanmaz. İstemcideki süzgeç bir
+        kolaylıktır.
+      */
       const adaylar = await gecerliKampanyalar(kampanyaIstemcisi(db), {
         firmaId,
         urunId: k.urunId,
-        // Paket kapsamlı kampanya için satırın paket damgası gerekir (v1.26.1).
-        paketId: k.paketId,
+        paketId: null,
       });
       const sonuc = satirFiyatiHesapla(
         { urunId: k.urunId ?? "", listeFiyat: k.birimFiyat, kdvOrani },
@@ -171,14 +248,7 @@ async function tutarlariHesapla(
       kampanyaId: uygulanan,
       // Doğrulanmayan damga SESSİZCE düşer: satır geçerli kalır, yalnızca
       // "bu paketten geldi" iddiası kaydedilmez.
-      paketId:
-        k.paketId &&
-        paketDamgasiGecerliMi(paketKatalog, k.paketId, {
-          firmaId,
-          urunId: k.urunId,
-        })
-          ? k.paketId
-          : null,
+      paketId: damgaliMi(k) ? k.paketId : null,
       indirimTutari: indirim,
       tutar: brut - indirim,
     });
@@ -242,6 +312,7 @@ async function kalemleriYaz(
       sira: i,
       urunId: k.urunId,
       paketId: satirlar[i]?.paketId ?? null,
+      paketAdedi: k.paketAdedi,
       aciklama: k.aciklama,
       miktar: k.miktar,
       birim: k.birim,
@@ -492,6 +563,7 @@ export async function teklifRevizeEt(id: string): Promise<void> {
       // dönerken de zincir kopardı (v1.23.0/v1.25.0 gerekçesi).
       urunId: k.urunId,
       paketId: k.paketId,
+      paketAdedi: k.paketAdedi,
       kampanyaId: k.kampanyaId,
       indirimTutari: k.indirimTutari,
       aciklama: k.aciklama,

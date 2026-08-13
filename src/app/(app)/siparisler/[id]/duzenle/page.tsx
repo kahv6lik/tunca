@@ -119,6 +119,8 @@ export default async function SiparisDuzenlePage(props: {
           kalemler: siparis.kalemler.map((k) => ({
             urunId: k.urunId ?? "",
             paketId: k.paketId ?? "",
+            paketAdedi: k.paketAdedi ?? 0,
+            birimMiktar: k.paketAdedi ? k.miktar / k.paketAdedi : 0,
             aciklama: k.aciklama,
             miktar: k.miktar,
             birim: k.birim,

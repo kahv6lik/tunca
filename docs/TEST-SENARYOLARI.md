@@ -288,6 +288,36 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.27.0 — Paket bir bütündür
+
+Ortağın senaryosu: paket = 4000 TL'lik telefon + 5000 TL'lik kılıf,
+kampanya tipi "Paket Fiyatı", değer 1000 TL.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Sipariş formunda paketi ekle | TEK KUTU çıkar: paket adı, "Paket adedi", içindeki ürünler |
+| 2 | Kutudaki ürünlere bak | İki ürün de listelenir; miktar `1 × 1 = 1 adet` yazar |
+| 3 | Kampanyayı seç (paketin tamamına) | İndirim ₺8.000, net **₺1.000** (eskiden 2.000 idi) |
+| 4 | Paket adedini 4 yap | Ürün miktarları 4'e çıkar, net **₺4.000** |
+| 5 | Pakette 2 adet olan bir ürün varsa | 4 pakette 8 adet gösterir |
+| 6 | Aynı paketi tekrar "Paketten kalem ekle" | Yeni kutu AÇILMAZ, adet 1 artar |
+| 7 | Bir ürünün birim fiyatını değiştir | Paket bedeli ve indirim yeniden hesaplanır |
+| 8 | Paket kutusundaki çöp kutusu | Paketin BÜTÜN satırları birden kalkar |
+| 9 | Siparişi kaydet → detayına bak | Her ürün ayrı satır, paket rozetiyle |
+| 10 | Siparişi onayla | Her ürün için AYRI stok düşer |
+| 11 | Kampanya ekranına bak | Kota **1** düşer (2 değil — paket sayar) |
+| 12 | Siparişi iptal et | Kota 1 iade edilir (düşümle simetrik) |
+| 13 | Paket adedi 4 iken onayla | Kota 4 düşer |
+| 14 | Yüzde tipli kampanya seç | İndirim paketin tamamına uygulanır |
+| 15 | "3 al 2 öde" kampanyası, 3 paket | Bir PAKET bedava |
+| 16 | Ayrı bir ürün kalemi ekle (paketsiz) | Eskisi gibi: kendi miktarı, iskontosu, kampanyası |
+| 17 | Teklifte aynı paketi ekle | Aynı davranış; rakam siparişle aynı |
+| 18 | Teklifi siparişe dönüştür | Paket adedi ve kampanya taşınır, rakam değişmez |
+| 19 | Paket kutusunda kampanya yokken | "Bu firma ve paket için geçerli kampanya yok" yazar |
+| 20 | Çok büyük tutarlı bir "tutar" kampanyası | Net 0'ın altına inmez |
+
+---
+
 ### v1.26.1 — Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü
 
 **Kampanya paket kapsamı (asıl hata)**

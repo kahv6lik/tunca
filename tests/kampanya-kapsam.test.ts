@@ -304,14 +304,32 @@ describe("Paket kapsamı artık DEĞERLENDİRİLİYOR (v1.26.1)", () => {
     const kmp = readFileSync("src/lib/kampanya.ts", "utf8");
     expect(kmp, "sunucu süzgeci paketId almıyor").toContain("paketId: secenekler.paketId");
 
+    /*
+      Metin kalıbı DEĞİL, SÖZ sınanır: her iki action da kampanya adaylarını
+      sorarken bir `paketId` vermeli. v1.27.0'da sipariş action'ında bu çağrı
+      `kampanyaDogrula` yardımcısına taşındı; kalıba bağlı bir test davranış
+      aynı kalmasına rağmen kırılmıştı.
+    */
     for (const yol of [
       "src/app/(app)/siparisler/actions.ts",
       "src/app/(app)/teklifler/actions.ts",
+    ]) {
+      const kaynak = readFileSync(yol, "utf8");
+      const cagri = kaynak.slice(
+        kaynak.indexOf("gecerliKampanyalar(kampanyaIstemcisi(db), {")
+      );
+      expect(cagri.slice(0, 400), `${yol} kampanya sorgusunda paketId yok`).toContain(
+        "paketId"
+      );
+    }
+
+    // Formlar satırın damgasını süzgece veriyor.
+    for (const yol of [
       "src/components/siparisler/SiparisForm.tsx",
       "src/components/teklifler/TeklifForm.tsx",
     ]) {
-      expect(readFileSync(yol, "utf8"), `${yol} paketId'yi taşımıyor`).toMatch(
-        /paketId: k\.paketId/
+      expect(readFileSync(yol, "utf8"), `${yol} paketId'yi süzmüyor`).toContain(
+        "paketId: k.paketId || null"
       );
     }
   });

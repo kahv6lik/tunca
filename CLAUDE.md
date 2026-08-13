@@ -432,6 +432,29 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
 - **`urun`, `kampanya`, `stok` birer paket modülüdür**; hizmet satan bir
   kuruluş katalogu kullanır ama stok tutmaz.
 
+### Paket Bir Bütündür (v1.27.0)
+
+- **SATIRLAR KALIR, FİYAT PAKET DÜZEYİNDEN GELİR.** v1.25.0 paketi satırlara
+  açtı (stok için doğruydu) ama fiyatı da satır satır hesapladı; "paket
+  fiyatı 1000 TL" kampanyası iki ürünlü bir pakette 2×1000 oldu. Artık aynı
+  `paketId`yi taşıyan satırlar TEK GRUPTUR: `paketGrubuHesapla` paketin
+  bedelini hesaplar, kampanyayı bir kez uygular ve indirimi satırlara BRÜT
+  PAYIYLA dağıtır (kuruş artığı son satırda kapanır).
+- **KAMPANYA PAKETİ BİRİM KABUL EDER:** `kampanyaIndirimi`'ne "birim fiyat"
+  olarak PAKETİN bedeli, "miktar" olarak PAKET ADEDİ verilir. Yeni indirim
+  matematiği yazılmadı; bütün tipler kendiliğinden doğru anlama gelir
+  (`paketfiyat` = bir paketin fiyatı, `alnodem` = "3 paket al 2 öde").
+- **`paketAdedi` AYRI BİR ALANDIR**, `miktar`dan türetilmez: `miktar` ürün
+  adedidir (stok onu düşer), kota ise PAKET sayar. Bölerek türetmek,
+  kullanıcı satır miktarını elle değiştirdiğinde yanlış cevap verirdi.
+- **KOTA PAKET SAYAR** (`kotaKullanimlari`, saf): iki ürünlü paketten 1 adet
+  satmak 1 hak düşer, 2 değil. Onay ve iptal AYNI fonksiyondan geçer —
+  ayrışsalardı kota her iptalde sessizce kayardı.
+- **AYNI PAKET İKİNCİ KEZ EKLENİRSE ADEDİ ARTAR**, satır çoğalmaz; ayrı grup
+  olsaydı kampanya iki kez uygulanırdı.
+- **ÜRÜN SATIRI DEĞİŞMEDİ:** pakete ait olmayan kalemler eskisi gibi kendi
+  miktarı, iskontosu ve kampanyasıyla çalışır.
+
 ### Paketin Satışa Bağlanması (v1.25.0)
 
 - **PAKET TEK SATIR DEĞİL, KALEMLERİNE AÇILIR.** Paket Faz 14'te
@@ -860,7 +883,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**899 kontrol**.
+**913 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -868,7 +891,7 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (582 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (596 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
 npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 296)
@@ -1132,6 +1155,13 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.27.0** — **Paket bir bütündür.** "Paket fiyatı 1000 TL" kampanyası
+  iki ürünlü bir pakette 2000 TL'ye çıkıyordu: v1.25.0 paketi satırlara açtı
+  ama fiyatı da satır satır hesaplıyordu. Artık paket formda TEK KUTUDUR —
+  paket adedi ("4 paket"), tek kampanya seçimi ve içindeki ürünlerin listesi;
+  fiyat paket düzeyinde hesaplanıp satırlara pay edilir. Kota da paket sayar
+  (1 paket = 1 hak). Satırlar yine ayrı ayrı kaydedilir, stok ve ürün raporu
+  bozulmaz. `paketAdedi` alanı eklendi; teklif tarafı da aynı kuralla çalışır.
 - **v1.26.1** — **Kampanya paket kapsamı, ziyaret konumu, paket görünürlüğü.**
   Kampanya kapsamındaki `paketIdler` toplanıyor ve saklanıyor ama kararı veren
   fonksiyonda HİÇ OKUNMUYORDU; paketten açılan satırlara kampanya

@@ -499,3 +499,206 @@ export function paketDamgasiGecerliMi(
   if (!baglam.urunId) return false;
   return paket.kalemler.some((k) => k.urunId === baglam.urunId);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PAKET BİR BÜTÜNDÜR (v1.27.0)
+
+   ORTAĞIN BULGUSU: "Kampanyada paket fiyatı 1000 TL atandı; paketteki
+   ürünlerden biri 4000, biri 5000 TL. Kampanya ÜRÜN BAZINDA uygulandığı
+   için ikisi de 1000'er TL'den hesaplanıyor ve paket 1000 yerine 2000 TL
+   oluyor. Paket seçince ayrı davranmalı."
+
+   v1.25.0 paketi satırlara açtı — bu STOK İÇİN doğruydu (satırın `urunId`si
+   olmadan onayda stok düşmez). Ama fiyat da satır satır hesaplanınca paket,
+   ürünlerin toplamına indi: "paket fiyatı" kampanyası her satıra ayrı ayrı
+   uygulandı.
+
+   ÇÖZÜM: satırlar KALIR (stok, kısmi sevkiyat, ürün raporu bozulmaz) ama
+   fiyat PAKET DÜZEYİNDE hesaplanır ve satırlara PAY EDİLİR:
+
+     1. Bir paketin brüt birim fiyatı = Σ (satır birim fiyatı × paketteki
+        adedi). Kullanıcı satır fiyatını değiştirirse bu da değişir.
+     2. Kampanya, bu "paket birim fiyatı" ve PAKET ADEDİ ile hesaplanır —
+        yani `kampanyaIndirimi` aynen kullanılır, yalnızca ürün yerine paketi
+        birim kabul eder. Böylece bütün kampanya tipleri kendiliğinden doğru
+        anlama gelir:
+          • paketfiyat → `deger` BİR PAKETİN fiyatıdır (ortağın beklediği)
+          • yuzde      → paketin tamamına yüzde
+          • tutar      → paketin tamamından sabit tutar
+          • alnodem    → "3 paket al 2 öde"
+     3. İndirim, satırlara brüt paylarıyla ORANTILI dağıtılır; toplamı grubun
+        indirimine eşittir (kuruş farkı son satırda kapatılır).
+
+   KOTA DA PAKET SAYAR: 1 paket 1 hak düşer, içindeki ürün sayısı kadar
+   değil. `kullanilanAdet` bu yüzden paket cinsindendir.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/** Paket grubundaki bir satır — miktar PAKET BAŞINA adettir. */
+export type PaketGrubuSatiri = {
+  urunId: string;
+  /** Bir pakette kaç adet bulunduğu (paket tanımından gelir). */
+  birimMiktar: number;
+  birimFiyat: number;
+  kdvOrani: number;
+};
+
+export type PaketGrubuSonucu = {
+  /** Bir paketin indirimsiz bedeli. */
+  paketBirimFiyati: number;
+  brut: number;
+  indirimTutari: number;
+  netTutar: number;
+  kdvTutari: number;
+  toplam: number;
+  kampanya: FiyatKampanyasi | null;
+  /** Kampanyadan kaç PAKET yararlandı — kota bu kadar düşer. */
+  kullanilanPaket: number;
+  satirlar: {
+    urunId: string;
+    /** Gerçek sipariş miktarı: paket adedi × paketteki adet. */
+    miktar: number;
+    birimFiyat: number;
+    /** Satıra düşen indirim payı. */
+    indirimTutari: number;
+    /** KDV hariç net. */
+    tutar: number;
+    kdvTutari: number;
+  }[];
+};
+
+export function paketGrubuHesapla(
+  satirlar: PaketGrubuSatiri[],
+  paketAdedi: number,
+  kampanya?: FiyatKampanyasi | null
+): PaketGrubuSonucu {
+  const adet = Math.max(paketAdedi, 0);
+
+  // 1) Bir paketin bedeli — satır fiyatları elle değiştirilmiş olabilir.
+  const paketBirim = satirlar.reduce(
+    (s, k) => s + k.birimFiyat * k.birimMiktar,
+    0
+  );
+  const brut = YUVARLA(paketBirim * adet);
+
+  // 2) Kampanya PAKET biriminden hesaplanır — `kampanyaIndirimi` aynen.
+  let indirim = 0;
+  let uygulanan: FiyatKampanyasi | null = null;
+  let kullanilanPaket = 0;
+  if (kampanya && adet > 0 && paketBirim > 0) {
+    const sonuc = kampanyaIndirimi(kampanya, paketBirim, adet);
+    if (sonuc.indirim > 0) {
+      indirim = Math.min(sonuc.indirim, brut);
+      uygulanan = kampanya;
+      kullanilanPaket = sonuc.kullanilanAdet;
+    }
+  }
+
+  /*
+    3) İndirimi satırlara brüt paylarıyla dağıt. Eşit bölmek yanlış olurdu:
+    4000 TL'lik ürünle 5000 TL'lik ürün aynı indirimi almamalı — iade ve
+    kısmi sevkiyatta rakam saçmalardı (paketBirimFiyati'ndaki gerekçe).
+
+    Kuruş artığı SON satırda kapatılır; aksi hâlde satır toplamları grubun
+    toplamını tutmaz ve belge kendi içinde çelişirdi.
+  */
+  const cikti: PaketGrubuSonucu["satirlar"] = [];
+  let dagitilan = 0;
+
+  satirlar.forEach((k, i) => {
+    const miktar = k.birimMiktar * adet;
+    const satirBrut = YUVARLA(k.birimFiyat * miktar);
+    const sonMu = i === satirlar.length - 1;
+
+    const pay = sonMu
+      ? YUVARLA(indirim - dagitilan)
+      : brut > 0
+        ? YUVARLA((indirim * satirBrut) / brut)
+        : 0;
+    dagitilan = YUVARLA(dagitilan + pay);
+
+    const net = Math.max(YUVARLA(satirBrut - pay), 0);
+    cikti.push({
+      urunId: k.urunId,
+      miktar,
+      birimFiyat: k.birimFiyat,
+      indirimTutari: pay,
+      tutar: net,
+      kdvTutari: YUVARLA(net * (k.kdvOrani / 100)),
+    });
+  });
+
+  const netTutar = YUVARLA(cikti.reduce((s, k) => s + k.tutar, 0));
+  const kdvTutari = YUVARLA(cikti.reduce((s, k) => s + k.kdvTutari, 0));
+
+  return {
+    paketBirimFiyati: YUVARLA(paketBirim),
+    brut,
+    indirimTutari: YUVARLA(indirim),
+    netTutar,
+    kdvTutari,
+    toplam: YUVARLA(netTutar + kdvTutari),
+    kampanya: uygulanan,
+    kullanilanPaket,
+    satirlar: cikti,
+  };
+}
+
+/**
+ * Kampanya kotasından kaç hak düşeceğini hesaplar — SAF (v1.27.0).
+ *
+ * PAKET BİR HAK DÜŞER, İÇİNDEKİ ÜRÜN SAYISI KADAR DEĞİL. İki ürünlü bir
+ * paketten 1 adet satmak eskiden 2 hak düşürüyordu; oysa kotanın anlamı
+ * "bu kampanyadan kaç paket verilebilir"dir.
+ *
+ * Kural:
+ *   • Aynı (kampanya + paket) çiftinin satırları TEK kullanımdır; adet
+ *     PAKET adedidir, indirim satır paylarının toplamıdır.
+ *   • Pakete ait olmayan satırlar eskisi gibi kendi miktarıyla düşer.
+ *
+ * Onayda ve iptalde AYNI fonksiyon kullanılır: düşülen ile iade edilen
+ * ayrışırsa kota sessizce kayar.
+ */
+export function kotaKullanimlari(
+  kalemler: {
+    kampanyaId: string | null;
+    paketId?: string | null;
+    paketAdedi?: number | null;
+    miktar: number;
+    indirimTutari?: number;
+  }[]
+): { kampanyaId: string; adet: number; indirimTutari: number }[] {
+  const gruplar = new Map<
+    string,
+    { kampanyaId: string; adet: number; indirimTutari: number }
+  >();
+  const cikti: { kampanyaId: string; adet: number; indirimTutari: number }[] = [];
+
+  for (const k of kalemler) {
+    if (!k.kampanyaId) continue;
+    const indirim = k.indirimTutari ?? 0;
+
+    if (!k.paketId) {
+      cikti.push({
+        kampanyaId: k.kampanyaId,
+        adet: k.miktar,
+        indirimTutari: indirim,
+      });
+      continue;
+    }
+
+    const anahtar = `${k.kampanyaId}::${k.paketId}`;
+    const varOlan = gruplar.get(anahtar);
+    if (varOlan) {
+      // Adet zaten paket cinsinden; grubun ilk satırından alınır.
+      varOlan.indirimTutari = YUVARLA(varOlan.indirimTutari + indirim);
+    } else {
+      gruplar.set(anahtar, {
+        kampanyaId: k.kampanyaId,
+        adet: Math.max(k.paketAdedi ?? 1, 1),
+        indirimTutari: indirim,
+      });
+    }
+  }
+
+  return [...cikti, ...gruplar.values()];
+}

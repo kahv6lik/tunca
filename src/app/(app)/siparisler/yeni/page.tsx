@@ -95,6 +95,10 @@ export default async function YeniSiparisPage(props: {
     // teklif siparişe dönerken "bu fiyat nereden geldi" bilgisi kaybolurdu
     // (v1.23.0'da kampanya için verilen kararın aynısı).
     paketId: k.paketId ?? "",
+    // Paket adedi ve paket içi birim miktar tekliften TAŞINIR (v1.27.0);
+    // taşınmasaydı paket siparişe dönerken ürün yığınına dağılırdı.
+    paketAdedi: k.paketAdedi ?? 0,
+    birimMiktar: k.paketAdedi ? k.miktar / k.paketAdedi : 0,
     aciklama: k.aciklama,
     miktar: k.miktar,
     birim: k.birim,

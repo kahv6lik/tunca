@@ -6,6 +6,9 @@ import {
   paketBirimFiyati,
   type KapsamliPaket,
   paketDamgasiGecerliMi,
+  paketGrubuHesapla,
+  kotaKullanimlari,
+  type FiyatKampanyasi,
 } from "../src/lib/fiyat-saf";
 
 /**
@@ -288,5 +291,154 @@ describe("Kampanya kapsamında çoklu seçim (v1.25.1)", () => {
     // Yüzlerce firma arasında aranan kaydı bulmak kaydırma işine dönerdi.
     expect(SECIM).toContain("ARAMA_ESIGI");
     expect(SECIM).toContain('toLocaleLowerCase("tr")');
+  });
+});
+
+describe("PAKET BİR BÜTÜNDÜR (v1.27.0)", () => {
+  /*
+    ORTAĞIN BULGUSU: "Kampanyada paket fiyatı 1000 TL atandı; paketteki
+    ürünlerden biri 4000, biri 5000 TL. Kampanya ÜRÜN BAZINDA uygulandığı
+    için ikisi de 1000'er TL'den hesaplanıyor ve paket 1000 yerine 2000 TL
+    oluyor."
+
+    v1.25.0 paketi satırlara açtı (stok için doğruydu) ama fiyatı da satır
+    satır hesapladı; paket, ürünlerin toplamına indi.
+  */
+  const TELEFON = [
+    { urunId: "t001", birimMiktar: 1, birimFiyat: 4000, kdvOrani: 20 },
+    { urunId: "k001", birimMiktar: 1, birimFiyat: 5000, kdvOrani: 20 },
+  ];
+
+  const PAKET_FIYAT: FiyatKampanyasi = {
+    kampanyaId: "k1",
+    kod: "TELEFON-KAMPANYA",
+    ad: "Telefon Kampanya",
+    tip: "paketfiyat",
+    deger: 1000, // BİR PAKETİN fiyatı
+    alN: 0,
+    odeM: 0,
+    kalanKota: 0,
+  };
+
+  it("paket fiyatı kampanyası PAKETİN TAMAMINA uygulanır", () => {
+    const s = paketGrubuHesapla(TELEFON, 1, PAKET_FIYAT);
+    // Ortağın ekranındaki hata: net 2000 çıkıyordu. Doğrusu 1000.
+    expect(s.paketBirimFiyati).toBe(9000);
+    expect(s.brut).toBe(9000);
+    expect(s.netTutar).toBe(1000);
+    expect(s.indirimTutari).toBe(8000);
+  });
+
+  it("indirim satırlara BRÜT PAYIYLA dağıtılır", () => {
+    const s = paketGrubuHesapla(TELEFON, 1, PAKET_FIYAT);
+    // 4000/9000 ve 5000/9000 payları; toplamları grubun indirimini tutar.
+    expect(s.satirlar[0].indirimTutari + s.satirlar[1].indirimTutari).toBe(8000);
+    expect(s.satirlar[0].indirimTutari).toBeCloseTo(3555.56, 2);
+    // Satır netleri de grubun netini tutar (kuruş artığı son satırda).
+    expect(s.satirlar[0].tutar + s.satirlar[1].tutar).toBe(s.netTutar);
+  });
+
+  it("4 paket sipariş edilince miktarlar ve fiyat paket cinsinden büyür", () => {
+    const s = paketGrubuHesapla(TELEFON, 4, PAKET_FIYAT);
+    expect(s.brut).toBe(36000);
+    expect(s.netTutar).toBe(4000); // 4 × 1000
+    for (const c of s.satirlar) expect(c.miktar).toBe(4);
+  });
+
+  it("pakette 2 adet olan ürün, 4 pakette 8 adet olur", () => {
+    const ikiserli = [{ urunId: "u1", birimMiktar: 2, birimFiyat: 100, kdvOrani: 20 }];
+    const s = paketGrubuHesapla(ikiserli, 4, null);
+    expect(s.satirlar[0].miktar).toBe(8);
+    expect(s.brut).toBe(800);
+  });
+
+  it("yüzde kampanyası da paketin tamamına uygulanır", () => {
+    const s = paketGrubuHesapla(TELEFON, 2, {
+      ...PAKET_FIYAT,
+      tip: "yuzde",
+      deger: 10,
+    });
+    expect(s.brut).toBe(18000);
+    expect(s.indirimTutari).toBe(1800);
+  });
+
+  it("'3 paket al 2 öde' PAKET sayar", () => {
+    const s = paketGrubuHesapla(TELEFON, 3, {
+      ...PAKET_FIYAT,
+      tip: "alnodem",
+      alN: 3,
+      odeM: 2,
+    });
+    // Bir paket bedava: 9000
+    expect(s.indirimTutari).toBe(9000);
+    expect(s.kullanilanPaket).toBe(3);
+  });
+
+  it("kampanya yoksa paket brütten satılır", () => {
+    const s = paketGrubuHesapla(TELEFON, 2, null);
+    expect(s.netTutar).toBe(18000);
+    expect(s.indirimTutari).toBe(0);
+    expect(s.kampanya).toBeNull();
+  });
+
+  it("indirim brütü AŞAMAZ (negatif fiyat üretilmez)", () => {
+    const s = paketGrubuHesapla(TELEFON, 1, {
+      ...PAKET_FIYAT,
+      tip: "tutar",
+      deger: 999999,
+    });
+    expect(s.indirimTutari).toBe(9000);
+    expect(s.netTutar).toBe(0);
+  });
+
+  it("kullanıcı satır fiyatını değiştirirse paket bedeli de değişir", () => {
+    const ucuz = [
+      { ...TELEFON[0], birimFiyat: 1000 },
+      { ...TELEFON[1], birimFiyat: 1000 },
+    ];
+    const s = paketGrubuHesapla(ucuz, 1, PAKET_FIYAT);
+    expect(s.paketBirimFiyati).toBe(2000);
+    expect(s.netTutar).toBe(1000);
+  });
+});
+
+describe("Kota PAKET sayar (v1.27.0)", () => {
+  /*
+    İki ürünlü bir paketten 1 adet satmak eskiden 2 hak düşürüyordu; oysa
+    kotanın anlamı "bu kampanyadan kaç PAKET verilebilir"dir.
+  */
+  it("aynı paketin satırları TEK kullanım yazar", () => {
+    const kullanim = kotaKullanimlari([
+      { kampanyaId: "k1", paketId: "p1", paketAdedi: 4, miktar: 4, indirimTutari: 100 },
+      { kampanyaId: "k1", paketId: "p1", paketAdedi: 4, miktar: 4, indirimTutari: 200 },
+    ]);
+    expect(kullanim).toHaveLength(1);
+    expect(kullanim[0].adet).toBe(4); // ürün adedi 8 DEĞİL
+    expect(kullanim[0].indirimTutari).toBe(300);
+  });
+
+  it("pakete ait olmayan satır kendi miktarıyla düşer", () => {
+    const kullanim = kotaKullanimlari([
+      { kampanyaId: "k1", miktar: 7, indirimTutari: 50 },
+    ]);
+    expect(kullanim[0].adet).toBe(7);
+  });
+
+  it("farklı paketler AYRI kullanım yazar", () => {
+    const kullanim = kotaKullanimlari([
+      { kampanyaId: "k1", paketId: "p1", paketAdedi: 1, miktar: 1 },
+      { kampanyaId: "k1", paketId: "p2", paketAdedi: 2, miktar: 2 },
+    ]);
+    expect(kullanim).toHaveLength(2);
+    expect(kullanim.map((u) => u.adet).sort()).toEqual([1, 2]);
+  });
+
+  it("kampanyasız satır kota düşürmez", () => {
+    expect(kotaKullanimlari([{ kampanyaId: null, miktar: 5 }])).toHaveLength(0);
+  });
+
+  it("onay ve iptal AYNI fonksiyonu kullanır — kota kaymaz", () => {
+    const kaynak = readFileSync("src/lib/siparis.ts", "utf8");
+    expect(kaynak.match(/kotaKullanimlari\(/g) ?? []).toHaveLength(2);
   });
 });
