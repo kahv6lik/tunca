@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.27.1` — onay bekleyen kampanya hakkı görünür |
+| **Son çıkan sürüm** | `v1.27.2` — paketten sipariş ₺0 kaydediliyordu (regresyon) |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,39 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.27.2 — Paketten sipariş ₺0 kaydediliyordu ✅
+
+Bulgu (ortak): paketten oluşturulan sipariş belgesinde birim fiyat, indirim
+ve genel toplam ₺0 göründü.
+
+- [x] **REGRESYON (v1.27.0, benim hatam):** paket grubundaki birim fiyat
+      girdisine `name` KONMAMIŞTI. `name`i olmayan bir girdi forma HİÇ
+      gönderilmez; sunucu birim fiyatı 0 okuyup paketi bedelsiz kaydetti.
+      Kampanya da uygulanmadı (paket bedeli 0 olduğu için indirim üretilmez).
+- [x] `name={`kalem-${i}-birimFiyat`}` eklendi.
+- [x] Sınıfın tamamını kapatan test: action'ın okuduğu HER alan adı formda
+      bir `name` olarak bulunmalı (paket grubu ayrıca sınanır).
+- [x] Gerçek tarayıcı kontrolü: paketten sipariş oluştur → KAYDET → toplam
+      ₺0 olmamalı.
+
+**Kararlar**
+
+1. **ÖNİZLEME DOĞRUYDU, KAYIT YANLIŞTI.** Form kendi durumundan hesapladığı
+   için ekranda her şey doğru görünüyordu; hata yalnızca GÖNDERİMDE ortaya
+   çıkıyordu. Bu yüzden mevcut testlerin hiçbiri yakalayamadı — hepsi ya saf
+   fonksiyonu ya da ekrandaki metni sınıyordu.
+2. **NEDEN GÖZDEN KAÇTI:** grubun diğer bütün alanları gizli girdilerle
+   gidiyor, birim fiyat tek GÖRÜNÜR alan. Gizli girdileri yazarken `name`
+   zorunlu olduğu için akılda kalıyor; görünür bir girdide `value` +
+   `onChange` yeterliymiş gibi duruyor.
+3. **TEST SINIFI KAPATIR, ÖRNEĞİ DEĞİL.** Tek bir alanı sınamak yerine
+   action'ın okuduğu alan adları koddan ÇIKARILIP hepsi formda aranıyor.
+   Yeni bir alan eklenip form tarafı unutulursa aynı test yakalar.
+4. **KAYDEDİP SONUCA BAKAN BİR TARAYICI KONTROLÜ EKLENDİ.** Bu sınıftaki
+   hatalar ancak gerçekten kaydedip belgeye bakınca görünür.
+
+---
 
 ### v1.27.1 — Onay bekleyen kampanya hakkı görünür ✅
 

@@ -288,6 +288,20 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.27.2 — Paketten sipariş ₺0 kaydediliyordu
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Sipariş formunda paketi ekle | Satırların birim fiyatı DOLU (₺0 değil) |
+| 2 | Kaydet, sipariş belgesine bak | Birim fiyat, ara toplam ve genel toplam DOLU |
+| 3 | Paket fiyatı 7.000 olan paket | Ara toplam ₺7.000 (satırlara dağılmış) |
+| 4 | Kampanya seçip kaydet | Belgede indirim ve kampanya kodu görünür |
+| 5 | Paket adedini 4 yapıp kaydet | Tutar 4 katına çıkar |
+| 6 | Bir satırın birim fiyatını değiştirip kaydet | Girilen rakam kaydedilir |
+| 7 | Teklifte aynısını yap | Teklif de dolu kaydedilir |
+
+---
+
 ### v1.27.1 — Onay bekleyen kampanya hakkı
 
 | # | Adım | Beklenen |

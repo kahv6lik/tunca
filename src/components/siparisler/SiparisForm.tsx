@@ -813,7 +813,14 @@ function PaketGrubu({
               {k.birimMiktar} × {k.paketAdedi} = <strong>{k.miktar}</strong> {k.birim}
             </p>
             <div className="sm:col-span-3">
+              {/*
+                `name` ŞART (v1.27.2): v1.27.0'da unutulmuştu ve alan forma
+                hiç gönderilmiyordu; sunucu birim fiyatı 0 okuyup paketi
+                bedelsiz kaydediyordu. Grubun diğer alanları gizli girdilerle
+                gidiyor, bu tek alan görünür — bu yüzden gözden kaçtı.
+              */}
               <input
+                name={`kalem-${i}-birimFiyat`}
                 type="number"
                 step="0.01"
                 min={0}

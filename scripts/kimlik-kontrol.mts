@@ -1932,6 +1932,60 @@ async function main() {
   );
 
   /*
+    PAKETTEN SİPARİŞ ₺0 KAYDEDİLMEMELİ (v1.27.2).
+
+    Ortağın bulgusu: paketten oluşturulan sipariş bedelsiz kaydedildi. Sebep,
+    paket grubundaki birim fiyat girdisine `name` konmamış olmasıydı — alan
+    forma HİÇ gönderilmiyor, sunucu 0 okuyordu. ÖNİZLEME DOĞRU GÖRÜNÜYORDU;
+    bu yüzden ancak gerçekten KAYDEDİP sonuca bakan bir kontrol yakalar.
+  */
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.fill("#email", "admin@gezegen.com");
+    await page.fill("#password", "admin123");
+    await page.click("button[type=submit]");
+    await girisiBekle(page);
+
+    await page.goto(`${BASE}/siparisler/yeni`, { waitUntil: "domcontentloaded" });
+    await durulmasiniBekle(page);
+
+    const firmaSecici = page.locator("#firmaId");
+    const firmaDeger = await firmaSecici
+      .locator("option")
+      .nth(1)
+      .getAttribute("value");
+    await firmaSecici.selectOption(firmaDeger!);
+    await durulmasiniBekle(page);
+
+    const paketSecici = page.getByRole("combobox", { name: "Paketten kalem ekle" });
+    const paketDeger = await paketSecici
+      .locator("option")
+      .nth(1)
+      .getAttribute("value");
+    await paketSecici.selectOption(paketDeger!);
+    await durulmasiniBekle(page);
+
+    kontrol(
+      "Paket eklenince birim fiyat alanı DOLU ve forma bağlı",
+      (await page.locator('input[name="kalem-0-birimFiyat"]').inputValue()) !== "0"
+    );
+
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(2500);
+    await durulmasiniBekle(page);
+
+    const kayit = await page.locator("body").innerText();
+    kontrol(
+      "Paketten oluşturulan sipariş ₺0 DEĞİL",
+      /SIP-\d{4}-\d+/.test(kayit) && !/Ara toplam\s*\n?\s*₺0\b/.test(kayit)
+    );
+
+    await ctx.close();
+  }
+
+  /*
     Kampanya kapsamında onay kutulu çoklu seçim (v1.25.1).
 
     Kapsam alanları bir MODAL içindedir; sayfayı düz çekmek yetmez, düğmeye

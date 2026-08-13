@@ -495,3 +495,74 @@ describe("Onay bekleyen kampanya hakkı GÖRÜNÜR (v1.27.1)", () => {
     expect(form).toContain("onaylandığında");
   });
 });
+
+describe("Form, sunucunun okuduğu HER alanı gönderir (v1.27.2)", () => {
+  /*
+    ORTAĞIN BULGUSU: paketten oluşturulan sipariş ₺0 kaydedildi.
+
+    SEBEP: v1.27.0'da paket grubunu yazarken birim fiyat girdisine `name`
+    KOYMAYI UNUTTUM. Grubun diğer alanları gizli girdilerle gidiyor, bu tek
+    alan görünür olduğu için gözden kaçtı; `name`i olmayan bir girdi forma
+    HİÇ gönderilmez ve sunucu 0 okur.
+
+    Bu test o sınıfın tamamını kapatır: action'ın okuduğu her alan adı formda
+    bir `name` olarak bulunmalıdır. Yeni bir alan eklenip form tarafı
+    unutulursa burada yakalanır.
+  */
+  const SIPARIS_ACTION = readFileSync(
+    "src/app/(app)/siparisler/actions.ts",
+    "utf8"
+  );
+  const SIPARIS_FORM = readFileSync(
+    "src/components/siparisler/SiparisForm.tsx",
+    "utf8"
+  );
+  const TEKLIF_FORM = readFileSync(
+    "src/components/teklifler/TeklifForm.tsx",
+    "utf8"
+  );
+
+  /** Action'ın `formData.get("kalem-${i}-X")` ile okuduğu alan adları. */
+  const okunanlar = [
+    ...new Set(
+      [...SIPARIS_ACTION.matchAll(/kalem-\$\{i\}-([A-Za-zÇĞİÖŞÜçğıöşü]+)/g)].map(
+        (m) => m[1]
+      )
+    ),
+  ];
+
+  it("sipariş action'ı en az bir alan okuyor (test kendini sınıyor)", () => {
+    expect(okunanlar.length).toBeGreaterThan(5);
+    expect(okunanlar).toContain("birimFiyat");
+  });
+
+  it("sipariş formu okunan HER alanı `name` ile gönderiyor", () => {
+    for (const alan of okunanlar) {
+      expect(
+        SIPARIS_FORM,
+        `SiparisForm '${alan}' alanını göndermiyor — sunucu 0/boş okur`
+      ).toContain(`kalem-\${i}-${alan}\`}`);
+    }
+  });
+
+  it("PAKET GRUBU da bütün alanları gönderiyor", () => {
+    // Grup kendi bileşeninde; satır alanları oraya ayrıca yazılmalı.
+    const bas = SIPARIS_FORM.indexOf("function PaketGrubu(");
+    const son = SIPARIS_FORM.indexOf("function UrunSatiri(", bas);
+    const govde = SIPARIS_FORM.slice(bas, son);
+    for (const alan of okunanlar) {
+      expect(
+        govde,
+        `PaketGrubu '${alan}' alanını göndermiyor`
+      ).toContain(`kalem-\${i}-${alan}\`}`);
+    }
+  });
+
+  it("teklif formu da kendi alanlarını gönderiyor", () => {
+    for (const alan of ["aciklama", "miktar", "birim", "birimFiyat", "urunId", "paketId", "paketAdedi", "kampanyaId"]) {
+      expect(TEKLIF_FORM, `TeklifForm '${alan}' göndermiyor`).toContain(
+        `kalem-\${i}-${alan}\`}`
+      );
+    }
+  });
+});

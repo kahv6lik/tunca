@@ -461,6 +461,10 @@ Beklenen ciro *tutar × olasılık* ile hesaplanır.
   olsaydı kampanya iki kez uygulanırdı.
 - **ÜRÜN SATIRI DEĞİŞMEDİ:** pakete ait olmayan kalemler eskisi gibi kendi
   miktarı, iskontosu ve kampanyasıyla çalışır.
+- **HER GİRDİDE `name` ŞART** (v1.27.2): paket grubundaki birim fiyat alanına
+  `name` konmadığı için alan forma hiç gönderilmedi ve sipariş ₺0 kaydedildi.
+  Önizleme doğru görünüyordu — hata yalnızca GÖNDERİMDE vardı. Regresyon
+  testi artık action'ın okuduğu her alan adını koddan çıkarıp formda arar.
 
 ### Paketin Satışa Bağlanması (v1.25.0)
 
@@ -890,7 +894,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**918 kontrol**.
+**924 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -898,10 +902,10 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (601 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (605 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
-npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 296)
+npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 298)
 ```
 
 **CI:** `.github/workflows/ci.yml` her push ve PR'da Postgres servisiyle tip
@@ -1162,6 +1166,11 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.27.2** — Paketten oluşturulan sipariş ₺0 kaydediliyordu: v1.27.0'da
+  paket grubundaki birim fiyat girdisine `name` konmamıştı ve alan forma hiç
+  gönderilmiyordu (önizleme doğru görünüyordu, hata yalnızca gönderimdeydi).
+  Alan bağlandı; sınıfı kapatan bir test (action'ın okuduğu her alan formda
+  `name` ile bulunmalı) ve kaydedip sonuca bakan bir tarayıcı kontrolü eklendi.
 - **v1.27.1** — Kampanyayla sipariş oluşturulduğunda kampanya ekranında
   hiçbir şeyin kımıldamaması giderildi. Tanı gerçek tarayıcıyla konuldu:
   oluşturma kampanyayı satıra yazıyor ama kota ONAYDA düşüyor (Faz 15
