@@ -288,6 +288,28 @@ sonunda **beklenen sonuç** vardır; farklı bir şey görürseniz hata var deme
 
 ---
 
+### v1.27.3 — Ziyaret ekranında paket stoğu ve kampanyalar
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Ziyaret başlat | "Bu firmaya açık paketler" listesi çıkar |
+| 2 | Paket satırını oku | Fiyatın yanında "· stoktan N paket" yazar |
+| 3 | Parantez içini oku | Sınırlayan kalem ve stoğu yazar (dar boğaz) |
+| 4 | Pakette 2 adet geçen üründen 5 adet stok bırak | "2 paket" yazar (5 değil) |
+| 5 | Dar boğaz ürünün stoğunu 0 yap | Kırmızı "stokta yok (X tükendi)" |
+| 6 | Yalnızca hizmet içeren paket | "stok takibi yok" yazar |
+| 7 | Aynı ekranda kampanya bölümüne bak | "Bu firmada geçerli kampanyalar" |
+| 8 | Kotalı kampanya | "N hak kaldı" yazar |
+| 9 | Kotasız kampanya | "sınırsız" yazar |
+| 10 | Belirli ürünlere tanımlı kampanya | "belirli ürün/paketlerde" notu çıkar |
+| 11 | Başka firmaya özel kampanya | Listede YOK |
+| 12 | Süresi geçmiş / kotası dolmuş kampanya | Listede YOK |
+| 13 | `urun.goruntule` izni olmayan kullanıcı | Paket bölümü YOK |
+| 14 | `kampanya.goruntule` izni olmayan kullanıcı | Kampanya bölümü YOK |
+| 15 | Ziyareti bitir | İki bölüm de kaybolur |
+
+---
+
 ### v1.27.2 — Paketten sipariş ₺0 kaydediliyordu
 
 | # | Adım | Beklenen |

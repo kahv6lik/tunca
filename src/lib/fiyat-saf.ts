@@ -702,3 +702,28 @@ export function kotaKullanimlari(
 
   return [...cikti, ...gruplar.values()];
 }
+
+/**
+ * Bir FİRMAYI kapsayan kampanyalar — SAF (v1.27.3).
+ *
+ * `satirinKampanyalari` bir SATIRIN kampanyalarını süzer: ürün ya da paket
+ * kapsamı doluysa satırın o kapsamda olmasını bekler. Ziyaret ekranında ise
+ * henüz satır yoktur; soru "bu müşteriye hangi kampanyaları sunabilirim?"
+ * biçimindedir.
+ *
+ * Bu yüzden burada YALNIZCA firma kapsamı, tarih ve kota bakılır; ürün/paket
+ * kapsamı süzgeç DEĞİL, gösterilecek bir bilgidir ("şu ürünlerde geçerli").
+ * İkisini karıştırmak, sahada temsilciye "bu firmaya kampanya yok" dedirtirdi.
+ */
+export function firmaninKampanyalari(
+  katalog: KapsamliKampanya[],
+  firmaId: string,
+  an: Date = new Date()
+): KapsamliKampanya[] {
+  return katalog.filter((k) => {
+    if (k.tukendi) return false;
+    if (an < new Date(k.baslangic) || an > new Date(k.bitis)) return false;
+    if (k.firmaIdler.length > 0 && !k.firmaIdler.includes(firmaId)) return false;
+    return true;
+  });
+}

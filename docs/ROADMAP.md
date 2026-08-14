@@ -15,7 +15,7 @@ paneli üzerinden müşterileri, kullanıcıları ve yetkileri yönetir.
 
 | | |
 |---|---|
-| **Son çıkan sürüm** | `v1.27.2` — paketten sipariş ₺0 kaydediliyordu (regresyon) |
+| **Son çıkan sürüm** | `v1.27.3` — ziyaret ekranında paket stoğu ve firma kampanyaları |
 | **Sıradaki faz** | yok — **yol haritasının 21 fazı tamamlandı** |
 | **Sonrası** | yeni istekler aşağıdaki "Faz Sonrası İstekler" bölümüne eklenir |
 | **Devam eden iş** | yok |
@@ -1490,6 +1490,41 @@ kapatılabilir olur.
 Yol haritasının 21 fazı kapandıktan sonra gelen istekler burada tutulur.
 Her biri kendi sürümüyle çıkar; küçük dokunuşlar minor, yapı değişiklikleri
 major olur.
+
+### v1.27.3 — Ziyaret ekranında paket stoğu ve firma kampanyaları ✅
+
+İstek (ortak): *"Ziyarete başladığımızda paket tanımı görünüyor ancak kalan
+paket stok durumu görünmüyor; onun da görünmesi gerek. Ayrıca o firmayı
+kapsayan kampanyalar ve ne kadar kaldığı kısmı da görünmeli."*
+
+- [x] `paketStokKapasitesi` — paketten stokla kaç adet çıkar (saf).
+- [x] `firmaninKampanyalari` — firmayı kapsayan kampanyalar (saf).
+- [x] Ziyaret ekranında paket satırına "stoktan N paket (sınır: X, n adet)".
+- [x] Ziyaret ekranında "Bu firmada geçerli kampanyalar" + kalan hak.
+- [x] 11 test.
+
+**Kararlar**
+
+1. **KAPASİTE EN DAR KALEME BAĞLIDIR.** Pakette 2 adet geçen bir üründen elde
+   5 varsa o üründen yalnızca 2 paket çıkar. Bol olan kalem kapasiteyi
+   büyütmez.
+2. **DAR BOĞAZ DA YAZILIR.** "3 paket" demek yetmez; hangi kalemin
+   sınırladığı yazılmazsa rakam savunulamaz ve temsilci depoya sormak
+   zorunda kalır.
+3. **STOK TAKİBİ OLMAYAN KALEM KISIT GETİRMEZ** (hizmet, lisans tükenmez).
+   Hiçbir kalem takipli değilse `null` döner ve ekran "stok takibi yok" der —
+   "sınırsız" demek yanlış olurdu.
+4. **ÜRÜN/PAKET KAPSAMI ZİYARET EKRANINDA SÜZGEÇ DEĞİLDİR.** Orada henüz
+   satır yoktur; soru "bu müşteriye hangi kampanyaları sunabilirim?"
+   biçimindedir. `satirinKampanyalari` ile aynı kuralı uygulamak, ürün
+   seçilmediği için temsilciye "kampanya yok" dedirtirdi. Kapsam bir SÜZGEÇ
+   değil, gösterilen bir bilgidir ("belirli ürün/paketlerde").
+5. **KALAN HAK YAZILIR:** temsilci müşteriye söz vermeden önce hakkın bitip
+   bitmediğini bilmelidir.
+6. **AÇIK ZİYARET YOKSA HİÇBİRİ SORGULANMAZ** ve ikisi de kendi iznine
+   bağlıdır (`urun.goruntule`, `kampanya.goruntule`).
+
+---
 
 ### v1.27.2 — Paketten sipariş ₺0 kaydediliyordu ✅
 

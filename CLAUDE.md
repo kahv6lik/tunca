@@ -823,7 +823,12 @@ düzenine TAŞINDI.
   React durumuna değil doğrudan gizli alana yazılır, yoksa gönderim bir çizim
   turu geriden gelen boş değerle giderdi.
 - **FİRMANIN PAKETLERİ SAHADA GÖRÜNÜR** (v1.26.1): firma çalışma ekranının
-  Satış sekmesinde ve açık ziyaret varken ziyaret ekranında. "Bu müşteriye
+  Satış sekmesinde ve açık ziyaret varken ziyaret ekranında. Ziyaret
+  ekranında ayrıca PAKETİN STOK KAPASİTESİ (`paketStokKapasitesi`: en dar
+  kaleme bağlıdır ve dar boğaz da yazılır) ve FİRMAYI KAPSAYAN KAMPANYALAR
+  kalan haklarıyla listelenir (v1.27.3). Kampanyada ürün/paket kapsamı
+  burada SÜZGEÇ DEĞİL bilgidir — henüz satır yokken süzmek temsilciye
+  "kampanya yok" dedirtirdi. "Bu müşteriye
   hangi paketi verdik?" sorusunun yanıtı v1.25.0'a kadar yalnızca sipariş
   formunda vardı.
 
@@ -894,7 +899,7 @@ npm run dogrula
 
 Tip kontrolü + derleme + migration + demo veri + otomatik test paketi (Vitest)
 + HTTP izolasyonu + gerçek tarayıcıyla kimlik ve yetki doğrulaması =
-**924 kontrol**.
+**934 kontrol**.
 Sonuç `docs/dogrulama/v<sürüm>.md` dosyasına yazılır ve depoda kalır.
 Doğrulama ayrı bir PostgreSQL şeması (`dogrulama`) ve ayrı bir port (3100)
 kullanır; geliştirme veritabanınıza dokunmaz.
@@ -902,7 +907,7 @@ kullanır; geliştirme veritabanınıza dokunmaz.
 Tek tek:
 
 ```bash
-npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (605 test, ~18 sn)
+npm test                 # Vitest: izolasyon + RLS + yetki + denetim + regresyon (615 test, ~18 sn)
 npm run test:izle        # geliştirirken sürekli koşan hâli
 npm run kontrol:e2e      # HTTP (sunucu çalışırken, 14)
 npm run kontrol:kimlik   # giriş + yetki + admin + satış + destek + saha + rapor + anket + çalışma ekranı + AI + menü + kampanya + tema, gerçek tarayıcı (sunucu çalışırken, 298)
@@ -1166,6 +1171,10 @@ etkiliyor.
   kampanya taşınıyor. Sunucu tarafında kampanya doğrulaması tarih, kota, firma
   ve ürün kapsamının TAMAMINI denetliyor. Rapor ekranlarına "Yazdır / PDF
   Kaydet" düğmesi ve baskıya özel künye (kuruluş adı, dönem, çıktı tarihi).
+- **v1.27.3** — Ziyaret ekranına paketin stok kapasitesi ("stoktan 3 paket —
+  sınır: X ürünü, 6 adet") ve firmayı kapsayan kampanyalar kalan haklarıyla
+  eklendi. Kapasite en dar kaleme bağlıdır; stok takibi olmayan kalem kısıt
+  getirmez. Kampanyada ürün/paket kapsamı bu ekranda süzgeç değil bilgidir.
 - **v1.27.2** — Paketten oluşturulan sipariş ₺0 kaydediliyordu: v1.27.0'da
   paket grubundaki birim fiyat girdisine `name` konmamıştı ve alan forma hiç
   gönderilmiyordu (önizleme doğru görünüyordu, hata yalnızca gönderimdeydi).

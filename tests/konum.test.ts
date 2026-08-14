@@ -1,4 +1,9 @@
 import { readFileSync } from "node:fs";
+import { paketStokKapasitesi } from "../src/lib/urun-tanimlar";
+import {
+  firmaninKampanyalari,
+  type KapsamliKampanya,
+} from "../src/lib/fiyat-saf";
 import { describe, it, expect } from "vitest";
 import {
   koordinatAyristir,
@@ -231,5 +236,110 @@ describe("Firmanın paketleri görünür (v1.26.1)", () => {
         "{ firmaId: null }"
       );
     }
+  });
+});
+
+describe("Ziyaret ekranında stok ve kampanya (v1.27.3)", () => {
+  /*
+    ORTAĞIN İSTEĞİ: "Ziyarete başladığımızda paket tanımı görünüyor ancak
+    kalan paket stok durumu görünmüyor; onun da görünmesi gerek. Ayrıca o
+    firmayı kapsayan kampanyalar ve ne kadar kaldığı da görünmeli."
+  */
+  const SAYFA = readFileSync("src/app/(app)/ziyaretler/page.tsx", "utf8");
+
+  it("paketin stoktan kaç adet çıkacağı gösteriliyor", () => {
+    expect(SAYFA).toContain("paketStokKapasitesi");
+    expect(SAYFA).toContain("paket");
+    expect(SAYFA).toContain("stokta yok");
+  });
+
+  it("firmayı kapsayan kampanyalar ve kalan hak gösteriliyor", () => {
+    expect(SAYFA).toContain("firmaninKampanyalari");
+    expect(SAYFA).toContain("Bu firmada geçerli kampanyalar");
+    expect(SAYFA).toContain("hak kaldı");
+  });
+
+  it("ikisi de İZNE bağlı ve açık ziyaret yoksa SORGULANMAZ", () => {
+    // Sekme/koşul bir sorgu kapısıdır (Faz 20): göstermeyeceğimizi çekmeyiz.
+    expect(SAYFA).toContain("acikZiyaret && urunGorur");
+    expect(SAYFA).toContain("acikZiyaret && kampanyaGorur");
+  });
+});
+
+describe("Paket stok kapasitesi — saf (v1.27.3)", () => {
+  it("kapasite EN DAR kaleme bağlıdır", () => {
+    /*
+      Pakette 2 adet geçen bir üründen elde 5 varsa o üründen 2 paket çıkar;
+      bol olan kalem kapasiteyi büyütmez.
+    */
+    const s = paketStokKapasitesi([
+      { miktar: 2, urun: { ad: "Dar", stokTakibi: true, stokMiktar: 5, birim: "adet" } },
+      { miktar: 1, urun: { ad: "Bol", stokTakibi: true, stokMiktar: 90, birim: "adet" } },
+    ]);
+    expect(s.yapilabilir).toBe(2);
+    expect(s.darBogaz?.ad).toBe("Dar");
+  });
+
+  it("stok takibi olmayan kalem KISIT getirmez", () => {
+    // Hizmet, lisans gibi kalemler tükenmez.
+    const s = paketStokKapasitesi([
+      { miktar: 1, urun: { ad: "Lisans", stokTakibi: false, stokMiktar: 0, birim: "adet" } },
+      { miktar: 1, urun: { ad: "Cihaz", stokTakibi: true, stokMiktar: 7, birim: "adet" } },
+    ]);
+    expect(s.yapilabilir).toBe(7);
+  });
+
+  it("hiçbir kalem takipli değilse null döner", () => {
+    // "Sınırsız" demek yanlış olurdu; doğrusu "stoktan sınırlanmıyor".
+    const s = paketStokKapasitesi([
+      { miktar: 1, urun: { ad: "Danışmanlık", stokTakibi: false, stokMiktar: 0, birim: "saat" } },
+    ]);
+    expect(s.yapilabilir).toBeNull();
+    expect(s.darBogaz).toBeNull();
+  });
+
+  it("stok yetmiyorsa 0 döner ve dar boğazı söyler", () => {
+    const s = paketStokKapasitesi([
+      { miktar: 3, urun: { ad: "Az", stokTakibi: true, stokMiktar: 2, birim: "kutu" } },
+    ]);
+    expect(s.yapilabilir).toBe(0);
+    expect(s.darBogaz?.ad).toBe("Az");
+  });
+});
+
+describe("Firmanın kampanyaları — saf (v1.27.3)", () => {
+  const K = (ek: Partial<KapsamliKampanya> = {}): KapsamliKampanya => ({
+    kampanyaId: "k1", kod: "K1", ad: "Kampanya", tip: "yuzde",
+    deger: 10, alN: 0, odeM: 0, kalanKota: 5,
+    baslangic: "2026-01-01", bitis: "2030-12-31",
+    tukendi: false, urunIdler: [], paketIdler: [], firmaIdler: [],
+    ...ek,
+  });
+  const AN = new Date("2026-08-13");
+
+  it("ÜRÜN/PAKET kapsamı burada SÜZGEÇ DEĞİLDİR", () => {
+    /*
+      Ziyaret ekranında henüz satır yoktur; soru "bu müşteriye hangi
+      kampanyaları sunabilirim?" biçimindedir. Satır süzgeciyle karıştırmak
+      temsilciye "kampanya yok" dedirtirdi.
+    */
+    const liste = firmaninKampanyalari([K({ urunIdler: ["u1"] })], "f1", AN);
+    expect(liste).toHaveLength(1);
+  });
+
+  it("BAŞKA firmaya tanımlı kampanya görünmez", () => {
+    expect(
+      firmaninKampanyalari([K({ firmaIdler: ["f-baska"] })], "f1", AN)
+    ).toHaveLength(0);
+    expect(
+      firmaninKampanyalari([K({ firmaIdler: ["f1"] })], "f1", AN)
+    ).toHaveLength(1);
+  });
+
+  it("tarihi geçmiş ve kotası dolmuş kampanya görünmez", () => {
+    expect(
+      firmaninKampanyalari([K({ bitis: "2026-01-31" })], "f1", AN)
+    ).toHaveLength(0);
+    expect(firmaninKampanyalari([K({ tukendi: true })], "f1", AN)).toHaveLength(0);
   });
 });

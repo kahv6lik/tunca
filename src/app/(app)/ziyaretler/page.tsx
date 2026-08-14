@@ -6,6 +6,10 @@ import { IZIN, yetkiGerektir, yetkiVarMi } from "@/lib/yetki";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatTarih, formatPara } from "@/lib/format";
+import { kampanyaIstemcisi, kampanyaKatalogu } from "@/lib/kampanya";
+import { firmaninKampanyalari } from "@/lib/fiyat-saf";
+import { paketStokKapasitesi } from "@/lib/urun-tanimlar";
+import { KAMPANYA_TIP } from "@/lib/constants";
 import { kiraciAyari } from "@/lib/kiraci-ayar";
 import {
   DOGRULAMA_ETIKET,
@@ -50,7 +54,10 @@ export default async function ZiyaretlerPage(props: {
     ],
   };
 
-  const urunGorur = await yetkiVarMi(IZIN.urunGoruntule);
+  const [urunGorur, kampanyaGorur] = await Promise.all([
+    yetkiVarMi(IZIN.urunGoruntule),
+    yetkiVarMi(IZIN.kampanyaGoruntule),
+  ]);
 
   const [acikZiyaret, ziyaretler, firmalar, kullanicilar] = await Promise.all([
     db.ziyaret.findFirst({
@@ -94,8 +101,42 @@ export default async function ZiyaretlerPage(props: {
           select: {
             id: true, kod: true, ad: true, firmaId: true,
             sabitFiyat: true, fiyat: true, iskontoOrani: true, paraBirimi: true,
+            /*
+              KALAN PAKET STOĞU (v1.27.3) — ortağın isteği. Sahada "bu
+              paketten kaç tane verebilirim?" sorusu, paketin fiyatı kadar
+              gereklidir; kapasite kalemlerin stoğundan hesaplanır.
+            */
+            kalemler: {
+              orderBy: { sira: "asc" },
+              select: {
+                miktar: true,
+                urun: {
+                  select: {
+                    ad: true, birim: true,
+                    stokTakibi: true, stokMiktar: true,
+                  },
+                },
+              },
+            },
           },
         })
+      : [];
+
+  /*
+    FİRMAYI KAPSAYAN KAMPANYALAR (v1.27.3) — ortağın isteği: "o firmayı
+    kapsayan kampanyalar ve ne kadar kaldığı da görünmeli."
+
+    `firmaninKampanyalari` YALNIZCA firma kapsamına, tarihe ve kotaya bakar;
+    ürün/paket kapsamı burada süzgeç DEĞİL, gösterilecek bir bilgidir.
+    Satır süzgeciyle (`satirinKampanyalari`) karıştırmak, henüz ürün
+    seçilmemiş bu ekranda temsilciye "kampanya yok" dedirtirdi.
+  */
+  const acikKampanyalar =
+    acikZiyaret && kampanyaGorur
+      ? firmaninKampanyalari(
+          await kampanyaKatalogu(kampanyaIstemcisi(db)),
+          acikZiyaret.firmaId
+        )
       : [];
   const adOf = new Map(kullanicilar.map((u) => [u.id, u.name]));
 
@@ -142,19 +183,88 @@ export default async function ZiyaretlerPage(props: {
                   <p className="mb-1.5 text-xs font-medium text-foreground">
                     Bu firmaya açık paketler
                   </p>
+                  <ul className="space-y-1.5 text-xs text-muted-foreground">
+                    {acikPaketler.map((p) => {
+                      const kapasite = paketStokKapasitesi(p.kalemler);
+                      return (
+                        <li key={p.id}>
+                          <span className="font-mono">{p.kod}</span> — {p.ad}
+                          <span className="ml-1">
+                            (
+                            {p.sabitFiyat
+                              ? formatPara(p.fiyat, p.paraBirimi)
+                              : p.iskontoOrani > 0
+                                ? `%${p.iskontoOrani} iskonto`
+                                : "liste fiyatı"}
+                            {p.firmaId ? " · firmaya özel" : ""})
+                          </span>
+                          {/*
+                            KALAN STOK (v1.27.3): "bu paketten kaç tane
+                            verebilirim?" sorusunun yanıtı. Kapasite EN DAR
+                            kaleme bağlıdır; hangi kalemin sınırladığı da
+                            yazılır, yoksa rakam savunulamaz.
+                          */}
+                          <span className="ml-1">
+                            {kapasite.yapilabilir === null ? (
+                              <span className="text-muted-foreground/70">
+                                · stok takibi yok
+                              </span>
+                            ) : kapasite.yapilabilir === 0 ? (
+                              <span className="text-rose-500">
+                                · stokta yok
+                                {kapasite.darBogaz
+                                  ? ` (${kapasite.darBogaz.ad} tükendi)`
+                                  : ""}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                · stoktan {kapasite.yapilabilir} paket
+                                {kapasite.darBogaz
+                                  ? ` (sınır: ${kapasite.darBogaz.ad}, ${kapasite.darBogaz.stok} ${kapasite.darBogaz.birim})`
+                                  : ""}
+                              </span>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {/*
+                FİRMAYI KAPSAYAN KAMPANYALAR (v1.27.3). Kalan hak da yazılır:
+                temsilci müşteriye söz vermeden önce hakkın bitip bitmediğini
+                bilmelidir.
+              */}
+              {acikKampanyalar.length > 0 && (
+                <div className="mb-3 rounded-xl border border-border/60 p-3">
+                  <p className="mb-1.5 text-xs font-medium text-foreground">
+                    Bu firmada geçerli kampanyalar
+                  </p>
                   <ul className="space-y-1 text-xs text-muted-foreground">
-                    {acikPaketler.map((p) => (
-                      <li key={p.id}>
-                        <span className="font-mono">{p.kod}</span> — {p.ad}
+                    {acikKampanyalar.map((k) => (
+                      <li key={k.kampanyaId}>
+                        <span className="font-mono">{k.kod}</span> — {k.ad}
                         <span className="ml-1">
                           (
-                          {p.sabitFiyat
-                            ? formatPara(p.fiyat, p.paraBirimi)
-                            : p.iskontoOrani > 0
-                              ? `%${p.iskontoOrani} iskonto`
-                              : "liste fiyatı"}
-                          {p.firmaId ? " · firmaya özel" : ""})
+                          {KAMPANYA_TIP.find((t) => t.deger === k.tip)?.etiket ??
+                            k.tip}
+                          )
                         </span>
+                        <span className="ml-1 text-amber-600 dark:text-amber-400">
+                          ·{" "}
+                          {k.kalanKota > 0
+                            ? `${k.kalanKota} hak kaldı`
+                            : "sınırsız"}
+                        </span>
+                        {/* Kapsam bir SÜZGEÇ değil, bilgidir: hangi kalemlerde
+                            geçerli olduğunu temsilci bilmelidir. */}
+                        {(k.urunIdler.length > 0 || k.paketIdler.length > 0) && (
+                          <span className="ml-1 text-muted-foreground/70">
+                            · belirli ürün/paketlerde
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
